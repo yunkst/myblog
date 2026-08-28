@@ -1,0 +1,27 @@
+---
+title: 示例文章：三种动画是怎么嵌入正文的
+slug: demo-animations
+domain: 示例领域
+date: 2026-08-28
+anim_profile: architecture
+status: published
+excerpt: 这篇占位文章演示 Typewriter、Counter、ArchDiagram 三种动画组件在正文里的用法。
+---
+
+import { ArchDiagram, DEMO_ARCH } from '../../src/components/blog-anim/ArchDiagram'
+
+# 示例文章
+
+这是一篇占位文章，用来验证动画组件与正文的集成。
+
+## 计数动画
+
+<Counter from={0} to={4200} suffix=" QPS" label="峰值压测吞吐" />
+
+## 架构动画
+
+<ArchDiagram {...DEMO_ARCH} />
+
+## 打字机
+
+<Typewriter text="问题不是流量大，是读多写少还要求强一致——我们把缓存当成了第一方案，又亲手把它撤了。" />
