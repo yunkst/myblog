@@ -1,0 +1,9 @@
+- id: contact
+  text: 怎么联系到你？
+  target: '#contact'
+- id: latest-posts
+  text: 你最近在写什么？
+  target: '#blog'
+- id: demo-animations
+  text: 动画是怎么嵌进正文的？
+  target: '/blog/demo-animations#animations'
