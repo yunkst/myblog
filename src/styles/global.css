@@ -51,3 +51,27 @@ body::before {
   .ba-caret { display: none; }
   .ba-arch .ag-node, .ba-arch .ag-bound, .ba-arch .ag-bound-label, .ba-arch .ag-lab-bg, .ba-arch .ag-lab-tx { opacity: 1 !important; }
 }
+
+.faq-rail { position: sticky; top: 28px; display: flex; flex-direction: column; gap: 2px; }
+.faq-title { font: 15px var(--fang); letter-spacing: 0.3em; color: var(--ink-soft); margin: 0 0 6px; }
+.faq-sub { font: 12px var(--mono); color: var(--ink-faint); margin: 0 0 16px; letter-spacing: 0.04em; }
+.faq-item {
+  display: flex; align-items: baseline; gap: 10px;
+  width: 100%; text-align: left; background: transparent; border: 0;
+  border-bottom: 1px dashed var(--line); padding: 9px 2px;
+  cursor: pointer; font-family: inherit;
+}
+.faq-no { font: 12px var(--mono); color: var(--ink-faint); }
+.faq-text { font: 15px var(--fang); letter-spacing: 0.06em; color: var(--ink); }
+.faq-dash { width: 18px; height: 1px; background: var(--ink-faint); transition: width 0.2s, background 0.2s; }
+.faq-item:hover .faq-dash { width: 44px; background: var(--accent); }
+.faq-item:hover .faq-text { color: var(--accent); }
+.faq-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.flash-target { animation: flash-target 1s both; }
+@keyframes flash-target {
+  0% { box-shadow: 0 0 0 3px var(--accent-soft); background: var(--accent-soft); }
+  100% { box-shadow: 0 0 0 3px transparent; background: transparent; }
+}
+@media (max-width: 920px) {
+  .faq-rail { position: static; order: -1; }  /* 移动端：顶部堆叠（spec §9：底部抽屉为迭代项） */
+}
