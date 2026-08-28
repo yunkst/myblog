@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>架构图风格 · 三方案对比（参考 archify）</title>
+<style>
+  :root {
+    --paper:#F6F7F4; --ink:#1C2B28; --soft:#55665F; --faint:#93A39C;
+    --line:rgba(28,43,40,.16); --accent:#0E6E5C;
+    --sans:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+    --fang:"FangSong","STFangsong",serif;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.8 var(--sans); }
+  header { max-width:1200px; margin:0 auto; padding:34px 28px 8px; }
+  h1 { font-size:24px; font-weight:900; margin:0 0 6px; }
+  header p { margin:0; color:var(--soft); font-size:14px; }
+  .grid { max-width:1200px; margin:26px auto 60px; padding:0 28px; display:grid; gap:34px; }
+
+  .scheme { border:1px solid var(--line); border-radius:4px; background:#fff; overflow:hidden; }
+  .scheme > .head {
+    display:flex; align-items:baseline; gap:14px; padding:16px 22px;
+    border-bottom:1px solid var(--line); flex-wrap:wrap;
+  }
+  .scheme .pick { font:13px var(--mono); color:#fff; background:var(--accent); border-radius:2px; padding:2px 10px; white-space:nowrap; }
+  .scheme h2 { margin:0; font-size:17px; font-weight:800; }
+  .scheme .desc { color:var(--soft); font-size:13px; flex:1; min-width:240px; }
+  .scheme .desc b { color:var(--ink); }
+
+  .dia { padding:26px 22px 22px; }
+  .dia svg { width:100%; height:auto; display:block; }
+
+  .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:0 22px 22px; }
+  .card { border:1px solid var(--line); border-radius:3px; padding:12px 14px; }
+  .card h4 { margin:0 0 6px; font-size:13px; font-weight:800; display:flex; align-items:center; gap:8px; }
+  .card h4 i { width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .card ul { margin:0; padding-left:16px; font-size:12px; color:var(--soft); line-height:1.7; }
+
+  .verdict { max-width:1200px; margin:0 auto 70px; padding:0 28px; }
+  .verdict .box { border:1.5px solid var(--accent); border-radius:4px; padding:18px 22px; background:#fff; }
+  .verdict h3 { margin:0 0 8px; font-size:16px; }
+  .verdict p { margin:0 0 6px; font-size:14px; color:var(--soft); }
+  .verdict b { color:var(--ink); }
+  @media (max-width:760px) { .cards { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>架构图风格 · 三方案</h1>
+  <p>同一张图（读多写少 + 缓存 + 异步写），三种视觉处理。画法吸收 archify：语义类型节点、sigil 图标、遮罩式连线标签、边界区域、要点卡。</p>
+</header>
+
+<div class="grid">
+
+  <!-- ══════════ 方案 A ══════════ -->
+  <section class="scheme">
+    <div class="head">
+      <span class="pick">方案 A</span>
+      <h2>工程图纸 · 纸白（主页同款）</h2>
+      <span class="desc">类型不靠色相区分，靠 <b>sigil 图标 + 边框记号</b>；全图只有墨线 + 图纸青。与首页视觉完全连续，整体最克制。</span>
+    </div>
+    <div class="dia" id="dia-a" style="background:#F6F7F4"></div>
+    <div class="cards">
+      <div class="card"><h4><i style="background:#0E6E5C"></i>读路径</h4><ul><li>网关按 key 哈希分片到 3 个读副本</li><li>redis 前置，ttl 30s，命中率 96%</li></ul></div>
+      <div class="card"><h4><i style="background:#C0392B"></i>写路径</h4><ul><li>写入先进队列，削峰</li><li>写服务批量落库，失败重试 3 次</li></ul></div>
+      <div class="card"><h4><i style="background:#55665F"></i>一致性</h4><ul><li>缓存双删 + 版本号防旧值回填</li><li>压测峰值 4200 QPS 下 P99 &lt; 80ms</li></ul></div>
+    </div>
+  </section>
+
+  <!-- ══════════ 方案 B ══════════ -->
+  <section class="scheme">
+    <div class="head">
+      <span class="pick">方案 B</span>
+      <h2>蓝图 · 深青底</h2>
+      <span class="desc">archify blueprint 同源：深青图纸 + 亮青描边 + 高亮强调色。动画对比度最好，但页面其余部分需要跟着换深色或做局部深色区。</span>
+    </div>
+    <div class="dia" id="dia-b" style="background:#06131F"></div>
+    <div class="cards" style="background:#06131F; border-radius:0 0 4px 4px; border-top:1px solid #17425A;">
+      <div class="card" style="background:rgba(7,27,43,.9); border-color:#27627F;"><h4 style="color:#E3F6FF"><i style="background:#64DFC1"></i><span style="color:#E3F6FF">读路径</span></h4><ul style="color:#91B8CA"><li>网关按 key 哈希分片到 3 个读副本</li><li>redis 前置，ttl 30s，命中率 96%</li></ul></div>
+      <div class="card" style="background:rgba(7,27,43,.9); border-color:#27627F;"><h4><i style="background:#FF8DA1"></i><span style="color:#E3F6FF">写路径</span></h4><ul style="color:#91B8CA"><li>写入先进队列，削峰</li><li>写服务批量落库，失败重试 3 次</li></ul></div>
+      <div class="card" style="background:rgba(7,27,43,.9); border-color:#27627F;"><h4><i style="background:#78A3B7"></i><span style="color:#E3F6FF">一致性</span></h4><ul style="color:#91B8CA"><li>缓存双删 + 版本号防旧值回填</li><li>压测峰值 4200 QPS 下 P99 &lt; 80ms</li></ul></div>
+    </div>
+  </section>
+
+  <!-- ══════════ 方案 C ══════════ -->
+  <section class="scheme">
+    <div class="head">
+      <span class="pick">方案 C</span>
+      <h2>语义浅色 · 类型配色</h2>
+      <span class="desc">archify classic 浅色同源：每类节点一种描边色（前端青/后端绿/数据紫/队列橙）。信息密度最高、一眼分层，但颜色最多，和纸白主页的克制气质有张力。</span>
+    </div>
+    <div class="dia" id="dia-c" style="background:#FFFFFF"></div>
+    <div class="cards">
+      <div class="card"><h4><i style="background:#059669"></i>读路径</h4><ul><li>网关按 key 哈希分片到 3 个读副本</li><li>redis 前置，ttl 30s，命中率 96%</li></ul></div>
+      <div class="card"><h4><i style="background:#EA580C"></i>写路径</h4><ul><li>写入先进队列，削峰</li><li>写服务批量落库，失败重试 3 次</li></ul></div>
+      <div class="card"><h4><i style="background:#7C3AED"></i>一致性</h4><ul><li>缓存双删 + 版本号防旧值回填</li><li>压测峰值 4200 QPS 下 P99 &lt; 80ms</li></ul></div>
+    </div>
+  </section>
+</div>
+
+<div class="verdict">
+  <div class="box">
+    <h3>我的建议：A 为主，借 B 的强调逻辑</h3>
+    <p><b>理由一</b>：求职博客的核心是"讲清楚"，A 的单色墨线最像"你亲手画的图"，可信度高于彩色模板感。</p>
+    <p><b>理由二</b>：动画只在 A 里做"图纸青描边 + 节点装配"就足够醒目（下面点 FAQ 可预览），不需要整图换深色。</p>
+    <p><b>理由三</b>：若某篇文章确实想用深色蓝图（B），可以做成文章内的独立样式——组件层面支持，不影响全站统一。</p>
+  </div>
+</div>
+
+<script>
+/* ============ 图数据（三方案共用同一几何） ============ */
+/* 布局：client/gw 同排；read、write 分列；redis 在 read 左侧；queue、db 同排；回源线走底部走廊 */
+var W = 990, H = 420;
+
+var NODES = [
+  { id:'client', x:40,  y:100, w:130, h:60, kind:'external', label:'客户端',     sub:'Browser',            sigil:'M2 4h8M2 8h8M2 12h8' },
+  { id:'gw',     x:330, y:100, w:130, h:60, kind:'key',      label:'API 网关',   sub:'auth · rate-limit',  sigil:'M6 3 3 8l3 5M10 3l3 5-3 5' },
+  { id:'redis',  x:40,  y:260, w:120, h:60, kind:'db',       label:'Redis',      sub:'cache :6379',        sigil:'M3 5c0-1.6 2.2-3 5-3s5 1.4 5 3-2.2 3-5 3-5-1.4-5-3zM3 5v4c0 1.6 2.2 3 5 3s5-1.4 5-3V5' },
+  { id:'read',   x:220, y:260, w:130, h:60, kind:'key',      label:'读服务 ×3',  sub:'hash 分片 · ttl 30s',sigil:'M4 12a6 6 0 0 1 8-5M12 12a4 3 0 0 0-8 0zM5 12v3M9 12v3' },
+  { id:'write',  x:470, y:260, w:130, h:60, kind:'be',       label:'写服务',     sub:'batch · retry 3',    sigil:'M8 2v9M8 11l-3-3M8 11l3-3M3 15h10' },
+  { id:'queue',  x:650, y:260, w:120, h:60, kind:'mq',       label:'队列',       sub:'fifo',               sigil:'M2 4h12M2 8h12M2 12h12M2 4v8' },
+  { id:'db',     x:820, y:260, w:130, h:60, kind:'db',       label:'PostgreSQL', sub:'primary :5432',      sigil:'M3 5c0-1.6 2.2-3 5-3s5 1.4 5 3-2.2 3-5 3-5-1.4-5-3zM3 5v6c0 1.6 2.2 3 5 3s5-1.4 5-3V5' }
+];
+
+var EDGES = [
+  { id:'e1', from:'client', to:'gw',    fromSide:'right', toSide:'left',  label:'HTTPS',        emph:true },
+  { id:'e2', from:'gw',     to:'read',  fromSide:'bottom',toSide:'top',   label:'route',        via:[{x:395,y:210},{x:285,y:210}] },
+  { id:'e3', from:'read',   to:'redis', fromSide:'left',  toSide:'right', label:'read-through', emph:true },
+  { id:'e4', from:'gw',     to:'write', fromSide:'right', toSide:'top',   label:'enqueue',      dash:true },
+  { id:'e5', from:'write',  to:'queue', fromSide:'right', toSide:'left',  label:'',             dash:true },
+  { id:'e6', from:'queue',  to:'db',    fromSide:'right', toSide:'left',   label:'flush' },
+  { id:'e7', from:'read',   to:'db',    fromSide:'bottom',toSide:'bottom', label:'miss 回源',    via:[{x:285,y:380},{x:885,y:380}], dash:true }
+];
+
+var BOUNDS = [
+  { x:200, y:80,  w:440, h:260, label:'应用层 · app' },
+  { x:20,  y:240, w:160, h:100, label:'缓存' },
+  { x:630, y:240, w:340, h:100, label:'存储 / 队列' }
+];
+
+/* 端点：从节点指定边的中点出发 */
+function anchor(n, side) {
+  if (side==='left')   return { x:n.x,       y:n.y+n.h/2 };
+  if (side==='right')  return { x:n.x+n.w,   y:n.y+n.h/2 };
+  if (side==='top')    return { x:n.x+n.w/2, y:n.y };
+  return { x:n.x+n.w/2, y:n.y+n.h };
+}
+function nodeById(id) { for (var i=0;i<NODES.length;i++) if (NODES[i].id===id) return NODES[i]; }
+
+function edgePath(e) {
+  var a = anchor(nodeById(e.from), e.fromSide);
+  var b = anchor(nodeById(e.to),   e.toSide);
+  if (!e.via) {
+    /* 直角折线：水平先行 */
+    if (e.fromSide==='right' || e.fromSide==='left')
+      return 'M'+a.x+','+a.y+' H'+b.x+' V'+b.y;
+    return 'M'+a.x+','+a.y+' V'+b.y+' H'+b.x;
+  }
+  var d = 'M'+a.x+','+a.y;
+  e.via.forEach(function(p){ d += ' L'+p.x+','+p.y; });
+  d += ' L'+b.x+','+b.y;
+  return d;
+}
+
+/* ============ 主题 ============ */
+var THEMES = {
+  a: {
+    node:{ fill:'#FFFFFF', stroke:'#1C2B28', sw:1.2 },
+    key: { stroke:'#0E6E5C', sw:1.8, fill:'#FFFFFF' },
+    sym: '#0E6E5C', label:'#1C2B28', sub:'#93A39C',
+    edge:'#55665F', edgeEmph:'#0E6E5C', edgeDash:'5 4',
+    labelBg:'#F6F7F4', labelText:'#55665F',
+    bound:{ fill:'rgba(14,110,92,.045)', stroke:'rgba(28,43,40,.3)', label:'#93A39C', dash:'6 4' },
+    kindClass:false
+  },
+  b: {
+    node:{ fill:'rgba(26,157,193,.12)', stroke:'#66D9EF', sw:1.5 },
+    key: { stroke:'#64DFC1', sw:2, fill:'rgba(31,155,124,.14)' },
+    sym: '#66D9EF', label:'#E3F6FF', sub:'#739CAF',
+    edge:'#78A3B7', edgeEmph:'#64DFC1', edgeDash:'5 4',
+    labelBg:'#06131F', labelText:'#91B8CA',
+    bound:{ fill:'rgba(10,43,66,.4)', stroke:'#34799A', label:'#34799A', dash:'' },
+    kindClass:false
+  },
+  c: {
+    kindStroke:{ fe:'#0891B2', be:'#059669', db:'#7C3AED', mq:'#EA580C', external:'#64748B', key:'#059669' },
+    node:{ fill:'rgba(100,116,139,.06)', stroke:'#64748B', sw:1.5 },
+    sym: '#64748B', label:'#0F172A', sub:'#64748B',
+    edge:'#94A3B8', edgeEmph:'#059669', edgeDash:'5 4',
+    labelBg:'#FFFFFF', labelText:'#64748B',
+    bound:{ fill:'rgba(148,163,184,.08)', stroke:'#CBD5E1', label:'#64748B', dash:'' },
+    kindClass:true
+  }
+};
+
+/* 方案 C：kind -> 描边色（key 节点用后端绿） */
+function kindOf(n) {
+  if (n.kind==='key') return 'key';
+  if (n.kind==='be')  return 'be';
+  if (n.kind==='db')  return 'db';
+  if (n.kind==='mq')  return 'mq';
+  return 'external';
+}
+
+/* ============ 渲染 ============ */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+function render(envId, themeKey, interactive) {
+  var t = THEMES[themeKey];
+  var root = document.getElementById(envId);
+  var s = [];
+  s.push('<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="读多写少架构示意">');
+
+  /* marker per scheme */
+  s.push('<defs>');
+  ['ar','arE'].forEach(function(k){
+    var fill = k==='ar' ? t.edge : t.edgeEmph;
+    s.push('<marker id="'+envId+'-'+k+'" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0 L9,3.5 L0,7 z" fill="'+fill+'"/></marker>');
+  });
+  s.push('</defs>');
+
+  /* boundaries first (底层) */
+  BOUNDS.forEach(function(bd){
+    s.push('<rect x="'+bd.x+'" y="'+bd.y+'" width="'+bd.w+'" height="'+bd.h+'" rx="3" fill="'+t.bound.fill+'" stroke="'+t.bound.stroke+'" stroke-width="1"'+(t.bound.dash?' stroke-dasharray="'+t.bound.dash+'"':'')+'/>');
+    s.push('<text x="'+(bd.x+12)+'" y="'+(bd.y+20)+'" font-size="10" letter-spacing="3" fill="'+t.bound.label+'" font-family="var(--fang),var(--sans)">'+esc(bd.label)+'</text>');
+  });
+
+  /* edges */
+  EDGES.forEach(function(e){
+    var d = edgePath(e);
+    var color = e.emph ? t.edgeEmph : t.edge;
+    s.push('<path class="ag-edge" data-edge="'+e.id+'" d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+(e.emph?1.8:1.4)+'"'+(e.dash?' stroke-dasharray="'+t.edgeDash+'"':'')+' marker-end="url(#'+envId+'-'+(e.emph?'arE':'ar')+')"/>');
+  });
+  /* edge labels（遮罩药丸：背景块盖住线再写字） */
+  EDGES.forEach(function(e){
+    if (!e.label) return;
+    var a = anchor(nodeById(e.from), e.fromSide);
+    var pts = [];
+    if (e.via) { e.via.forEach(function(p){ pts.push(p); }); }
+    var b = anchor(nodeById(e.to), e.toSide);
+    pts.push(b);
+    /* 取路径中点附近放标签：取首段中点 */
+    var first = pts[0];
+    var lx = (a.x+first.x)/2, ly = (a.y+first.y)/2;
+    if (!e.via && (e.fromSide==='top'||e.fromSide==='bottom')) { lx = a.x + 34; ly = (a.y+b.y)/2; }
+    if (!e.via && (e.fromSide==='left'||e.fromSide==='right')) { lx = (a.x+b.x)/2; ly = a.y; }
+    var wpx = e.label.length * 6.4 + 14;
+    s.push('<rect x="'+(lx-wpx/2)+'" y="'+(ly-8)+'" width="'+wpx+'" height="16" rx="3" fill="'+t.labelBg+'"/>');
+    s.push('<text x="'+lx+'" y="'+(ly+3.5)+'" text-anchor="middle" font-size="9.5" fill="'+(e.emph?t.edgeEmph:t.labelText)+'" font-family="var(--mono),monospace">'+esc(e.label)+'</text>');
+  });
+
+  /* nodes */
+  NODES.forEach(function(n){
+    var fill, stroke, sw;
+    if (t.kindClass) {
+      var k = kindOf(n);
+      stroke = t.kindStroke[k] || t.node.stroke;
+      fill = 'rgba(100,116,139,.05)';
+      sw = 1.5;
+    } else if (n.kind==='key') {
+      fill = t.key.fill; stroke = t.key.stroke; sw = t.key.sw;
+    } else {
+      fill = t.node.fill; stroke = t.node.stroke; sw = t.node.sw;
+    }
+    s.push('<g class="ag-node" data-node="'+n.id+'">');
+    s.push('<rect x="'+n.x+'" y="'+n.y+'" width="'+n.w+'" height="'+n.h+'" rx="2" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+sw+'"/>');
+    s.push('<path d="'+n.sigil+'" transform="translate('+(n.x+8)+' '+(n.y+7)+') scale(0.85)" fill="none" stroke="'+(t.kindClass?(t.kindStroke[kindOf(n)]||t.sym):t.sym)+'" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>');
+    s.push('<text x="'+(n.x+n.w/2)+'" y="'+(n.y+26)+'" text-anchor="middle" font-size="11.5" font-weight="600" fill="'+t.label+'" font-family="var(--sans),sans-serif">'+esc(n.label)+'</text>');
+    s.push('<text x="'+(n.x+n.w/2)+'" y="'+(n.y+44)+'" text-anchor="middle" font-size="9.5" fill="'+t.sub+'" font-family="var(--mono),monospace" letter-spacing="0.5">'+esc(n.sub)+'</text>');
+    s.push('</g>');
+  });
+
+  s.push('</svg>');
+  root.innerHTML = s.join('');
+
+  /* 交互：装配动画（方案 demo 用；上线版由 GSAP ScrollTrigger 驱动） */
+  if (interactive) attachAssemble(root, themeKey);
+}
+
+/* 装配动画：边界淡入 → 节点依次出现 → 连线生长 → 标签浮现 */
+function attachAssemble(root, themeKey) {
+  var svg = root.querySelector('svg');
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var nodes = [].slice.call(svg.querySelectorAll('.ag-node'));
+  var edges = [].slice.call(svg.querySelectorAll('.ag-edge'));
+
+  function play() {
+    if (reduced) return;
+    /* 复位 */
+    nodes.forEach(function(n){ n.style.transition='none'; n.style.opacity=0; });
+    edges.forEach(function(p){
+      var len = p.getTotalLength();
+      p.style.transition='none';
+      p.style.strokeDasharray = len + ' ' + len;
+      p.style.strokeDashoffset = len;
+      p.style.opacity = 1;
+    });
+    var labels = [].slice.call(svg.querySelectorAll('rect[rx="3"], text'));
+    labels.forEach(function(l){ l.style.transition='none'; l.style.opacity=0; });
+    void root.offsetWidth;
+
+    /* 顺序：client → gw → read → redis → write → queue → db */
+    var order = ['client','gw','read','redis','write','queue','db'];
+    var t0 = 100, step = 260;
+    order.forEach(function(id, i){
+      var el = svg.querySelector('[data-node="'+id+'"]');
+      if (!el) return;
+      setTimeout(function(){ el.style.transition='opacity .4s'; el.style.opacity=1; }, t0 + i*step);
+    });
+    /* 边：节点出现后画线 */
+    var edgeOrder = ['e1','e2','e3','e4','e5','e6','e7'];
+    edgeOrder.forEach(function(id, i){
+      var el = svg.querySelector('[data-edge="'+id+'"]');
+      if (!el) return;
+      setTimeout(function(){
+        el.style.transition = 'stroke-dashoffset .55s ease';
+        el.style.strokeDashoffset = 0;
+      }, t0 + (i+1.5)*step);
+    });
+    /* 文本标签最后浮现 */
+    setTimeout(function(){
+      labels.forEach(function(l){ l.style.transition='opacity .5s'; l.style.opacity=1; });
+    }, t0 + (edgeOrder.length+2)*step);
+  }
+
+  /* 自动播放一次 + 点击重放 */
+  play();
+  root.style.cursor = 'pointer';
+  root.title = '点击重播装配动画';
+  root.addEventListener('click', play);
+}
+
+render('dia-a', 'a', true);
+render('dia-b', 'b', true);
+render('dia-c', 'c', true);
+</script>
+</body>
+</html>

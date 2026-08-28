@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>风格样板 · yedazhi 求职博客</title>
+<style>
+  /* ============ 设计 token ============
+     概念：工程图纸 / 制图桌。内容是"部件"，
+     FAQ 是"标注引线"，动画是"装配过程"。 */
+  :root {
+    --paper:       #F6F7F4;                    /* 冷纸白（带绿灰，非奶油色） */
+    --paper-raise: #FFFFFF;                    /* 卡片白 */
+    --ink:         #1C2B28;                    /* 墨绿黑 */
+    --ink-soft:    #55665F;                    /* 次级文字 */
+    --ink-faint:   #93A39C;                    /* 弱标注 */
+    --line:        rgba(28, 43, 40, .16);      /* 结构线 */
+    --grid:        rgba(28, 43, 40, .045);     /* 坐标纸网格 */
+    --accent:      #0E6E5C;                    /* 图纸青：常态交互 */
+    --accent-soft: rgba(14, 110, 92, .10);
+    --mark:        #C0392B;                    /* 校对红：仅关键标注，用量极少 */
+
+    /* 字体角色：黑体=正文标题；仿宋=标注/批注层；mono=数据/编号 */
+    --sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    --fang: "FangSong", "STFangsong", "FangSong_GB2312", serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font: 16px/1.8 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* 坐标纸网格：细格 24px，每 120px 一条略深线 */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      repeating-linear-gradient(0deg,  var(--grid) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 24px),
+      repeating-linear-gradient(0deg,  var(--grid) 0 1px, transparent 1px 120px),
+      repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 120px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .t-wrap { position: relative; z-index: 1; }
+
+  /* ============ 顶栏 ============ */
+  .t-header {
+    display: flex; align-items: baseline; gap: 28px;
+    max-width: 1160px; margin: 0 auto;
+    padding: 26px 28px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .t-logo { font-weight: 800; font-size: 17px; letter-spacing: .02em; }
+  .t-logo em { font-style: normal; color: var(--accent); }
+  .t-nav { margin-left: auto; display: flex; gap: 22px; }
+  .t-nav a {
+    font: 13px var(--mono); color: var(--ink-soft);
+    text-decoration: none; letter-spacing: .06em;
+  }
+  .t-nav a:hover { color: var(--accent); }
+  .t-nav a:focus-visible, .t-faq:focus-visible, .t-btn:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px;
+  }
+
+  /* ============ Hero ============ */
+  .t-hero { max-width: 1160px; margin: 0 auto; padding: 64px 28px 40px; }
+  .t-eyebrow {
+    font: 15px var(--fang); letter-spacing: .32em;
+    color: var(--accent); margin: 0 0 18px;
+  }
+  .t-eyebrow .t-no { font: 12px var(--mono); color: var(--ink-faint); letter-spacing: .1em; margin-left: 14px; }
+  .t-h1 {
+    font-size: clamp(34px, 4.6vw, 56px);
+    font-weight: 900; line-height: 1.18;
+    letter-spacing: .01em; margin: 0 0 10px;
+    max-width: 21em;
+  }
+  .t-h1 .t-hl-word { color: var(--accent); }
+
+  /* 尺寸线（签名元素之一）：端线 + 生长线 + mono 标注 */
+  .t-dim { display: flex; align-items: center; gap: 0; margin: 26px 0 34px; max-width: 460px; }
+  .t-dim-end { width: 1px; height: 14px; background: var(--ink-soft); }
+  .t-dim-line { flex: 1; height: 1px; background: var(--ink-soft); transform-origin: left; animation: t-grow-x .7s .55s both; }
+  .t-dim-text {
+    font: 13px var(--mono); color: var(--ink-soft);
+    padding: 0 12px; white-space: nowrap; letter-spacing: .05em;
+    animation: t-fade .5s .8s both;
+  }
+
+  /* 亮点图例（把动画档案编码进标签） */
+  .t-legend-label { font: 14px var(--fang); letter-spacing: .3em; color: var(--ink-soft); margin: 0 0 14px; }
+  .t-highlights { display: flex; flex-wrap: wrap; gap: 12px; max-width: 780px; margin: 0 0 38px; }
+  .t-hl {
+    position: relative;
+    display: grid; grid-template-columns: auto auto; align-items: baseline;
+    gap: 2px 10px;
+    background: var(--paper-raise);
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 2px; padding: 12px 16px 11px;
+    text-decoration: none; color: var(--ink);
+    animation: t-rise .5s both;
+    transition: border-color .15s, transform .15s, box-shadow .15s;
+  }
+  .t-hl:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(28,43,40,.08); }
+  .t-hl-name { font-weight: 700; font-size: 15px; }
+  .t-hl-kind { font: 11px var(--mono); color: var(--ink-faint); justify-self: end; }
+  .t-hl-note { grid-column: 1 / -1; font: 13px var(--fang); color: var(--ink-soft); letter-spacing: .08em; }
+
+  .t-cta-row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .t-btn {
+    display: inline-block; padding: 11px 26px;
+    font-size: 15px; font-weight: 700; text-decoration: none;
+    border-radius: 2px; border: 1.5px solid var(--ink);
+    transition: .15s;
+  }
+  .t-btn-solid { background: var(--ink); color: var(--paper); }
+  .t-btn-solid:hover { background: var(--accent); border-color: var(--accent); }
+  .t-btn-ghost { color: var(--ink); background: transparent; }
+  .t-btn-ghost:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ============ 主体两栏 ============ */
+  .t-main {
+    max-width: 1160px; margin: 0 auto; padding: 26px 28px 60px;
+    display: grid; grid-template-columns: 1fr 300px; gap: 44px;
+    align-items: start;
+  }
+
+  /* 分区标题：剖面线 + 仿宋 */
+  .t-sec-head { display: flex; align-items: baseline; gap: 16px; margin: 44px 0 20px; }
+  .t-sec-head:first-child { margin-top: 0; }
+  .t-sec-rule { flex: 1; height: 1px; background: var(--line); }
+  .t-sec-title { font: 16px var(--fang); letter-spacing: .3em; color: var(--ink-soft); white-space: nowrap; }
+  .t-sec-title b { color: var(--ink); font-weight: normal; }
+
+  /* 文章卡片 */
+  .t-post {
+    display: block; background: var(--paper-raise);
+    border: 1px solid var(--line); border-radius: 2px;
+    padding: 20px 24px 18px; margin-bottom: 14px;
+    text-decoration: none; color: var(--ink);
+    transition: border-color .15s, transform .15s, box-shadow .15s;
+  }
+  .t-post:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(28,43,40,.08); }
+  .t-post-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .t-tag {
+    font: 12px var(--fang); letter-spacing: .18em;
+    color: var(--accent); background: var(--accent-soft);
+    border-radius: 2px; padding: 2px 9px;
+  }
+  .t-post-meta time { font: 12px var(--mono); color: var(--ink-faint); margin-left: auto; }
+  .t-post h3 { margin: 0 0 6px; font-size: 19px; font-weight: 800; line-height: 1.4; }
+  .t-post p { margin: 0 0 10px; font-size: 14px; color: var(--ink-soft); }
+  .t-post-anim { font: 11px var(--mono); color: var(--ink-faint); letter-spacing: .06em; }
+
+  /* 在做项目 */
+  .t-wip {
+    background: var(--paper-raise); border: 1px solid var(--line);
+    border-left: 3px solid var(--mark); border-radius: 2px;
+    padding: 20px 24px 18px;
+  }
+  .t-wip-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .t-wip-top h3 { margin: 0; font-size: 17px; font-weight: 800; }
+  .t-wip-status {
+    font: 12px var(--fang); letter-spacing: .2em; color: var(--mark);
+    border: 1px solid currentColor; border-radius: 2px; padding: 1px 8px;
+  }
+  .t-wip-note { font: 14px var(--fang); color: var(--ink-soft); letter-spacing: .06em; margin: 0 0 14px; }
+  .t-progress { display: flex; align-items: center; gap: 12px; }
+  .t-progress-track { flex: 1; height: 6px; background: var(--accent-soft); border-radius: 1px; overflow: hidden; }
+  .t-progress-fill { height: 100%; width: 60%; background: var(--accent); border-radius: 1px; }
+  .t-progress-num { font: 13px var(--mono); color: var(--ink-soft); }
+
+  /* ============ FAQ 标注栏（签名元素核心） ============ */
+  .t-faq-rail { position: sticky; top: 28px; }
+  .t-faq-title { font: 15px var(--fang); letter-spacing: .3em; color: var(--ink-soft); margin: 0 0 6px; }
+  .t-faq-sub { font: 12px var(--mono); color: var(--ink-faint); margin: 0 0 16px; letter-spacing: .04em; }
+  .t-faq {
+    display: flex; align-items: baseline; gap: 10px;
+    width: 100%; text-align: left;
+    background: transparent; border: 0; padding: 9px 2px;
+    cursor: pointer; font-family: inherit;
+    border-bottom: 1px dashed var(--line);
+  }
+  .t-faq-no { font: 12px var(--mono); color: var(--ink-faint); }
+  .t-faq-text { font: 15px var(--fang); letter-spacing: .06em; color: var(--ink); }
+  .t-faq-dash { width: 18px; height: 1px; background: var(--ink-faint); align-self: center; transition: width .2s, background .2s; }
+  .t-faq:hover .t-faq-dash { width: 44px; background: var(--accent); }
+  .t-faq:hover .t-faq-text { color: var(--accent); }
+
+  /* ============ 动画样张 ============ */
+  .t-specimens { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .t-spec {
+    background: var(--paper-raise); border: 1px solid var(--line);
+    border-radius: 2px; padding: 18px 20px; min-height: 170px;
+  }
+  .t-spec-label { font: 11px var(--mono); color: var(--ink-faint); letter-spacing: .08em; margin-bottom: 12px; }
+  .t-type { font-size: 16px; line-height: 1.75; min-height: 84px; }
+  .t-caret { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: -0.15em; animation: t-blink 1s steps(1) infinite; }
+  .t-count { font: 44px/1.1 var(--mono); font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+  .t-count-note { font: 13px var(--fang); letter-spacing: .1em; color: var(--ink-soft); margin-top: 8px; }
+  /* ---- 架构图（方案 A）：SVG 内容由 JS 注入，样式随 token ---- */
+  .t-arch-note { font: 13px var(--fang); letter-spacing: .06em; color: var(--ink-soft); margin-top: 10px; }
+
+  /* 目标段落被 FAQ 命中时的高亮 */
+  .t-flash { animation: t-flash 1s both; }
+
+  /* ============ 联系区 ============ */
+  .t-contact {
+    max-width: 1160px; margin: 0 auto; padding: 10px 28px 70px;
+    display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center;
+  }
+  .t-contact-lines { display: grid; gap: 14px; }
+  .t-c-line { display: flex; align-items: baseline; gap: 16px; }
+  .t-c-label { font: 13px var(--fang); letter-spacing: .3em; color: var(--ink-soft); width: 5em; }
+  .t-c-val { font: 15px var(--mono); color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+  .t-c-val:hover { color: var(--accent); border-color: var(--accent); }
+  .t-qr {
+    width: 128px; height: 128px;
+    border: 1.5px dashed var(--ink-faint); border-radius: 2px;
+    display: grid; place-items: center;
+    font: 14px var(--fang); letter-spacing: .2em; color: var(--ink-faint);
+    text-align: center; line-height: 1.9;
+  }
+
+  .t-footer {
+    border-top: 1px solid var(--line);
+    max-width: 1160px; margin: 0 auto; padding: 24px 28px 60px;
+  }
+  .t-footer summary { font: 13px var(--mono); color: var(--ink-soft); cursor: pointer; letter-spacing: .05em; }
+  .t-footer summary:hover { color: var(--accent); }
+  .t-notes { margin: 18px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .t-notes li { font-size: 13px; color: var(--ink-soft); }
+  .t-swatches { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .t-swatch { display: flex; align-items: center; gap: 7px; font: 12px var(--mono); color: var(--ink-soft); }
+  .t-swatch i { width: 18px; height: 18px; border-radius: 2px; border: 1px solid var(--line); }
+
+  /* ============ 动画 ============ */
+  @keyframes t-grow-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @keyframes t-fade   { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes t-rise   { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  @keyframes t-blink  { 50% { opacity: 0; } }
+  @keyframes t-flash  {
+    0% { box-shadow: 0 0 0 3px var(--accent-soft); background: var(--accent-soft); }
+    100% { box-shadow: 0 0 0 3px transparent; background: transparent; }
+  }
+  .t-anim-fade { animation: t-fade .6s .1s both; }
+  .t-anim-rise { animation: t-rise .55s .25s both; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .t-caret { display: none; }
+  }
+
+  /* ============ 响应式 ============ */
+  @media (max-width: 920px) {
+    .t-main { grid-template-columns: 1fr; }
+    .t-faq-rail { position: static; order: -1; }  /* 上线版：收成底部抽屉，见 spec §9 */
+    .t-specimens { grid-template-columns: 1fr; }
+    .t-contact { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="t-wrap">
+
+  <header class="t-header">
+    <span class="t-logo">yedazhi<em>.</em></span>
+    <nav class="t-nav">
+      <a href="#spec-arch">博客</a>
+      <a href="#sec-contact">领域</a>
+      <a href="#sec-contact">联系</a>
+    </nav>
+  </header>
+
+  <!-- ======== HERO ======== -->
+  <section class="t-hero">
+    <p class="t-eyebrow">候选人档案<span class="t-no">UPDATED 2026-08</span></p>
+    <h1 class="t-h1 t-anim-rise">把复杂系统拆开、讲清楚，<br />再<span class="t-hl-word">装回去</span>。</h1>
+
+    <div class="t-dim">
+      <span class="t-dim-end"></span><span class="t-dim-line"></span>
+      <span class="t-dim-text">8 年 · 3 个领域 · 42 篇文章</span>
+      <span class="t-dim-line"></span><span class="t-dim-end"></span>
+    </div>
+
+    <p class="t-legend-label t-anim-fade">亮点图例</p>
+    <div class="t-highlights t-anim-fade">
+      <a class="t-hl" href="#spec-count" style="animation-delay:.45s">
+        <span class="t-hl-name">高并发读链路改造</span><span class="t-hl-kind">data</span>
+        <span class="t-hl-note">可量化 · 计数动画</span>
+      </a>
+      <a class="t-hl" href="#spec-arch" style="animation-delay:.55s">
+        <span class="t-hl-name">核心系统重构</span><span class="t-hl-kind">arch</span>
+        <span class="t-hl-note">架构图 · 节点装配</span>
+      </a>
+      <a class="t-hl" href="#spec-type" style="animation-delay:.65s">
+        <span class="t-hl-name">从 0 到 1 搭建</span><span class="t-hl-kind">story</span>
+        <span class="t-hl-note">叙事 · 打字机</span>
+      </a>
+      <a class="t-hl" href="#sec-contact" style="animation-delay:.75s">
+        <span class="t-hl-name">踩坑复盘集</span><span class="t-hl-kind">story</span>
+        <span class="t-hl-note">真实教训 · 按需展开</span>
+      </a>
+    </div>
+
+    <div class="t-cta-row t-anim-fade" style="animation-delay:.9s">
+      <a class="t-btn t-btn-solid" href="#sec-contact">直接联系我</a>
+      <a class="t-btn t-btn-ghost" href="#sec-blog">先看博客 →</a>
+    </div>
+  </section>
+
+  <!-- ======== 主体：博客 + FAQ 标注栏 ======== -->
+  <main class="t-main">
+    <div>
+      <section id="sec-blog">
+        <div class="t-sec-head">
+          <span class="t-sec-title"><b>博客</b> · 时间倒序</span>
+          <span class="t-sec-rule"></span>
+        </div>
+
+        <a class="t-post" href="#">
+          <div class="t-post-meta"><span class="t-tag">前端工程</span><time>2026-08-28</time></div>
+          <h3>我用 GSAP 做了一次端到端提速</h3>
+          <p>从 4.2s 到 1.1s：一次把首屏拆到骨头的技术复盘，含完整的测量方法。</p>
+          <span class="t-post-anim">anim · data-narrative</span>
+        </a>
+
+        <a class="t-post" href="#">
+          <div class="t-post-meta"><span class="t-tag">后端架构</span><time>2026-08-14</time></div>
+          <h3>WMS 重构：把三年老系统搬上新架构</h3>
+          <p>不停机迁移的完整决策链：为什么分四批、哪一批差点出事、怎么兜住的。</p>
+          <span class="t-post-anim">anim · architecture</span>
+        </a>
+      </section>
+
+      <section>
+        <div class="t-sec-head">
+          <span class="t-sec-title"><b>在做</b> · WIP</span>
+          <span class="t-sec-rule"></span>
+        </div>
+        <div class="t-wip">
+          <div class="t-wip-top"><h3>求职博客本身</h3><span class="t-wip-status">进行中</span></div>
+          <p class="t-wip-note">批注：你正在看的这套视觉，就是这个项目的第一个产出。</p>
+          <div class="t-progress">
+            <div class="t-progress-track"><div class="t-progress-fill"></div></div>
+            <span class="t-progress-num">60%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 动画样张：FAQ 和亮点标签的真实跳转目标 -->
+      <section>
+        <div class="t-sec-head">
+          <span class="t-sec-title"><b>动画样张</b> · 三种档案</span>
+          <span class="t-sec-rule"></span>
+        </div>
+        <div class="t-specimens">
+          <div class="t-spec" id="spec-type">
+            <div class="t-spec-label">TYPEWRITER · story</div>
+            <div class="t-type"><span id="t-type-text"></span><span class="t-caret"></span></div>
+          </div>
+          <div class="t-spec" id="spec-count">
+            <div class="t-spec-label">COUNTER · data-narrative</div>
+            <div class="t-count" id="t-count-num">0</div>
+            <div class="t-count-note">QPS · 峰值压测（数字为占位）</div>
+          </div>
+        </div>
+
+        <!-- 升级版架构图（方案 A · archify 画法）：全宽样张 -->
+        <div class="t-spec" id="spec-arch" style="margin-top:14px">
+          <div class="t-spec-label">ARCH DIAGRAM · architecture · <span style="color:var(--accent)">装配动画</span></div>
+          <svg id="t-arch-svg" viewBox="0 0 990 420" aria-label="读多写少架构示意" style="width:100%;height:auto;display:block"></svg>
+          <div class="t-arch-cards" id="t-arch-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- FAQ 标注栏 -->
+    <aside class="t-faq-rail" aria-label="常见问题导航">
+      <p class="t-faq-title">面试官常问</p>
+      <p class="t-faq-sub">点问题 → 跳到答案并触发动画</p>
+      <button class="t-faq" data-target="#spec-arch">
+        <span class="t-faq-no">Q1</span><span class="t-faq-text">你最复杂的项目是哪个？</span><span class="t-faq-dash"></span>
+      </button>
+      <button class="t-faq" data-target="#spec-count">
+        <span class="t-faq-no">Q2</span><span class="t-faq-text">有可量化的成绩吗？</span><span class="t-faq-dash"></span>
+      </button>
+      <button class="t-faq" data-target="#spec-type">
+        <span class="t-faq-no">Q3</span><span class="t-faq-text">你是怎么踩坑的？</span><span class="t-faq-dash"></span>
+      </button>
+      <button class="t-faq" data-target="#sec-contact">
+        <span class="t-faq-no">Q4</span><span class="t-faq-text">怎么联系到你？</span><span class="t-faq-dash"></span>
+      </button>
+    </aside>
+  </main>
+
+  <!-- ======== 联系区 ======== -->
+  <section class="t-contact" id="sec-contact">
+    <div class="t-contact-lines">
+      <p class="t-eyebrow" style="margin-bottom:6px">联系 · 简历与机会</p>
+      <div class="t-c-line"><span class="t-c-label">邮箱</span><a class="t-c-val" href="mailto:you@example.com">you@example.com（占位）</a></div>
+      <div class="t-c-line"><span class="t-c-label">GitHub</span><a class="t-c-val" href="#">github.com/yedazhi（占位）</a></div>
+    </div>
+    <div class="t-qr">微信二维码<br />占位</div>
+  </section>
+
+  <footer class="t-footer">
+    <details>
+      <summary>设计说明（给作者看的，上线时移除）</summary>
+      <ul class="t-notes">
+        <li>概念：<b>工程图纸</b> —— 内容是部件，FAQ 是标注引线，动画是装配过程。坐标纸网格、尺寸线、图例、批注都从这个概念派生。</li>
+        <li>字体角色：<b>黑体</b> = 标题与正文；<b>仿宋（长仿宋）</b> = 标注/批注层（eyebrow、FAQ 问题、图注、状态徽标）—— 国标工程图字体，每个工科生都认识；<b>等宽</b> = 数据、编号、URL。</li>
+        <li>颜色语义：<b>图纸青</b> = 常态交互（链接、hover、进度）；<b>校对红</b> = 仅关键标注（WIP 边线），全页最多出现一两处。</li>
+        <li>上方数字（8 年 / 42 篇 / QPS / 邮箱）均为占位，上线前替换为真实数据。</li>
+        <li>可交互：右上 FAQ 与首页亮点标签都可点击 —— 平滑滚动到目标段落、触发对应动画、目标闪一下青光。移动端 &lt;920px 时 FAQ 栏堆叠到顶部（上线版按 spec 收成底部抽屉）。</li>
+      </ul>
+      <div class="t-swatches">
+        <span class="t-swatch"><i style="background:#F6F7F4"></i>#F6F7F4 纸白</span>
+        <span class="t-swatch"><i style="background:#1C2B28"></i>#1C2B28 墨绿黑</span>
+        <span class="t-swatch"><i style="background:#0E6E5C"></i>#0E6E5C 图纸青</span>
+        <span class="t-swatch"><i style="background:#C0392B"></i>#C0392B 校对红</span>
+        <span class="t-swatch"><i style="background:#55665F"></i>#55665F 次级墨</span>
+      </div>
+    </details>
+  </footer>
+</div>
+
+<script>
+(function () {
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---- 打字机 ---- */
+  var TYPE_TEXT = '问题不是流量大，是读多写少还要求强一致——我们把缓存当成了第一方案，又亲手把它撤了。';
+  var typeEl = document.getElementById('t-type-text');
+  var typed = false;
+  function typewrite() {
+    if (typed) return; typed = true;
+    if (reduced) { typeEl.textContent = TYPE_TEXT; return; }
+    var i = 0;
+    (function tick() {
+      typeEl.textContent = TYPE_TEXT.slice(0, ++i);
+      if (i < TYPE_TEXT.length) setTimeout(tick, 55);
+    })();
+  }
+
+  /* ---- 计数器 ---- */
+  var countEl = document.getElementById('t-count-num');
+  var counted = false;
+  function countUp() {
+    if (counted) return; counted = true;
+    var to = 4200;
+    if (reduced) { countEl.textContent = to.toLocaleString(); return; }
+    var t0 = null;
+    (function step(ts) {
+      if (!t0) t0 = ts;
+      var p = Math.min((ts - t0) / 1400, 1);
+      var eased = 1 - Math.pow(1 - p, 3);
+      countEl.textContent = Math.round(to * eased).toLocaleString();
+      if (p < 1) requestAnimationFrame(step);
+    })(performance.now());
+  }
+
+  /* ---- 架构图（方案 A · archify 画法）：数据与渲染 ---- */
+  var ARCH_W = 990, ARCH_H = 420;
+  var ARCH_NODES = [
+    { id:'client', x:40,  y:100, w:130, h:60, kind:'external', label:'客户端',     sub:'Browser',            sigil:'M2 4h8M2 8h8M2 12h8' },
+    { id:'gw',     x:330, y:100, w:130, h:60, kind:'key',      label:'API 网关',   sub:'auth · rate-limit',  sigil:'M6 3 3 8l3 5M10 3l3 5-3 5' },
+    { id:'redis',  x:40,  y:260, w:120, h:60, kind:'db',       label:'Redis',      sub:'cache :6379',        sigil:'M3 5c0-1.6 2.2-3 5-3s5 1.4 5 3-2.2 3-5 3-5-1.4-5-3zM3 5v4c0 1.6 2.2 3 5 3s5-1.4 5-3V5' },
+    { id:'read',   x:220, y:260, w:130, h:60, kind:'key',      label:'读服务 ×3',  sub:'hash 分片 · ttl 30s',sigil:'M4 12a6 6 0 0 1 8-5M12 12a4 3 0 0 0-8 0zM5 12v3M9 12v3' },
+    { id:'write',  x:470, y:260, w:130, h:60, kind:'be',       label:'写服务',     sub:'batch · retry 3',    sigil:'M8 2v9M8 11l-3-3M8 11l3-3M3 15h10' },
+    { id:'queue',  x:650, y:260, w:120, h:60, kind:'mq',       label:'队列',       sub:'fifo',               sigil:'M2 4h12M2 8h12M2 12h12M2 4v8' },
+    { id:'db',     x:820, y:260, w:130, h:60, kind:'db',       label:'PostgreSQL', sub:'primary :5432',      sigil:'M3 5c0-1.6 2.2-3 5-3s5 1.4 5 3-2.2 3-5 3-5-1.4-5-3zM3 5v6c0 1.6 2.2 3 5 3s5-1.4 5-3V5' }
+  ];
+  var ARCH_EDGES = [
+    { id:'e1', from:'client', to:'gw',    fromSide:'right', toSide:'left',  label:'HTTPS',        emph:true },
+    { id:'e2', from:'gw',     to:'read',  fromSide:'bottom',toSide:'top',   label:'route',        via:[{x:395,y:210},{x:285,y:210}] },
+    { id:'e3', from:'read',   to:'redis', fromSide:'left',  toSide:'right', label:'read-through', emph:true },
+    { id:'e4', from:'gw',     to:'write', fromSide:'right', toSide:'top',   label:'enqueue',      dash:true },
+    { id:'e5', from:'write',  to:'queue', fromSide:'right', toSide:'left',  label:'',             dash:true },
+    { id:'e6', from:'queue',  to:'db',    fromSide:'right', toSide:'left',   label:'flush' },
+    { id:'e7', from:'read',   to:'db',    fromSide:'bottom',toSide:'bottom', label:'miss 回源',    via:[{x:285,y:380},{x:885,y:380}], dash:true }
+  ];
+  var ARCH_BOUNDS = [
+    { x:200, y:80,  w:440, h:260, label:'应用层 · app' },
+    { x:20,  y:240, w:160, h:100, label:'缓存' },
+    { x:630, y:240, w:340, h:100, label:'存储 / 队列' }
+  ];
+  var ARCH_CARDS = [
+    { dot:'#0E6E5C', title:'读路径', items:['网关按 key 哈希分片到 3 个读副本', 'redis 前置，ttl 30s，命中率 96%'] },
+    { dot:'#C0392B', title:'写路径', items:['写入先进队列，削峰', '写服务批量落库，失败重试 3 次'] },
+    { dot:'#55665F', title:'一致性', items:['缓存双删 + 版本号防旧值回填', '压测峰值 4200 QPS 下 P99 < 80ms'] }
+  ];
+
+  function archAnchor(n, side) {
+    if (side==='left')   return { x:n.x,       y:n.y+n.h/2 };
+    if (side==='right')  return { x:n.x+n.w,   y:n.y+n.h/2 };
+    if (side==='top')    return { x:n.x+n.w/2, y:n.y };
+    return { x:n.x+n.w/2, y:n.y+n.h };
+  }
+  function archNodeById(id) { for (var i=0;i<ARCH_NODES.length;i++) if (ARCH_NODES[i].id===id) return ARCH_NODES[i]; }
+  function archEdgePath(e) {
+    var a = archAnchor(archNodeById(e.from), e.fromSide);
+    var b = archAnchor(archNodeById(e.to),   e.toSide);
+    if (!e.via) {
+      if (e.fromSide==='right' || e.fromSide==='left')
+        return 'M'+a.x+','+a.y+' H'+b.x+' V'+b.y;
+      return 'M'+a.x+','+a.y+' V'+b.y+' H'+b.x;
+    }
+    var d = 'M'+a.x+','+a.y;
+    e.via.forEach(function(p){ d += ' L'+p.x+','+p.y; });
+    d += ' L'+b.x+','+b.y;
+    return d;
+  }
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+  /* 方案 A 主题 = 页面 token 直引 */
+  var AC = getComputedStyle(document.documentElement).getPropertyValue.bind(getComputedStyle(document.documentElement));
+  var COL = {
+    ink:   AC('--ink').trim()       || '#1C2B28',
+    soft:  AC('--soft').trim()      || '#55665F',
+    faint: AC('--faint').trim()     || '#93A39C',
+    paper: AC('--paper').trim()     || '#F6F7F4',
+    acc:   AC('--accent').trim()    || '#0E6E5C',
+    mono:  'ui-monospace, "Cascadia Mono", Consolas, monospace',
+    sans:  '"PingFang SC", "Microsoft YaHei", sans-serif',
+    fang:  '"FangSong", "STFangsong", serif'
+  };
+
+  function buildArchSvg() {
+    var s = [];
+    s.push('<svg viewBox="0 0 '+ARCH_W+' '+ARCH_H+'" role="img" aria-label="读多写少架构示意" style="width:100%;height:auto;display:block">');
+    s.push('<defs>');
+    [['ar', COL.soft], ['arE', COL.acc]].forEach(function (m) {
+      s.push('<marker id="t-'+m[0]+'" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto"><path d="M0,0 L9,3.5 L0,7 z" fill="'+m[1]+'"/></marker>');
+    });
+    s.push('</defs>');
+
+    /* 边界（底层） */
+    ARCH_BOUNDS.forEach(function (bd) {
+      s.push('<rect x="'+bd.x+'" y="'+bd.y+'" width="'+bd.w+'" height="'+bd.h+'" rx="3" fill="rgba(14,110,92,.045)" stroke="rgba(28,43,40,.3)" stroke-width="1" stroke-dasharray="6 4" class="ag-bound"/>');
+      s.push('<text x="'+(bd.x+12)+'" y="'+(bd.y+20)+'" font-size="10" letter-spacing="3" fill="'+COL.faint+'" font-family="'+COL.fang+'" class="ag-bound-label">'+esc(bd.label)+'</text>');
+    });
+
+    /* 连线 */
+    ARCH_EDGES.forEach(function (e) {
+      var d = archEdgePath(e);
+      var color = e.emph ? COL.acc : COL.soft;
+      s.push('<path class="ag-edge" data-edge="'+e.id+'" d="'+d+'" fill="none" stroke="'+color+'" stroke-width="'+(e.emph?1.8:1.4)+'"'+(e.dash?' stroke-dasharray="5 4"':'')+' marker-end="url(#t-'+(e.emph?'arE':'ar')+')"/>');
+    });
+    /* 遮罩药丸标签 */
+    ARCH_EDGES.forEach(function (e) {
+      if (!e.label) return;
+      var a = archAnchor(archNodeById(e.from), e.fromSide);
+      var b = archAnchor(archNodeById(e.to), e.toSide);
+      var lx, ly;
+      if (e.via) { lx = (a.x+e.via[0].x)/2; ly = (a.y+e.via[0].y)/2; }
+      else if (e.fromSide==='top'||e.fromSide==='bottom') { lx = a.x + 34; ly = (a.y+b.y)/2; }
+      else { lx = (a.x+b.x)/2; ly = a.y; }
+      var wpx = e.label.length * 6.4 + 14;
+      s.push('<rect x="'+(lx-wpx/2)+'" y="'+(ly-8)+'" width="'+wpx+'" height="16" rx="3" fill="'+COL.paper+'" class="ag-lab-bg"/>');
+      s.push('<text x="'+lx+'" y="'+(ly+3.5)+'" text-anchor="middle" font-size="9.5" fill="'+(e.emph?COL.acc:COL.soft)+'" font-family="'+COL.mono+'" class="ag-lab-tx">'+esc(e.label)+'</text>');
+    });
+
+    /* 节点（sigil + 主标签 + mono 副标签） */
+    ARCH_NODES.forEach(function (n) {
+      var key = n.kind==='key';
+      s.push('<g class="ag-node" data-node="'+n.id+'">');
+      s.push('<rect x="'+n.x+'" y="'+n.y+'" width="'+n.w+'" height="'+n.h+'" rx="2" fill="#FFFFFF" stroke="'+(key?COL.acc:COL.ink)+'" stroke-width="'+(key?1.8:1.2)+'"/>');
+      s.push('<path d="'+n.sigil+'" transform="translate('+(n.x+8)+' '+(n.y+7)+') scale(0.85)" fill="none" stroke="'+COL.acc+'" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>');
+      s.push('<text x="'+(n.x+n.w/2)+'" y="'+(n.y+26)+'" text-anchor="middle" font-size="11.5" font-weight="600" fill="'+COL.ink+'" font-family="'+COL.sans+'">'+esc(n.label)+'</text>');
+      s.push('<text x="'+(n.x+n.w/2)+'" y="'+(n.y+44)+'" text-anchor="middle" font-size="9.5" fill="'+COL.faint+'" font-family="'+COL.mono+'" letter-spacing="0.5">'+esc(n.sub)+'</text>');
+      s.push('</g>');
+    });
+
+    s.push('</svg>');
+    return s.join('');
+  }
+
+  function buildArchCards() {
+    return ARCH_CARDS.map(function (c) {
+      return '<div class="t-hl-card" style="border:1px solid var(--line);border-radius:3px;padding:12px 14px">'
+        + '<h4 style="margin:0 0 6px;font-size:13px;font-weight:800;display:flex;align-items:center;gap:8px"><i style="width:8px;height:8px;border-radius:50%;background:'+c.dot+';display:inline-block"></i>'+c.title+'</h4>'
+        + '<ul style="margin:0;padding-left:16px;font-size:12px;color:var(--ink-soft);line-height:1.7">'
+        + c.items.map(function (it) { return '<li>'+it+'</li>'; }).join('')
+        + '</ul></div>';
+    }).join('');
+  }
+
+  var archSvgEl = document.getElementById('t-arch-svg');
+  var archCardsEl = document.getElementById('t-arch-cards');
+  archSvgEl.innerHTML = buildArchSvg();
+  archCardsEl.innerHTML = buildArchCards();
+
+  /* ---- 架构图装配动画 ---- */
+  var archPlayed = false;
+  function playArch() {
+    var svg = archSvgEl.querySelector('svg');
+    var nodes = [].slice.call(svg.querySelectorAll('.ag-node'));
+    var edges = [].slice.call(svg.querySelectorAll('.ag-edge'));
+    var bounds = [].slice.call(svg.querySelectorAll('.ag-bound, .ag-bound-label'));
+    var labs = [].slice.call(svg.querySelectorAll('.ag-lab-bg, .ag-lab-tx'));
+    if (reduced) return;
+    /* 复位 */
+    nodes.forEach(function(n){ n.style.transition='none'; n.style.opacity=0; });
+    edges.forEach(function(p){
+      var len = p.getTotalLength();
+      p.style.transition='none';
+      p.style.strokeDasharray = len+' '+len;
+      p.style.strokeDashoffset = len;
+      p.style.opacity = 1;
+    });
+    bounds.forEach(function(b){ b.style.transition='none'; b.style.opacity=0; });
+    labs.forEach(function(l){ l.style.transition='none'; l.style.opacity=0; });
+    void document.body.offsetWidth;
+    /* 边界 → 节点（依赖序）→ 连线 → 标签 */
+    setTimeout(function(){ bounds.forEach(function(b){ b.style.transition='opacity .5s'; b.style.opacity=1; }); }, 60);
+    var order = ['client','gw','read','redis','write','queue','db'];
+    order.forEach(function(id, i){
+      setTimeout(function(){
+        var el = svg.querySelector('[data-node="'+id+'"]');
+        if (el) { el.style.transition='opacity .4s'; el.style.opacity=1; }
+      }, 200 + i*260);
+    });
+    ['e1','e2','e3','e4','e5','e6','e7'].forEach(function(id, i){
+      setTimeout(function(){
+        var el = svg.querySelector('[data-edge="'+id+'"]');
+        if (el) { el.style.transition='stroke-dashoffset .55s ease'; el.style.strokeDashoffset=0; }
+      }, 200 + (i+1.5)*260);
+    });
+    setTimeout(function(){
+      labs.forEach(function(l){ l.style.transition='opacity .5s'; l.style.opacity=1; });
+    }, 200 + 9.2*260);
+    archPlayed = true;
+  }
+
+  /* ---- 进入视口触发 ---- */
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (!en.isIntersecting) return;
+      var id = en.target.id;
+      if (id === 'spec-type') typewrite();
+      if (id === 'spec-count') countUp();
+      if (id === 'spec-arch' && !archPlayed) playArch();
+    });
+  }, { threshold: 0.35 });
+  ['spec-type', 'spec-count', 'spec-arch'].forEach(function (id) { io.observe(document.getElementById(id)); });
+
+  /* ---- FAQ / 亮点标签：滚动 + 触发动画 + 高亮 ---- */
+  document.querySelectorAll('.t-faq, .t-hl').forEach(function (el) {
+    el.addEventListener('click', function (ev) {
+      var sel = el.getAttribute('data-target') || el.getAttribute('href');
+      if (!sel || sel === '#') return;
+      ev.preventDefault();
+      var target = document.querySelector(sel);
+      if (!target) return;
+      target.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'center' });
+      if (sel === '#spec-arch') playArch();          /* 演示"跳转触发动画" */
+      target.classList.remove('t-flash');
+      void target.offsetWidth;
+      target.classList.add('t-flash');
+    });
+  });
+})();
+</script>
+</body>
+</html>
