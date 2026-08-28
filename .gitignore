@@ -1,0 +1,4 @@
+.prototype/
+.playwright-mcp/
+node_modules/
+dist/
