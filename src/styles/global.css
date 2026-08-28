@@ -34,3 +34,20 @@ body::before {
   z-index: 0;
 }
 .app-shell { position: relative; z-index: 1; }
+
+/* 打字机 */
+.ba-type { font-size: 1.05em; line-height: 1.75; }
+.ba-caret { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: -0.15em; animation: ba-blink 1s steps(1) infinite; }
+@keyframes ba-blink { 50% { opacity: 0; } }
+/* 计数器 */
+.ba-counter { font: 700 2.4em/1.1 var(--mono); color: var(--ink); letter-spacing: -0.01em; }
+.ba-counter-suffix { font-size: 0.6em; color: var(--ink-soft); }
+.ba-counter-label { font: 0.45em var(--fang); letter-spacing: 0.1em; color: var(--ink-soft); }
+/* 架构图容器 */
+.ba-arch { margin: 1.4em 0; }
+.ba-arch svg { width: 100%; height: auto; display: block; }
+.ba-arch-caption { font: 0.8em var(--fang); letter-spacing: 0.1em; color: var(--ink-soft); margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  .ba-caret { display: none; }
+  .ba-arch .ag-node, .ba-arch .ag-bound, .ba-arch .ag-bound-label, .ba-arch .ag-lab-bg, .ba-arch .ag-lab-tx { opacity: 1 !important; }
+}
