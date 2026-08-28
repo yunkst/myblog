@@ -1,0 +1,36 @@
+:root {
+  --paper: #F6F7F4;
+  --paper-raise: #FFFFFF;
+  --ink: #1C2B28;
+  --ink-soft: #55665F;
+  --ink-faint: #93A39C;
+  --line: rgba(28, 43, 40, 0.16);
+  --grid: rgba(28, 43, 40, 0.045);
+  --accent: #0E6E5C;
+  --accent-soft: rgba(14, 110, 92, 0.10);
+  --mark: #C0392B;
+  --sans: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --fang: "FangSong", "STFangsong", "FangSong_GB2312", serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.8 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+/* 坐标纸网格：细格 24px，每 120px 加深一格 */
+body::before {
+  content: "";
+  position: fixed; inset: 0;
+  background:
+    repeating-linear-gradient(0deg,  var(--grid) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 24px),
+    repeating-linear-gradient(0deg,  var(--grid) 0 1px, transparent 1px 120px),
+    repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 120px);
+  pointer-events: none;
+  z-index: 0;
+}
+.app-shell { position: relative; z-index: 1; }
