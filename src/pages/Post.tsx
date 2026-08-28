@@ -37,7 +37,7 @@ export default function Component() {
       </Head>
       <main className="post-wrap">
         <div className="post-meta">
-          <Link to={`/domain/${encodeURIComponent(post.domain)}`} className="tag">{post.domain}</Link>
+          <Link to={`/domain/${encodeURIComponent(post.domain)}/`} className="tag">{post.domain}</Link>
           <time>{post.date}</time>
           <span className="anim-badge">{post.anim_profile}</span>
         </div>
@@ -47,8 +47,8 @@ export default function Component() {
           {Body ? <Body /> : <p>正文缺失。</p>}
         </article>
         <nav className="post-nav">
-          {prev && <Link to={`/blog/${prev.slug}`}>← {prev.title}</Link>}
-          {next && <Link to={`/blog/${next.slug}`}>{next.title} →</Link>}
+          {prev && <Link to={`/blog/${prev.slug}/`}>← {prev.title}</Link>}
+          {next && <Link to={`/blog/${next.slug}/`}>{next.title} →</Link>}
         </nav>
       </main>
     </MDXProvider>

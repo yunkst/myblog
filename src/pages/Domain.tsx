@@ -19,14 +19,14 @@ export default function Component() {
         <ul className="domain-posts">
           {posts.map((p) => (
             <li key={p.slug}>
-              <Link to={`/blog/${p.slug}`}>{p.title}</Link>
+              <Link to={`/blog/${p.slug}/`}>{p.title}</Link>
               <time>{p.date}</time>
             </li>
           ))}
         </ul>
         <nav className="domain-links">
           {domains.map((d) => (
-            <Link key={d.slug} to={`/domain/${encodeURIComponent(d.slug)}`} className={d.slug === slug ? 'on' : ''}>
+            <Link key={d.slug} to={`/domain/${encodeURIComponent(d.slug)}/`} className={d.slug === slug ? 'on' : ''}>
               {d.slug}
             </Link>
           ))}

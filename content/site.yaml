@@ -1,8 +1,10 @@
 site:
-  name: 你的名字
-  tagline: 一句话定位（例如：把复杂系统拆开、讲清楚，再装回去）
-  email: you@example.com
+  name: yunkst
+  tagline: 一个人撑起 8 年技术部，从 OAuth2 到 BI Agent
+  email: kfeb4@outlook.com
   wechat_qr: /static/wechat-qr.png
-  github: https://github.com/you
+  github: https://github.com/yunkst
   domains:
-    - 示例领域
+    - 项目经历
+    - AI 与工程
+    - 开源作品

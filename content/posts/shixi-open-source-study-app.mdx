@@ -1,0 +1,56 @@
+---
+title: 时习：我做的开源考研考证 App
+slug: shixi-open-source-study-app
+domain: 开源作品
+date: 2026-08-28
+anim_profile: architecture
+status: published
+excerpt: 5 天用 Claude Code + DeepSeek vibe 出来的备考 App。核心是「以题带点」+ FSRS 记忆算法，167 个 Dart 文件约 2.7 万行。
+---
+
+import ArchDiagram, { DEMO_ARCH } from '../../src/components/blog-anim/ArchDiagram'
+
+## 我踩过的 4 个坑
+
+打工人的备考，踩完才悟出真正的需求：
+
+1. **没时间听课**——一门课几十小时，1.5 倍速也要一个月
+2. **直接刷题等于送命**——题里全是新概念，错题本越攒越厚
+3. **AI 搜题帮倒忙**——我不需要答案，我需要先学会背后的知识点
+4. **今天会明天忘**——刚学的，第二天脑子只记得"这个我见过"
+
+打工人备考缺的不是答案，也不是课，而是一个**"以题带点、学了不忘"**的闭环。
+
+## 时习做了什么
+
+<ArchDiagram {...DEMO_ARCH} caption="时习 4 个核心模块的依赖关系（demo 数据示意）" />
+
+### 核心一：拍题 → 拆知识点 → 学会 → 再做题
+
+AI 做的第一件事**不是解题**，而是把这道题拆解成背后的知识点清单。每个知识点配"引子—答案—关联"，过完再回到原题。
+
+### 核心二：FSRS 记忆调度
+
+比 Anki 默认的 SM-2 更现代的算法：每个知识点维护"记忆稳定性"，复习时四档自评，答得越轻松下次排得越远。每天打开 App，**只复习今天到期的那几张**——不刷 100 张。
+
+### 核心三：智能规划
+
+告诉它**考试日期和目标**，AI 把整个备考期拆成可执行的里程碑节点，落到月历，每天该干什么一目了然。
+
+## 技术栈
+
+- Flutter + Riverpod 3 + sqflite
+- 算法和业务抽成独立的 `study_engine` 包，167 个 Dart 文件，约 2.7 万行
+- Agent 运行时没引任何现成框架（早期 LangChain 支配过的后遗症）
+- 记忆模块参考 harness agent，简单的记忆管理 + 注入
+- BYOK（自带 Key）：不内置任何 AI 服务
+- 数据全在本地：SQLite 存储，不上传服务器
+
+## 数字
+
+- <Counter from={0} to={5} suffix=" 天" label="业余时间 vibe 出来" />
+- <Counter from={0} to={167} label=" Dart 文件 · 2.7 万行" />
+
+## 开源地址
+
+github.com/yunkst/study（Android 安装包在 Releases，iOS 暂无）。

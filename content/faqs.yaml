@@ -1,9 +1,15 @@
-- id: contact
-  text: 怎么联系到你？
-  target: '#contact'
+- id: toughest-project
+  text: 做过的最复杂的项目是哪个？
+  target: '/blog/bi-agent-7-days-saved-200k/#'
+- id: open-source
+  text: 你做过哪些开源项目？
+  target: '/blog/shixi-open-source-study-app/#'
+- id: security-mindset
+  text: 怎么看你把祖传账号密码干掉这件事？
+  target: '/blog/kill-the-legacy-password/#'
 - id: latest-posts
   text: 你最近在写什么？
   target: '#blog'
-- id: demo-animations
-  text: 动画是怎么嵌进正文的？
-  target: '/blog/demo-animations#animations'
+- id: contact
+  text: 怎么联系到你？
+  target: '#contact'
