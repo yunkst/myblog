@@ -2,7 +2,7 @@
 
 **作者**: yedazhi（与你协作的 AI 助手）
 **最后更新**: 2026-08-28
-**状态**: 初稿，待评审
+**状态**: 修订稿 v2（渲染架构改为 SSG 预渲染），待评审
 **目标读者**: 你本人（产品决策者）+ 后续接手实现的 AI / 工程师
 
 ---
@@ -162,23 +162,33 @@ site:
 
 ## 5. 架构与依赖
 
-### 5.1 静态生成栈（推荐 — A 方案）
+### 5.1 渲染架构：SSG 预渲染（v2 修订）
+
+**决策**：构建时预渲染（SSG）。构建过程把 `/`、`/blog`、每篇 `/blog/<slug>`、每个 `/domain/<slug>` 都渲染成**真实 HTML 文件**；浏览器秒出内容后 React 接管（hydration），GSAP 动画在客户端照常运行。
+
+**为什么不是纯 SPA**：纯 SPA（Vite + react-router 默认产物）只有单个 `index.html`，首屏白屏、无 SEO、微信分享卡片拿不到文章标题摘要 —— 与"HR 10 秒决策"和"搜名字找到博客"的真实场景冲突。
+
+**选型**：`vite-react-ssg`（Vite 生态的 React SSG 插件，react-router 路由约定直接复用）。备选 `vike`（更底层、可定制更强）；若两者与 MDX/GSAP 集成受阻，评估 Astro 兜底（React 组件可直接复用，代价是换构建框架）。
 
 ```
-┌─────────────────────────────────────┐
-│ Vite + React + TypeScript          │
-│ ├─ MDX（markdown + JSX 文章源）    │
-│ ├─ GSAP（动画 + ScrollTrigger）    │
-│ ├─ gray-matter（frontmatter 解析）  │
-│ └─ react-router（多页面路由）       │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│ Vite + vite-react-ssg + React + TS       │
+│ ├─ MDX（markdown + JSX 文章源）          │
+│ ├─ GSAP（动画 + ScrollTrigger，客户端跑） │
+│ ├─ gray-matter（frontmatter 解析）        │
+│ └─ react-router（路由即 SSG 路由表）      │
+└──────────────────────────────────────────┘
             ↓ build
-   dist/  (纯静态: HTML/JS/CSS/MD 渲染产物)
+   dist/  每条路由一个真实 index.html
+          （/、/blog、/blog/<slug>…、/domain/<slug>…）
             ↓ tcb hosting deploy
    CloudBase 静态托管 CDN (ap-shanghai)
+   （纯静态文件，无需 SPA 回退配置）
             ↑
-   GitHub Actions / cron 触发构建
+   git push → GitHub Actions 构建
 ```
+
+每页附带独立的 `<title>` / `<meta description>`（SSG 时从 frontmatter 注入），解决 SEO 与微信分享卡片。
 
 ### 5.2 内容存储
 
@@ -306,7 +316,9 @@ content/posts/*.mdx
 
 ## 9. 验证与完成标准
 
-- [ ] **构建通过**：`npm run build` 产出 `dist/`。
+- [ ] **构建通过**：`npm run build` 产出 `dist/`，每条路由有独立 HTML 文件（`dist/index.html`、`dist/blog/<slug>/index.html`…）。
+- [ ] **首屏秒开**：任一文章页 `curl` 返回的 HTML 中直接包含文章标题与摘要（无 JS 也能读到正文骨架）。
+- [ ] **SEO / 分享卡片**：每页有独立 `<title>` 与 `<meta name="description">`（从 frontmatter 注入）。
 - [ ] **首页加载**（本地 `vite preview` 后）：≤ 1 屏看到身份 + 亮点 + 联系方式入口。
 - [ ] **粘性 FAQ**：8 个 FAQ 全部可点；点了页面平滑滚动并触发对应段动画。
 - [ ] **博客列表**：时间倒序，3 篇以上示例文章。
@@ -325,10 +337,11 @@ content/posts/*.mdx
 |---|---|---|
 | GSAP scroll 联动在移动 Safari 抖动 | 中 | `ScrollTrigger.refresh()` + 手动指定 start/end |
 | MDX 与 TypeScript 类型联动 | 中 | 用 `vite-plugin-mdx` + `mdx-js/react`，文章内组件按 JSX 处理 |
+| SSG 插件（vite-react-ssg）与 MDX/GSAP 集成受阻 | 中 | hydration 后动画客户端运行，SSG 只要求组件能在 Node 里渲染出静态骨架；受阻则换 `vike`，再不行评估 Astro 兜底（React 组件可复用） |
+| GSAP 在 SSR/SSG 的 Node 构建期报 window 未定义 | 低 | 动画初始化全部放 `useEffect`（仅客户端）；组件渲染期不触碰 `window`/`document` |
 | 微信二维码被恶意爬取 | 低 | 图片本身是公开的；不需要额外防护 |
-| 未来要换 SSG（Vite → Astro / Next） | 中 | 内容源全是 `content/` 文件；迁移成本集中在构建配置 |
 | 用户希望"按时间筛选"等复杂列表 | 低 | MVP 不做；扩展时改 `PostList` |
-| CloudBase 静态托管是否支持 SSR / ISR | 静态托管不支持；未来要 SSR 改 CloudRun | 明确 MVP 纯 SSG，不留 SSR 路径 |
+| 未来需要服务端动态能力（ISR / SSR） | 低 | 静态托管不支持；届时改 CloudRun 容器，内容源 `content/` 不变 |
 
 ---
 
