@@ -8,6 +8,8 @@ status: published
 excerpt: 这篇占位文章演示 Typewriter、Counter、ArchDiagram 三种动画组件在正文里的用法。
 ---
 
+import { ArchDiagram, DEMO_ARCH } from '../../src/components/blog-anim/ArchDiagram'
+
 # 示例文章
 
 这是一篇占位文章，用来验证动画组件与正文的集成。
@@ -18,7 +20,7 @@ excerpt: 这篇占位文章演示 Typewriter、Counter、ArchDiagram 三种动�
 
 ## 架构动画
 
-<ArchDiagram diagram="demo" />
+<ArchDiagram {...DEMO_ARCH} />
 
 ## 打字机
 

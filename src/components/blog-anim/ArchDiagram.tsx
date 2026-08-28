@@ -69,7 +69,7 @@ function edgePath(nodes: ArchNode[], e: ArchEdge) {
 }
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 
-export default function ArchDiagram({ nodes, edges, bounds = [], caption }: Props) {
+export function ArchDiagram({ nodes, edges, bounds = [], caption }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const played = useRef(false)
@@ -181,3 +181,5 @@ export default function ArchDiagram({ nodes, edges, bounds = [], caption }: Prop
     </figure>
   )
 }
+
+export default ArchDiagram
