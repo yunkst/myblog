@@ -70,7 +70,7 @@ function yamlToExpression(value: any): any {
   return { type: 'Literal', value: null }
 }
 
-export default defineConfig({
+export default defineConfig(({ isSsrBuild }) => ({
   plugins: [
     { enforce: 'pre', ...mdx({
       providerImportSource: '@mdx-js/react',
@@ -79,7 +79,16 @@ export default defineConfig({
     react(),
   ],
   resolve: {
-    alias: { '@': new URL('./src', import.meta.url).pathname },
+    alias: [
+      { find: '@', replacement: new URL('./src', import.meta.url).pathname },
+      /* 客户端构建时把 lib/content 替换为客户端版（content.client.ts），
+       * 避免 node:fs / process.cwd() 打进浏览器 bundle 导致 hydration 失败。
+       * SSG/SSR 侧继续用原 content.ts 读文件。 */
+      ...(isSsrBuild ? [] : [{
+        find: /^\.{1,2}\/lib\/content$/,
+        replacement: new URL('./src/lib/content.client.ts', import.meta.url).pathname,
+      }]),
+    ],
   },
   ssgOptions: {
     dirStyle: 'nested',
@@ -90,4 +99,4 @@ export default defineConfig({
     globals: true,
     setupFiles: './vitest.setup.ts',
   },
-})
+}))

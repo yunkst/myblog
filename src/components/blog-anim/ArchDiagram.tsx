@@ -99,17 +99,15 @@ export function ArchDiagram({ nodes, edges, bounds = [], caption }: Props) {
       labs.forEach((l) => { l.style.transition = 'none'; l.style.opacity = '0' })
       void wrap.offsetWidth
       setTimeout(() => boundsEls.forEach((b) => { b.style.transition = 'opacity .5s'; b.style.opacity = '1' }), 60)
-      const order = ['client', 'gw', 'read', 'redis', 'write', 'queue', 'db']
-      order.forEach((id, i) => setTimeout(() => {
-        const el = svg.querySelector<SVGGElement>(`[data-node="${id}"]`)
-        if (el) { el.style.transition = 'opacity .4s'; el.style.opacity = '1' }
+      /* 按 DOM 顺序播放（DOM 顺序即 props.nodes/edges 数据顺序），不再硬编码 demo 的 id 列表 */
+      ns.forEach((n, i) => setTimeout(() => {
+        n.style.transition = 'opacity .4s'; n.style.opacity = '1'
       }, 200 + i * 260))
-      const eorder = ['e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7']
-      eorder.forEach((id, i) => setTimeout(() => {
-        const el = svg.querySelector<SVGPathElement>(`[data-edge="${id}"]`)
-        if (el) { el.style.transition = 'stroke-dashoffset .55s ease'; el.style.strokeDashoffset = '0' }
+      es.forEach((p, i) => setTimeout(() => {
+        p.style.transition = 'stroke-dashoffset .55s ease'; p.style.strokeDashoffset = '0'
       }, 200 + (i + 1.5) * 260))
-      setTimeout(() => labs.forEach((l) => { l.style.transition = 'opacity .5s'; l.style.opacity = '1' }), 200 + 9.2 * 260)
+      /* labels 时间跟随实际规模，避免大图过早/小图过晚 */
+      setTimeout(() => labs.forEach((l) => { l.style.transition = 'opacity .5s'; l.style.opacity = '1' }), 200 + (es.length + 2) * 260)
       played.current = true
     }
     play()
@@ -120,6 +118,7 @@ export function ArchDiagram({ nodes, edges, bounds = [], caption }: Props) {
   return (
     <figure className="ba-arch" ref={wrapRef}>
       <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} role="img" aria-label={caption || '架构示意'}>
+        {/* 1) 容器 bounds */}
         {bounds.map((b) => (
           <g key={b.label + b.x}>
             <rect className="ag-bound" x={b.x} y={b.y} width={b.w} height={b.h} rx={3}
@@ -128,31 +127,17 @@ export function ArchDiagram({ nodes, edges, bounds = [], caption }: Props) {
               fill="#93A39C" fontFamily="var(--fang),serif">{b.label}</text>
           </g>
         ))}
+        {/* 2) 边线（锚点都在节点边框上，所以 path 实际只存在于两节点间隙中，节点不会遮 path） */}
         {edges.map((e) => {
           const color = e.emph ? '#0E6E5C' : '#55665F'
-          const a = anchor(nodeById(nodes, e.from)!, e.fromSide)
-          const b = anchor(nodeById(nodes, e.to)!, e.toSide)
-          let lx = 0, ly = 0
-          if (e.via) { lx = (a.x + e.via[0].x) / 2; ly = (a.y + e.via[0].y) / 2 }
-          else if (e.fromSide === 'top' || e.fromSide === 'bottom') { lx = a.x + 34; ly = (a.y + b.y) / 2 }
-          else { lx = (a.x + b.x) / 2; ly = a.y }
-          const wpx = (e.label?.length || 0) * 6.4 + 14
           return (
-            <g key={e.id}>
-              <path className="ag-edge" data-edge={e.id} d={edgePath(nodes, e)}
-                fill="none" stroke={color} strokeWidth={e.emph ? 1.8 : 1.4}
-                strokeDasharray={e.dash ? '5 4' : undefined}
-                markerEnd={e.emph ? 'url(#arE)' : 'url(#ar)'} />
-              {e.label && (
-                <>
-                  <rect className="ag-lab-bg" x={lx - wpx / 2} y={ly - 8} width={wpx} height={16} rx={3} fill="#F6F7F4" />
-                  <text className="ag-lab-tx" x={lx} y={ly + 3.5} textAnchor="middle" fontSize={9.5}
-                    fill={e.emph ? '#0E6E5C' : '#55665F'} fontFamily="var(--mono),monospace">{e.label}</text>
-                </>
-              )}
-            </g>
+            <path key={`l-${e.id}`} className="ag-edge" data-edge={e.id} d={edgePath(nodes, e)}
+              fill="none" stroke={color} strokeWidth={e.emph ? 1.8 : 1.4}
+              strokeDasharray={e.dash ? '5 4' : undefined}
+              markerEnd={e.emph ? 'url(#arE)' : 'url(#ar)'} />
           )
         })}
+        {/* 3) 节点（在边之上：节点白底自然遮挡穿过间隙的边线，不挡边线全段） */}
         {nodes.map((n) => {
           const key = n.kind === 'key'
           return (
@@ -165,6 +150,25 @@ export function ArchDiagram({ nodes, edges, bounds = [], caption }: Props) {
                 fill="#1C2B28" fontFamily="var(--sans),sans-serif">{esc(n.label)}</text>
               <text x={n.x + n.w / 2} y={n.y + 44} textAnchor="middle" fontSize={9.5} fill="#93A39C"
                 fontFamily="var(--mono),monospace" letterSpacing={0.5}>{esc(n.sub)}</text>
+            </g>
+          )
+        })}
+        {/* 4) 边 label（最上层：当 label 比节点间隙宽时，白底贴在节点边缘，
+              形成"标签贴纸"效果，文字不会被节点白底截断） */}
+        {edges.map((e) => {
+          const a = anchor(nodeById(nodes, e.from)!, e.fromSide)
+          const b = anchor(nodeById(nodes, e.to)!, e.toSide)
+          let lx = 0, ly = 0
+          if (e.via) { lx = (a.x + e.via[0].x) / 2; ly = (a.y + e.via[0].y) / 2 }
+          else if (e.fromSide === 'top' || e.fromSide === 'bottom') { lx = a.x + 34; ly = (a.y + b.y) / 2 }
+          else { lx = (a.x + b.x) / 2; ly = a.y }
+          const wpx = (e.label?.length || 0) * 6.4 + 14
+          if (!e.label) return null
+          return (
+            <g key={`lab-${e.id}`}>
+              <rect className="ag-lab-bg" x={lx - wpx / 2} y={ly - 8} width={wpx} height={16} rx={3} fill="#F6F7F4" />
+              <text className="ag-lab-tx" x={lx} y={ly + 3.5} textAnchor="middle" fontSize={9.5}
+                fill={e.emph ? '#0E6E5C' : '#55665F'} fontFamily="var(--mono),monospace">{e.label}</text>
             </g>
           )
         })}
