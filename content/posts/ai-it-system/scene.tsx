@@ -8,11 +8,11 @@ import type { Scene } from '../../../src/components/explore/SceneController'
  * 单一 demo `badcase-journey`：一条完整叙事——
  * - 顶部 left bubble 打字机出现「搜索 badcase：query X 召回不全，预期 Y 实际 Z」
  * - 节点从左到右 stagger 点亮（问题报告→AI 分析→开发分支→CI/CD→审查合并）
- * - CI 节点亮起时旁边小方块由灰转绿（#ci-light backgroundColor → #0E6E5C）
+ * - CI 节点亮起时旁边小方块由灰转绿（#ci-light fill #cccccc → #0E6E5C）
  * - MR 节点亮起时右上角「✓ merged」标签淡入
  * - 底部字幕最终变为「全程几乎零沟通：人只在报告与验收出现两次」
  *
- * 总时长约 6s。
+ * 总时长约 5s。
  */
 export const demos: Record<string, Scene> = {
   'badcase-journey': {
@@ -27,7 +27,7 @@ export const demos: Record<string, Scene> = {
       tl.set(nodeSelectors, { opacity: 0, fillOpacity: 0.2 })
       tl.set('#scene-subtitle', { opacity: 0 })
       tl.set('#report-bubble', { opacity: 0 })
-      tl.set('#ci-light', { opacity: 1, backgroundColor: '#cccccc' })
+      tl.set('#ci-light', { opacity: 1, attr: { fill: '#cccccc' } })
       tl.set('#merged-tag', { opacity: 0 })
 
       // ─── 1) 顶部 left bubble 打字机出现（≈2.2s） ───
@@ -55,7 +55,7 @@ export const demos: Record<string, Scene> = {
         '<+0.2')
 
       // ─── 4) CI 节点（n-cicd）亮起时—— ci-light 由灰转绿 ───
-      tl.set('#ci-light', { backgroundColor: '#0E6E5C' }, '>-0.15')
+      tl.set('#ci-light', { attr: { fill: '#0E6E5C' } }, '>-0.15')
 
       // ─── 5) MR 节点（n-review）亮起时—— merged-tag 右上角淡入 ───
       tl.to('#merged-tag', { opacity: 1, duration: 0.35 }, '<+0.2')
