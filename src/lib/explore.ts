@@ -175,3 +175,15 @@ export function getHeadingsWithIds(mdxRaw: string): Array<{ id: string; text: st
   }
   return out
 }
+
+/** v3：场景幕序号中文数字（1→一 … 12→十二；>12 按 digit 组合，当前 11 场景够用） */
+const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九']
+export function toChineseOrdinal(n: number): string {
+  if (!Number.isInteger(n) || n <= 0) throw new RangeError(`幕序号必须是正整数: ${n}`)
+  if (n < 10) return CN_DIGITS[n]
+  if (n === 10) return '十'
+  if (n < 20) return `十${CN_DIGITS[n - 10]}`
+  const tens = Math.floor(n / 10)
+  const ones = n % 10
+  return `${CN_DIGITS[tens]}十${ones ? CN_DIGITS[ones] : ''}`
+}
