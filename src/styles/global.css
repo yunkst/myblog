@@ -915,3 +915,14 @@ body::before {
   .post-wrap--stage .theater { padding: 24px 20px 22px; }
   .post-wrap--stage .stage-inner { padding: 40px 16px 32px; }
 }
+/* chip-prefix（v3 T5 评审 I3）：選択肢前缀 ▸/？ 的对齐与配色 */
+.post-wrap--stage .choices .chip-prefix {
+  display: inline-block;
+  width: 18px;
+  margin-right: 12px;
+  font-family: var(--mono);
+  color: var(--sacc);
+}
+.post-wrap--stage .choices .exit-chips-questions .chip-prefix {
+  color: var(--smark);
+}

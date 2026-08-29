@@ -108,10 +108,8 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
 
     /* dialogue 打字机链式：threshold 0.4；段落选择器 :scope > p, :scope > blockquote
      * 前一段 onComplete → 下一段 play；打字启动时 buildTypewriterTimeline 内部才清空 innerHTML（SSG 安全）。
-     * GSAP timeline position 单位是秒：charMs 传 0.028 = 28ms/字。
-     * 注：不用 tl onComplete 排链——useTypewriter 的 restore call 位置含「+60」（秒单位尾巴，
-     * 疑似 Task 1 单位错位），onComplete 会迟 60s；改为按打字完成点自排下一段。 */
-    const timers: number[] = []
+     * charMs 单位是毫秒（库内部换算成 GSAP 的秒语义），默认 28ms/字。
+     * 空段或 reduced-motion → buildTypewriterTimeline 返回 null，立即接力下一段。 */
     const dlg = dialogueRef.current
     if (dlg) {
       const paras = Array.from(dlg.querySelectorAll<HTMLElement>(':scope > p, :scope > blockquote'))
@@ -122,16 +120,13 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
             ioDlg.disconnect()
             const chainPara = (i: number) => {
               if (i >= paras.length) return
-              const p = paras[i]
-              const charCount = Array.from(p.textContent ?? '').length
-              const tl = buildTypewriterTimeline(p, { charMs: 0.028 })
+              const tl = buildTypewriterTimeline(paras[i])
               if (!tl) { chainPara(i + 1); return }
-              tl.play(0)
               tls.push(tl)
-              /* 打字完成点（chars*28ms + 50ms 缓冲）后排下一段；restore call 由 timeline 自己补 */
               if (i + 1 < paras.length) {
-                timers.push(window.setTimeout(() => chainPara(i + 1), charCount * 28 + 50))
+                tl.eventCallback('onComplete', () => chainPara(i + 1))
               }
+              tl.play(0)
             }
             chainPara(0)
           }
@@ -141,9 +136,8 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
     }
 
     return () => {
-      /* cleanup：所有 timeline kill + 待排链定时器清掉 */
+      /* cleanup：所有 timeline kill */
       for (const tl of tls) tl.kill()
-      for (const t of timers) window.clearTimeout(t)
     }
   }, [])
 

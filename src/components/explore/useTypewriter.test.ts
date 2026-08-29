@@ -39,4 +39,28 @@ describe('buildTypewriterTimeline', () => {
     tl.progress(1)
     expect(el.innerHTML).toBe(original)
   })
+
+  it('时间单位是秒语义：默认 28ms/字，整段 duration 约 chars*0.028+0.06 秒（T5 评审单位错位回归）', () => {
+    const el = document.createElement('p')
+    el.textContent = '七个字呢'
+    const tl = buildTypewriterTimeline(el)!
+    // 4 字 * 0.028s + 0.06s restore 尾巴 ≈ 0.172s（不是 4*28+60 秒）
+    expect(tl.duration()).toBeGreaterThan(0.1)
+    expect(tl.duration()).toBeLessThan(0.3)
+  })
+
+  it('真实时间流速下打字与 restore 都会发生（不依赖 progress 跳进）', async () => {
+    const el = document.createElement('p')
+    el.innerHTML = 'ab<em>c</em>'
+    const original = el.innerHTML
+    const tl = buildTypewriterTimeline(el, { charMs: 16 })!
+    tl.play(0)
+    // 3 字 × 16ms = 48ms 才打完整段；80ms 后纯文本应揭示完毕（innerHTML 尚未恢复）
+    await new Promise((r) => setTimeout(r, 80))
+    expect(el.textContent).toBe('abc')
+    expect(el.innerHTML).not.toBe(original)
+    // restore 触发后：标记回归（duration + 60ms 缓冲 ≈ 110ms 后已发生）
+    await new Promise((r) => setTimeout(r, 60))
+    expect(el.innerHTML).toBe(original)
+  })
 })
