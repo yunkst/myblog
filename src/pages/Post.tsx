@@ -68,11 +68,13 @@ export default function Component() {
             {prev && <Link to={`/blog/${prev.slug}/`}>← {prev.title}</Link>}
             {next && <Link to={`/blog/${next.slug}/`}>{next.title} →</Link>}
           </nav>
-          <p style={{ marginTop: 32 }}>
-            <Link to={`/blog/${post.slug}/explore/`} className="explore-entry-link">
-              走进探索视图 →
-            </Link>
-          </p>
+          {post.hasExplore && (
+            <p style={{ marginTop: 32 }}>
+              <Link to={`/blog/${post.slug}/explore/`} className="explore-entry-link">
+                走进探索视图 →
+              </Link>
+            </p>
+          )}
         </main>
       </AnswerProvider>
     </MDXProvider>
