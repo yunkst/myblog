@@ -3,6 +3,8 @@ import { MemoryRouter } from 'react-router-dom'
 import '@testing-library/jest-dom/vitest'
 import { describe, it, expect } from 'vitest'
 import Answer, { ExploreConfigContext } from './Answer'
+import SceneClip from './SceneClip'
+import { parseExploreYaml } from '../../lib/explore'
 import type { ExploreConfig } from '../../lib/types'
 
 const config: ExploreConfig = {
@@ -15,10 +17,12 @@ const config: ExploreConfig = {
 }
 
 describe('Answer（v2 原位渲染）', () => {
-  it('渲染为带 id 的 answer-block，子内容可见', () => {
+  it('渲染为带 id 的 theater+answer-block 双类名，子内容可见', () => {
     render(<Answer id="q-problem"><p>正文段落</p></Answer>)
     const block = document.getElementById('q-problem')
     expect(block).not.toBeNull()
+    // 双类名约定：v3 引入 .theater，保留 .answer-block 作过渡别名
+    expect(block?.className).toContain('theater')
     expect(block?.className).toContain('answer-block')
     expect(screen.getByText('正文段落')).toBeInTheDocument()
   })
@@ -46,5 +50,108 @@ describe('Answer（v2 原位渲染）', () => {
       </MemoryRouter>,
     )
     expect(document.querySelector('.exit-chip')).toBeNull()
+  })
+})
+
+describe('Answer v3 分区渲染', () => {
+  const yaml = [
+    'title: t',
+    'entry: q-a',
+    'scenes:',
+    '  - id: q-a',
+    '    label: 场景A',
+    '    demo: demo-a',
+    '    questions:',
+    '      - { text: 去B, to: q-b }',
+    '  - id: q-b',
+    '    label: 场景B',
+    '    demo: demo-b',
+  ].join('\n')
+
+  function makeConfig(raw: string): ExploreConfig {
+    const r = parseExploreYaml(raw)
+    if (!r.ok) throw new Error(r.error)
+    return r.value
+  }
+
+  it('有 SceneClip 的场景：渲染 stage/act-no/dialogue/choices 四区', () => {
+    const cfg = makeConfig(yaml)
+    const { container } = render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={cfg}>
+          <Answer id="q-a">
+            <h2>标题</h2>
+            <SceneClip demo="demo-a" />
+            <p>解说段落</p>
+          </Answer>
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
+
+    // .theater#q-a 容器存在
+    const theater = container.querySelector('.theater#q-a')
+    expect(theater).not.toBeNull()
+
+    // act-head 取了 h2 标题 + act-no = 第一幕
+    const actHead = container.querySelector('.act-head')
+    expect(actHead).not.toBeNull()
+    expect(actHead?.querySelector('.act-no')?.textContent).toBe('第一幕')
+    expect(actHead?.querySelector('h2')?.textContent).toBe('标题')
+
+    // stage 区：含 stage-tag/stage-ch/stage-inner，inner 内渲染 SceneClip
+    const stage = container.querySelector('.stage')
+    expect(stage).not.toBeNull()
+    expect(stage?.querySelector('.stage-inner [data-scene-clip-demo="demo-a"]')).not.toBeNull()
+    expect(stage?.querySelector('.stage-ch')?.textContent).toBe('CH-01')
+
+    // dialogue 区：p 进 dialogue，且有 dlg-name
+    const dialogue = container.querySelector('.dialogue')
+    expect(dialogue).not.toBeNull()
+    expect(dialogue?.textContent).toContain('解说段落')
+    expect(dialogue?.querySelector('.dlg-name')?.textContent).toContain('解 说')
+
+    // choices 区（q-a 有 questions=[去B]，1 个 chip）
+    const choices = container.querySelector('.choices')
+    expect(choices).not.toBeNull()
+    expect(choices?.querySelectorAll('.exit-chip')).toHaveLength(1)
+  })
+
+  it('无 SceneClip 的场景：不渲染 .stage，其余三区照常', () => {
+    const cfg = makeConfig(yaml)
+    const { container } = render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={cfg}>
+          <Answer id="q-b"><p>纯文字</p></Answer>
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
+    expect(container.querySelector('.stage')).toBeNull()
+    // q-b 是 yaml 第二幕
+    expect(container.querySelector('.act-no')?.textContent).toBe('第二幕')
+    // q-b 没有 features/questions → .choices 不渲染
+    expect(container.querySelector('.choices')).toBeNull()
+  })
+
+  it('heading 不在最前：不提取到 act-head，留在 dialogue', () => {
+    const cfg = makeConfig(yaml)
+    const { container } = render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={cfg}>
+          <Answer id="q-a">
+            <SceneClip demo="demo-a" />
+            <p>先一段</p>
+            <h3>小标题</h3>
+          </Answer>
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
+    // heading 已被 partition 提取到 act-head
+    const actHead = container.querySelector('.act-head')
+    expect(actHead?.querySelector('h3')?.textContent).toBe('小标题')
+    // 非 heading 元素留在 dialogue
+    const dialogue = container.querySelector('.dialogue')
+    expect(dialogue?.textContent).toContain('先一段')
+    // stage-inner 内有 SceneClip + p 不在 stage（只摘 SceneClip）
+    expect(container.querySelector('.stage-inner [data-scene-clip-demo="demo-a"]')).not.toBeNull()
   })
 })

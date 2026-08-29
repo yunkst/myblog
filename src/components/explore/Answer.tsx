@@ -1,6 +1,7 @@
-import { createContext, useContext } from 'react'
-import type { ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
+import SceneClip from './SceneClip'
 import ExitChips from './ExitChips'
+import { toChineseOrdinal } from '../../lib/explore'
 import type { ExploreConfig } from '../../lib/types'
 
 /**
@@ -10,23 +11,69 @@ import type { ExploreConfig } from '../../lib/types'
  */
 export const ExploreConfigContext = createContext<ExploreConfig | null>(null)
 
+/** v3 分区（spec §2.2）：children → heading(最前) / SceneClip / 其余 */
+function partition(children: ReactNode) {
+  const arr = Array.isArray(children) ? children : [children]
+  const clips: ReactNode[] = []
+  const rest: ReactNode[] = []
+  let heading: ReactNode | null = null
+  let headingTaken = false
+  for (const child of arr) {
+    if (child == null || child === false) continue
+    const t = (child as { type?: unknown }).type
+    if (t === SceneClip) { clips.push(child); continue }
+    if (!headingTaken && typeof t === 'string' && (t === 'h2' || t === 'h3')) {
+      heading = child; headingTaken = true; continue
+    }
+    rest.push(child)
+  }
+  return { heading, clips, rest }
+}
+
 /**
- * v2：原位渲染块。阅读与探索是同一页面的两种用法，Answer 不再有
- * "注册到 Provider、被探索面板抽取"的第二渲染路径——id 即锚点，
- * 场景目录 / 出口 chips / 首页悬念按钮都指向 #<id>。
+ * v3：theater 五段式渲染（theater / act-head / stage / dialogue / choices）。
+ * - `.theater` 同 id 锚点（v2 `.answer-block` 改名）；类名双挂 `answer-block`
+ *   保留为过渡别名，让 v2 遗留的 `.answer-block` 查询继续命中。
+ * - heading：children 中**最前**的 h2/h3 进 act-head；不在最前的留在 dialogue。
+ * - SceneClip：children 中所有 `type === SceneClip` 进 stage-inner。
+ * - idx ≥ 0 才渲染 act-no（孤儿 Answer 无序号）。
+ * - 无 SceneClip → 不渲染 `.stage`；其它区照常。
  */
 export default function Answer({ id, children }: { id: string; children: ReactNode }) {
   const config = useContext(ExploreConfigContext)
   const scene = config?.scenes.find((s) => s.id === id)
+  const idx = config?.scenes.findIndex((s) => s.id === id) ?? -1
+  const { heading, clips, rest } = partition(children)
+  const hasExits = !!scene && (!!scene.features?.length || !!scene.questions?.length)
+
   return (
-    <div className="answer-block" id={id}>
-      {children}
-      {scene && (scene.features?.length || scene.questions?.length) ? (
-        <div className="answer-exits">
-          <ExitChips group="features" exits={scene.features ?? []} config={config!} />
-          <ExitChips group="questions" exits={scene.questions ?? []} config={config!} />
+    <section className="theater answer-block" id={id}>
+      {(heading || idx >= 0) && (
+        <div className="act-head">
+          {idx >= 0 && <span className="act-no">第{toChineseOrdinal(idx + 1)}幕</span>}
+          {heading}
+          <div className="act-rule" />
         </div>
-      ) : null}
-    </div>
+      )}
+      {clips.length > 0 && (
+        <div className="stage">
+          <span className="stage-tag">DEMO · {scene?.demo ?? '—'}</span>
+          <span className="stage-ch">CH-{String(idx + 1).padStart(2, '0')}</span>
+          <div className="stage-spot" />
+          <div className="stage-inner">{clips}</div>
+        </div>
+      )}
+      <div className="dialogue">
+        <span className="dlg-name">解 说</span>
+        {rest}
+      </div>
+      {hasExits && scene && config && (
+        <div className="choices">
+          <span className="choices-label">─ 選択肢 ─</span>
+          <ExitChips group="features" exits={scene.features ?? []} config={config} />
+          <ExitChips group="questions" exits={scene.questions ?? []} config={config} />
+        </div>
+      )}
+    </section>
   )
 }
