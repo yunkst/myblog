@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import type { ExploreConfig, ExploreExit } from '../../lib/types'
 import { resolveExploreHref } from '../../lib/explore'
 
@@ -24,9 +23,9 @@ export default function ExitChips({ group, exits, config }: Props) {
           )
         }
         return (
-          <Link key={e.text} className="exit-chip" to={resolveExploreHref(e.to, config)}>
+          <a key={e.text} className="exit-chip" href={resolveExploreHref(e.to, config)}>
             {e.text} →
-          </Link>
+          </a>
         )
       })}
     </div>

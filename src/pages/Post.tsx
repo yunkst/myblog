@@ -4,7 +4,7 @@
  * 嵌入正文流；无独立探索路由、无 AnswerProvider 注册。
  * <main data-article-slug> 保留（SceneClip 反查当前文章依赖）。
  */
-import { useMemo, useEffect } from 'react'
+import { useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Head } from 'vite-react-ssg'
 import { MDXProvider } from '@mdx-js/react'
@@ -38,15 +38,6 @@ export default function Component() {
   const post = useMemo(() => getPost(slug || ''), [slug])
   const list = useMemo(() => getAllPosts(), [])
   const exploreConfig = useMemo(() => exploreConfigFor(post?.slug || ''), [post?.slug])
-
-  /* #entry 保留字落地（spec §3.3）：首页悬念按钮以 #entry 指向入口场景，
-   * 进页后替换为真实场景 id 并平滑滚动。 */
-  useEffect(() => {
-    if (location.hash !== '#entry' || !exploreConfig) return
-    history.replaceState(null, '', `#${exploreConfig.entry}`)
-    document.getElementById(exploreConfig.entry)
-      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-  }, [exploreConfig])
 
   if (!post) {
     return <main className="post-wrap"><p>文章不存在。</p></main>

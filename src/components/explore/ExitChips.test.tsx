@@ -1,5 +1,4 @@
 import { render, fireEvent } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi } from 'vitest'
 import ExitChips from './ExitChips'
 import type { ExploreConfig } from '../../lib/types'
@@ -11,8 +10,8 @@ const config: ExploreConfig = {
 
 describe('ExitChips', () => {
   it('本地目标渲染 #id 链接，点击 smooth 滚动', () => {
-    render(<MemoryRouter><ExitChips group="features" config={config}
-      exits={[{ text: '看B', to: 'q-b' }]} /></MemoryRouter>)
+    render(<ExitChips group="features" config={config}
+      exits={[{ text: '看B', to: 'q-b' }]} />)
     const a = document.querySelector<HTMLAnchorElement>('.exit-chip')
     expect(a?.getAttribute('href')).toBe('#q-b')
     // 目标锚点必须真实存在，否则可选链不会触发 scrollIntoView（与 SceneToc 测试同款手法）
@@ -24,10 +23,11 @@ describe('ExitChips', () => {
     fireEvent.click(a!)
     expect(scroll).toHaveBeenCalled()
   })
-  it('跨文章目标渲染 /blog/<post>/#… 链接', () => {
-    render(<MemoryRouter><ExitChips group="questions" config={config}
-      exits={[{ text: '去那篇', to: { post: 'other', scene: 'entry' } }]} /></MemoryRouter>)
+  it('跨文章目标渲染原生 <a>（整页跳转，浏览器原生处理锚点滚动）', () => {
+    render(<ExitChips group="questions" config={config}
+      exits={[{ text: '去那篇', to: { post: 'other', scene: 'entry' } }]} />)
     const a = document.querySelector<HTMLAnchorElement>('.exit-chip')
+    expect(a?.tagName).toBe('A')
     expect(a?.getAttribute('href')).toBe('/blog/other/#entry')
   })
 })
