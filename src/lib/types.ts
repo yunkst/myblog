@@ -43,3 +43,25 @@ export interface SiteConfig {
     domains: string[]
   }
 }
+
+export type QuestionKind = 'local' | 'cross-link'
+export type QuestionStatus = 'placeholder' | undefined | null
+
+export interface ExploreNode {
+  id: string
+  label: string
+  seek?: string
+  kind?: QuestionKind
+  status?: QuestionStatus
+  detail?: string       // 仅 placeholder 用
+  preview?: string      // 仅 cross-link 用
+  to?: { post: string; anchor: string }
+  children?: ExploreNode[]
+}
+
+export interface ExploreConfig {
+  title: string
+  anim?: string         // 相对路径字符串
+  seek_root?: string
+  nodes: ExploreNode[]
+}
