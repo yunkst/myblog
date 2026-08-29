@@ -422,3 +422,49 @@ body::before {
   border-radius: 2px;
   position: relative;
 }
+/* SceneClip 当前不渲染 children（纯触发器），SVG 由 MDX 里的 PipelineSvg 承载；
+ * 容器无子元素时收为 0 高，避免与相邻 SVG 形成双框。未来若 SceneClip 支持
+ * children 渲染，此规则自动让位（:empty 不再命中）。 */
+.scene-clip:empty {
+  min-height: 0;
+  height: 0;
+  margin: 0;
+  border: none;
+}
+
+/* ===== 探索视图 SVG 场景（ai-it-system scene.tsx PipelineSvg）===== */
+.scene-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 920px;
+  margin: 0 auto;
+}
+.scene-svg .scene-node {
+  fill: var(--paper-raise);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.scene-svg .scene-node-label {
+  font: 600 14px var(--sans);
+  fill: var(--ink);
+  dominant-baseline: middle;
+}
+.scene-svg .scene-node-sub {
+  font: 12px var(--mono);
+  fill: var(--ink-soft);
+  dominant-baseline: middle;
+}
+.scene-svg .scene-edge {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  fill: none;
+}
+.scene-svg .scene-arrow-fill {
+  fill: var(--accent);
+}
+.scene-svg .scene-subtitle {
+  font: 13px var(--mono);
+  fill: var(--ink-soft);
+  letter-spacing: 0.04em;
+}

@@ -3,7 +3,8 @@ seek_root: intro
 nodes:
   - id: q-tiered-approval
     label: 哪些接口是分级执行？
-    seek: 分级执行
+    status: placeholder
+    detail: 施工中——分级执行的完整推演（只读直调 / 安全写确认 / 可逆预演+锁定 / 高风险管理员审批）后续以 Answer 形式补进正文，并在本节点上挂动画 seek。
   - id: q-status-cross
     label: 高风险接口怎么兜底？
     kind: cross-link

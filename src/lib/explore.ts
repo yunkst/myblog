@@ -158,6 +158,9 @@ export function validateExplore(slug: string, sceneLabels: string[] = []): Valid
     const node = findNode(config, id)
     if (!node) continue
     if (node.status === 'placeholder') continue
+    // cross-link 节点：自身没有 <Answer>（它的"答案"在另一篇的正文里），
+    // 跳转目标由规则 4 (checkCrossLink) 单独校验，不走规则 1。
+    if (node.kind === 'cross-link' && node.preview) continue
     if (!answerIds.has(id)) {
       errors.push(`[${slug}] ${id} 未在 article.mdx 找到 <Answer id="${id}">`)
     }

@@ -1,0 +1,22 @@
+title: AI 与工程的整体改造骨架
+seek_root: intro
+nodes:
+  - id: q-search-pipeline
+    label: 搜索优化流水线怎么跑？
+    seek: q-search-pipeline
+    focus: [n-report, n-ai, n-branch, n-cicd, n-review]
+  - id: q-ops-backup
+    label: AI+运维 · 影子备份与 GitOps
+    status: placeholder
+    detail: 施工中——影子备份的存储分层与异地容灾、GitOps 的 GitLab CI/CD 接入与回滚策略、AI 参与变更前后的安全边界。完成后本节点将挂动画 seek 到备份/GitOps 相关的 scene label。
+  - id: q-bi-watch
+    label: AI+BI · 看板与数据查询
+    status: placeholder
+    detail: 施工中——传统 BI 的费用与 Hadoop 沉重痛点、自研 BI-Agent 的取数/问数/看板工作流、与 ALL IN AI 体系共享身份与权限。完成后本节点将挂动画 seek 到 BI 相关的 scene label。
+  - id: q-all-in-ai
+    label: ALL IN AI 体系是什么？
+    kind: cross-link
+    to:
+      post: ai-digital-employee
+      anchor: '#第一层协议仓库让每个接口自报家门'
+    preview: 前篇《怎么让公司 ALL IN AI：搭一个 AI 数字员工平台》讲了协议仓库、统一身份、分级执行三层设计——本篇三节流水线背后共同依赖的骨架。
