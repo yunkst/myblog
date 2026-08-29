@@ -23,6 +23,21 @@ function slugHasExplore(slug: string): boolean {
   }
   return false
 }
+/* exploreEntry 对称计算（与 lib/content.ts 同一逻辑；yaml 坏不阻塞文章列表，validate:explore 会报） */
+function exploreEntryOf(slug: string): Post['exploreEntry'] {
+  const key = Object.keys(exploreModules).find(
+    (k) => k.split('/').slice(-2, -1)[0] === slug,
+  )
+  if (!key) return undefined
+  try {
+    const parsed = yaml.load(exploreModules[key] as string) as any
+    if (parsed?.entry && parsed?.scenes) {
+      const entry = parsed.scenes.find((s: any) => s.id === parsed.entry)
+      if (entry?.label) return { id: String(parsed.entry), label: String(entry.label) }
+    }
+  } catch { /* ignore */ }
+  return undefined
+}
 
 import siteYamlRaw from '/content/site.yaml?raw'
 import faqsYamlRaw from '/content/faqs.yaml?raw'
@@ -55,6 +70,7 @@ function metaFromModule(modulePath: string, mod: MdxModule): Post | null {
     body: '', // 正文由 mdxModules 的组件直接渲染，客户端不需要存原始 markdown
     fileName,
     hasExplore: slugHasExplore(fileName),
+    exploreEntry: exploreEntryOf(fileName),
   }
 }
 

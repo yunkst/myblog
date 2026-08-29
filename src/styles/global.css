@@ -426,3 +426,21 @@ body::before {
 .mock-bubble-right { align-self:flex-end; background:rgba(14,110,92,.9); color:#fff; }
 .mock-typing { font:inherit; }
 .mock-cursor { position:absolute; width:0; height:0; border-left:10px solid var(--ink); border-top:6px solid transparent; border-bottom:6px solid transparent; filter:drop-shadow(0 1px 2px rgba(0,0,0,.3)); z-index:5; }
+
+/* ===== 场景目录 + 出口 chips（v2）===== */
+.scene-toc { position:fixed; right:20px; top:120px; width:200px; max-height:60vh; overflow:auto; font:13px var(--sans); }
+.scene-toc ul { list-style:none; margin:0; padding:0; }
+.scene-toc a { display:block; padding:6px 8px; color:var(--ink-soft); text-decoration:none; border-left:2px solid var(--line); }
+.scene-toc a:hover { color:var(--accent); border-left-color:var(--accent); }
+.scene-toc-mobile { display:none; }
+@media (max-width:920px) {
+  .scene-toc { display:none; }
+  .scene-toc-mobile { display:block; margin:0 0 16px; font:14px var(--sans); }
+  .scene-toc-mobile ul { list-style:none; padding-left:8px; }
+}
+.exit-chips { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 6px; }
+.exit-chip { display:inline-block; padding:4px 12px; border:1px solid var(--accent); border-radius:999px; font:12px var(--mono); color:var(--accent); text-decoration:none; background:none; cursor:pointer; }
+.exit-chip:hover { background:rgba(14,110,92,.08); }
+.exit-chips-questions .exit-chip { border-style:dashed; }
+.explore-hint { font:13px var(--mono); color:var(--ink-faint); }
+.explore-entry-btn { display:inline-block; margin-top:8px; font:600 13px var(--sans); color:var(--accent); }

@@ -4,14 +4,17 @@
  * 嵌入正文流；无独立探索路由、无 AnswerProvider 注册。
  * <main data-article-slug> 保留（SceneClip 反查当前文章依赖）。
  */
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Head } from 'vite-react-ssg'
 import { MDXProvider } from '@mdx-js/react'
 import { getPost, getAllPosts } from '../lib/content'
 import { registry } from '../components/blog-anim/registry'
+import { parseExploreYaml } from '../lib/explore'
+import type { ExploreConfig } from '../lib/types'
 import Answer from '../components/explore/Answer'
 import SceneClip from '../components/explore/SceneClip'
+import SceneToc from '../components/explore/SceneToc'
 
 /* 构建期：所有 content/posts/<slug>/article.mdx 编译为组件映射（Vite 原生，eager） */
 const mdxModules = import.meta.glob<{ default: React.ComponentType }>(
@@ -19,10 +22,31 @@ const mdxModules = import.meta.glob<{ default: React.ComponentType }>(
   { eager: true },
 )
 
+/* 探索 yaml 原文（与 content.client 同款 ?raw glob）；SSG 与浏览器同源，无 hydration 差异 */
+const exploreYamls = import.meta.glob<string>('/content/posts/*/explore.yaml', {
+  query: '?raw', import: 'default', eager: true,
+})
+function exploreConfigFor(slug: string): ExploreConfig | null {
+  const key = Object.keys(exploreYamls).find((k) => k.split('/').slice(-2, -1)[0] === slug)
+  if (!key) return null
+  const r = parseExploreYaml(exploreYamls[key])
+  return r.ok ? r.value : null
+}
+
 export default function Component() {
   const { slug } = useParams()
   const post = useMemo(() => getPost(slug || ''), [slug])
   const list = useMemo(() => getAllPosts(), [])
+  const exploreConfig = useMemo(() => exploreConfigFor(post?.slug || ''), [post?.slug])
+
+  /* #entry 保留字落地（spec §3.3）：首页悬念按钮以 #entry 指向入口场景，
+   * 进页后替换为真实场景 id 并平滑滚动。 */
+  useEffect(() => {
+    if (location.hash !== '#entry' || !exploreConfig) return
+    history.replaceState(null, '', `#${exploreConfig.entry}`)
+    document.getElementById(exploreConfig.entry)
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [exploreConfig])
 
   if (!post) {
     return <main className="post-wrap"><p>文章不存在。</p></main>
@@ -53,6 +77,9 @@ export default function Component() {
         </div>
         <h1>{post.title}</h1>
         <p className="post-excerpt">{post.excerpt}</p>
+        {exploreConfig && (
+          <p className="explore-hint">本文可顺序阅读；点击各场景下方的出口按钮可跳转探索。</p>
+        )}
         <article className="post-body" id="animations">
           {Body ? <Body /> : <p>正文缺失。</p>}
         </article>
@@ -60,6 +87,7 @@ export default function Component() {
           {prev && <Link to={`/blog/${prev.slug}/`}>← {prev.title}</Link>}
           {next && <Link to={`/blog/${next.slug}/`}>{next.title} →</Link>}
         </nav>
+        <SceneToc config={exploreConfig} />
       </main>
     </MDXProvider>
   )

@@ -46,6 +46,17 @@ export function getAllPosts(): Post[] {
     const status = (data.status as PostStatus) || 'published'
     if (!VALID_ANIM.includes(anim)) console.warn(`[content] ${slug}: anim_profile=${anim} 非法，回退 auto`)
     if (!VALID_STATUS.includes(status)) console.warn(`[content] ${slug}: status=${status} 非法，回退 published`)
+    const exploreFile = path.join(POSTS_DIR, slug, 'explore.yaml')
+    let exploreEntry: Post['exploreEntry']
+    if (fs.existsSync(exploreFile)) {
+      try {
+        const parsed = yaml.load(fs.readFileSync(exploreFile, 'utf-8')) as any
+        if (parsed?.entry && parsed?.scenes) {
+          const entry = parsed.scenes.find((s: any) => s.id === parsed.entry)
+          if (entry?.label) exploreEntry = { id: String(parsed.entry), label: String(entry.label) }
+        }
+      } catch { /* yaml 坏不阻塞文章列表；validate:explore 会报 */ }
+    }
     posts.push({
       slug: normSlug,
       title: String(data.title),
@@ -61,7 +72,8 @@ export function getAllPosts(): Post[] {
       excerpt: String(data.excerpt || ''),
       body: content,
       fileName: normSlug, // 目录名即 slug；Post.tsx 用它映射 mdxModules
-      hasExplore: fs.existsSync(path.join(POSTS_DIR, slug, 'explore.yaml')),
+      hasExplore: fs.existsSync(exploreFile),
+      exploreEntry,
     })
   }
   return posts.filter((p) => p.status === 'published').sort((a, b) => (a.date < b.date ? 1 : -1))
