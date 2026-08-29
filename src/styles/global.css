@@ -317,6 +317,9 @@ body::before {
 .post-body th { background: var(--paper-raise); font-weight: 700; }
 .post-body hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
 
+/* v2 Answer 原位渲染——id 即锚点，场景目录/出口 chips/首页按钮指向 #<id> */
+.answer-block { border-left: 3px solid rgba(14,110,92,.25); padding-left: 14px; margin: 18px 0; }
+
 .post-nav {
   display: flex; justify-content: space-between; gap: 16px;
   margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line);
@@ -350,71 +353,7 @@ body::before {
   .post-wrap, .domain-wrap { padding: 40px 20px 48px; }
 }
 
-/* ===== 探索视图（/blog/<slug>/explore/）===== */
-.explore-wrap { max-width: 1200px; margin: 0 auto; padding: 60px 28px 80px; }
-.explore-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 24px; }
-.explore-head h1 { font-size: 26px; margin: 0; }
-.explore-back { font: 14px var(--mono); color: var(--ink-faint); text-decoration: none; }
-.explore-back:hover { color: var(--accent); }
-.explore-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 28px; }
-.explore-stage {
-  background: var(--paper-raise, #F6F7F4);
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  min-height: 360px;
-  padding: 18px;
-}
-.explore-no-anim { color: var(--ink-faint); font: 14px var(--sans); padding: 24px 0; text-align: center; }
-.explore-tree { font: 14px var(--sans); }
-.qtree-root, .qtree-children { list-style: none; padding: 0; margin: 0; }
-.qtree-children { padding-left: 18px; border-left: 1px dashed var(--line); margin-left: 8px; }
-.qnode { margin: 4px 0; }
-.qnode-btn {
-  background: none; border: none; padding: 6px 8px; cursor: pointer; text-align: left;
-  width: 100%; font: 14px var(--sans); color: var(--ink); border-radius: 2px;
-}
-.qnode-btn:hover { background: rgba(14,110,92,.08); }
-.qnode-active .qnode-btn { background: rgba(14,110,92,.12); color: var(--accent); font-weight: 600; }
-.qnode-placeholder { opacity: .55; }
-.qnode-placeholder .qnode-hint { font: 11px var(--mono); color: var(--ink-faint); margin-left: 6px; }
-.qnode-link {
-  display: flex; justify-content: space-between; padding: 6px 8px; color: var(--ink);
-  text-decoration: none; border-radius: 2px;
-}
-.qnode-link:hover { background: rgba(14,110,92,.06); }
-.qnode-link .qnode-hint { font: 11px var(--mono); color: var(--accent); }
-.explore-detail {
-  margin-top: 20px; padding: 14px; background: var(--paper-raise, #F6F7F4);
-  border-left: 3px solid var(--accent);
-}
-.explore-detail h3 { margin: 0 0 8px; font-size: 16px; }
-.explore-detail-body { color: var(--ink); line-height: 1.7; }
-/* 隐藏占位正文区：仅用于让 <Answer> 渲染进 DOM、注册进 AnswerProvider。DOM 必须存在。 */
-.explore-answers { display: none; }
-
-@media (max-width: 920px) {
-  .explore-grid { grid-template-columns: 1fr; }
-  .explore-stage { min-height: 240px; }
-  .explore-tree { margin-top: 18px; }
-}
-.scene-focus {
-  transition: filter .3s ease, opacity .3s ease;
-  filter: drop-shadow(0 0 6px rgba(14,110,92,.6));
-}
-
-/* ===== 探索视图嵌入项（Task 8：阅读视图胶囊 + 动画占位）===== */
-.question-anchor {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 10px;
-  border: 1px solid var(--accent); border-radius: 999px;
-  font: 12px var(--mono); color: var(--accent);
-  text-decoration: none;
-  vertical-align: baseline;
-  transition: background .15s;
-}
-.question-anchor:hover { background: rgba(14,110,92,.08); }
-.question-anchor:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
+/* ===== 探索视图嵌入项（v2：SceneClip 嵌入正文流）===== */
 .scene-clip {
   margin: 20px 0;
   min-height: 200px;

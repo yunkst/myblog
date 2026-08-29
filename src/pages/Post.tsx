@@ -1,3 +1,9 @@
+/**
+ * v2 单页面方案：阅读与探索是同一页面——正文由 MDX 渲染，Answer 原位渲染为
+ * 锚点块（#<id>，场景目录/出口 chips/首页按钮均指向它），场景动画经 SceneClip
+ * 嵌入正文流；无独立探索路由、无 AnswerProvider 注册。
+ * <main data-article-slug> 保留（SceneClip 反查当前文章依赖）。
+ */
 import { useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Head } from 'vite-react-ssg'
@@ -5,7 +11,6 @@ import { MDXProvider } from '@mdx-js/react'
 import { getPost, getAllPosts } from '../lib/content'
 import { registry } from '../components/blog-anim/registry'
 import Answer from '../components/explore/Answer'
-import QuestionAnchor from '../components/explore/QuestionAnchor'
 import SceneClip from '../components/explore/SceneClip'
 
 /* 构建期：所有 content/posts/<slug>/article.mdx 编译为组件映射（Vite 原生，eager） */
@@ -13,14 +18,6 @@ const mdxModules = import.meta.glob<{ default: React.ComponentType }>(
   '/content/posts/*/article.mdx',
   { eager: true },
 )
-
-/**
- * Post Body 的轻量外壳。v1 探索视图（已废除）曾通过 useAnswerContext() 注册
- * AnswerProvider ctx；v2 阅读视图不再使用 ctx，但保留外壳以便未来扩展。
- */
-function PostBodyShell({ Body }: { Body: React.ComponentType | null }) {
-  return Body ? <Body /> : <p>正文缺失。</p>
-}
 
 export default function Component() {
   const { slug } = useParams()
@@ -43,7 +40,7 @@ export default function Component() {
   const Body = key ? mdxModules[key].default : null
 
   return (
-    <MDXProvider components={{ ...registry, Answer, QuestionAnchor, SceneClip }}>
+    <MDXProvider components={{ ...registry, Answer, SceneClip }}>
       <Head>
         <title>{post.title} · {post.domain}</title>
         <meta name="description" content={post.excerpt} />
@@ -57,7 +54,7 @@ export default function Component() {
         <h1>{post.title}</h1>
         <p className="post-excerpt">{post.excerpt}</p>
         <article className="post-body" id="animations">
-          <PostBodyShell Body={Body} />
+          {Body ? <Body /> : <p>正文缺失。</p>}
         </article>
         <nav className="post-nav">
           {prev && <Link to={`/blog/${prev.slug}/`}>← {prev.title}</Link>}
