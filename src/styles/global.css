@@ -356,20 +356,28 @@ body::before {
 /* ===== 探索视图嵌入项（v2：SceneClip 嵌入正文流）===== */
 .scene-clip {
   margin: 20px 0;
-  min-height: 200px;
+  min-height: 120px;
   border: 1px dashed var(--line);
   border-radius: 2px;
   position: relative;
 }
-/* SceneClip 当前不渲染 children（纯触发器），SVG 由 MDX 里的 PipelineSvg 承载；
- * 容器无子元素时收为 0 高，避免与相邻 SVG 形成双框。未来若 SceneClip 支持
- * children 渲染，此规则自动让位（:empty 不再命中）。 */
-.scene-clip:empty {
-  min-height: 0;
-  height: 0;
-  margin: 0;
-  border: none;
+/* 重看按钮（v2 demo 播完后由 IntersectionObserver/SceneClip 渲染）。 */
+.scene-clip .scene-replay {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 10px;
+  font: 12px var(--mono);
+  color: var(--ink-soft);
+  background: var(--paper-raise);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
 }
+.scene-clip .scene-replay:hover { color: var(--accent); border-color: var(--accent); }
 
 /* ===== 探索视图 SVG 场景（ai-it-system scene.tsx PipelineSvg）===== */
 .scene-svg {

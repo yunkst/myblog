@@ -1,91 +1,75 @@
 import { useEffect, useRef } from 'react'
-import type {} from 'gsap' // 加载 gsap 全局类型 namespace（declare namespace gsap）
+import type {} from 'gsap'
 import type { Scene } from './SceneController'
+import { createDemoHandle } from './SceneController'
 
-interface Props {
-  from: string
-}
-
-/* 构建期：所有文章目录下的 scene.tsx 都编译进来（与 Explore.tsx 同一份 glob 的复制）。
- * eager 是为了 SSR 同步可用。文章没建 scene.tsx 时该 key 不存在 → 降级为空容器。 */
-const sceneModules = import.meta.glob<{ default: Scene }>(
+/* 与 v1 同一 glob 手法，但消费 demos 字典而非 default Scene */
+const demoModules = import.meta.glob<{ demos: Record<string, Scene> }>(
   '/content/posts/*/scene.tsx',
   { eager: true },
 )
 
-function findSceneForSlug(slug: string | null): Scene | null {
+function findDemo(slug: string | null, demo: string): Scene | null {
   if (!slug) return null
-  const key = Object.keys(sceneModules).find((k) => k.split('/').slice(-2, -1)[0] === slug)
-  if (!key) return null
-  return sceneModules[key].default
+  const key = Object.keys(demoModules).find((k) => k.split('/').slice(-2, -1)[0] === slug)
+  const mod = key ? demoModules[key] : null
+  return mod?.demos?.[demo] ?? null
 }
 
 /**
- * 阅读视图里的动画嵌入（Task 8：GSAP 时间线截断）。
- *
- * - slug 来源：反查祖先节点的 data-article-slug（Task 7 约定，Post.tsx <main> 上；
- *   单一真理，本组件不做路由识别）。
- * - 进入视口（threshold 0.3）时播放 scene timeline 的 [from, nextLabel) 段：
- *   seek 到 from 起播，setTimeout 到段末 seek(endTime) + pause 收尾。
- * - prefers-reduced-motion：不播动画，直接 seek 到段末呈现终态静帧。
- * - 找不到 scene（文章没建 scene.tsx）：降级为空容器，不跑 IntersectionObserver。
- * - 只播一次（tlRef 已有实例则忽略后续 intersect）。
+ * v2：唯一 demo 播放入口（spec §4.3）。
+ * - slug 反查祖先 [data-article-slug]（沿用 v1 约定）
+ * - 首次进入视口（threshold 0.3）：build timeline + 自动 play；播完停终态
+ * - 离开视口：未播完则 pause；再进入从未播完处继续
+ * - 播完后渲染 ↻ 重看按钮；点击 replay()
+ * - reduced-motion：play() 直达终态（createDemoHandle 内处理）
+ * - demo 不存在（yaml/正文引用了未定义的键）：空容器降级，控制台 warn
  */
-export default function SceneClip({ from }: Props) {
+export default function SceneClip({ demo }: { demo: string }) {
   const ref = useRef<HTMLDivElement>(null)
-  const tlRef = useRef<gsap.core.Timeline | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     const el = ref.current
-    if (!el) return
-    // jsdom / 旧环境无 IntersectionObserver：静默跳过（测试只渲染占位 DOM）
-    if (typeof IntersectionObserver === 'undefined') return
+    if (!el || typeof IntersectionObserver === 'undefined') return
 
     const host = el.closest('[data-article-slug]')
     const slug = host?.getAttribute('data-article-slug') ?? null
-    const scene = findSceneForSlug(slug)
-    if (!scene) return // controller 裁决 1：scene undefined → 空容器，不跑 observer
+    const scene = findDemo(slug, demo)
+    if (!scene) {
+      console.warn(`[SceneClip] ${slug} 没有 demo "${demo}"`)
+      return
+    }
 
-    const reduced = typeof window !== 'undefined'
-      && typeof window.matchMedia === 'function'
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-    let timer: ReturnType<typeof setTimeout> | null = null
+    const tl = scene.build()
+    const handle = createDemoHandle(tl)
+    let started = false
 
     const observer = new IntersectionObserver((entries) => {
       for (const e of entries) {
-        if (!e.isIntersecting) continue
-        if (tlRef.current) return // already played
-        const full = scene.build()
-        // GSAP 3 Timeline.labels 是 { label: time } 的对象
-        const labels = full.labels || {}
-        const sorted = Object.entries(labels).sort((a, b) => a[1] - b[1])
-        const fromIdx = sorted.findIndex(([k]) => k === from)
-        if (fromIdx === -1) return
-        const [, fromTime] = sorted[fromIdx]
-        const next = sorted[fromIdx + 1]
-        const endTime = next ? next[1] : full.duration()
-        const sub = full.seek(fromTime, false).pause()
-        if (reduced) {
-          // reduced motion：不播动画，直接呈现段末终态静帧
-          sub.pause().seek(endTime, true)
-        } else {
-          sub.play()
-          timer = setTimeout(() => { sub.pause().seek(endTime) }, (endTime - fromTime) * 1000 + 50)
+        if (e.isIntersecting) {
+          if (!started) { started = true; handle.play() }
+          else if (!handle.finished()) handle.play()
+        } else if (started && !handle.finished()) {
+          handle.pause()
         }
-        tlRef.current = sub
-        return
       }
     }, { threshold: 0.3 })
 
     observer.observe(el)
+    const btn = btnRef.current
+    btn?.addEventListener('click', handle.replay)
+
     return () => {
       observer.disconnect()
-      if (timer !== null) clearTimeout(timer)
-      tlRef.current?.kill()
-      tlRef.current = null
+      btn?.removeEventListener('click', handle.replay)
+      handle.kill()
     }
-  }, [from])
+  }, [demo])
 
-  return <div ref={ref} className="scene-clip" data-scene-clip-from={from} aria-label={`动画：${from}`} />
+  return (
+    <div ref={ref} className="scene-clip" data-scene-clip-demo={demo} aria-label={`动画：${demo}`}>
+      <button ref={btnRef} type="button" className="scene-replay" aria-label="重看">↻ 重看</button>
+    </div>
+  )
 }

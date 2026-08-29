@@ -3,74 +3,59 @@ import { pipelineNodes, PIPELINE_TOTAL_W, PIPELINE_TOTAL_H, NODE_CENTER_Y, PIPEL
 import type { Scene } from '../../../src/components/explore/SceneController'
 
 /**
- * ai-it-system 的探索视图动画舞台。
+ * ai-it-system 的探索视图动画舞台（v2 demos 字典）。
  *
- * 三个 GSAP label：
- * - intro: 5 个节点先全亮（opacity 1），展示全流水线；底部字幕"全链路总览"。
- * - q-search-pipeline: 重新从左到右逐个淡入，强调"问题报告 → AI 分析 → 提交分支 → CI/CD → 审查合并"；
- *   同时放慢节奏让阅读者有时间跟。
- * - q-ops-backup: 把最后一个"审查合并"节点上锁（off-color 灰），前面 4 个保持高亮，文字提示
- *   "运维侧（影子备份 / GitOps）后续接入"——动画演示该节点仍然能点亮（即使占位）。
+ * 单一 demo `badcase-journey`：把 v1 的 intro + q-search-pipeline 两段合并为一条连续叙事，
+ * 删除 q-ops-backup 段——它原本就是死 label（v1 只声明未触发）。
  *
- * focusable: 与 YAML 里 focus 字段对齐（n-report / n-ai / n-branch / n-cicd / n-review）。
+ * 节拍：
+ * - set 全部节点 opacity 0
+ * - subtitle 淡入"全链路总览"
+ * - 节点 stagger 淡入（0.12 间隔）
+ * - subtitle 切换为"搜索优化流水线：问题报告 → AI 分析 → 提交分支 → CI/CD → 审查合并"（tl.call 改 textContent）
+ * - 节点再次从左到右 stagger 点亮（0.35 间隔）
+ *
+ * 总时长约 4s。
  */
-const scene: Scene = {
-  focusable: pipelineNodes.map((n) => n.id),
-  // 探索视图舞台默认渲染 PipelineSvg 静态概览；
-  // 节点激活时 SceneHandle.seek() 触发对应 timeline label 切换动画效果。
-  Stage: PipelineSvg,
-  build() {
-    const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
+export const demos: Record<string, Scene> = {
+  'badcase-journey': {
+    name: 'badcase-journey',
+    Stage: PipelineSvg,
+    build() {
+      const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
 
-    // 初始：所有节点透明
-    tl.set(pipelineNodes.map((n) => `#${n.id}`), { opacity: 0, fillOpacity: 0.2 })
-    tl.set('#scene-subtitle', { opacity: 0 })
+      // 初始：所有节点透明
+      tl.set(pipelineNodes.map((n) => `#${n.id}`), { opacity: 0, fillOpacity: 0.2 })
+      tl.set('#scene-subtitle', { opacity: 0 })
 
-    // ─── intro ───
-    tl.addLabel('intro', 0)
-    tl.to('#scene-subtitle', { opacity: 1, duration: 0.4 }, '<')
-    tl.to(pipelineNodes.map((n) => `#${n.id}`),
-      { opacity: 1, fillOpacity: 1, duration: 0.6, stagger: 0.12 },
-      '<')
+      // ─── intro：字幕"全链路总览"+ 节点 stagger 淡入 ───
+      tl.to('#scene-subtitle', { opacity: 1, duration: 0.4 })
+      tl.to(pipelineNodes.map((n) => `#${n.id}`),
+        { opacity: 1, fillOpacity: 1, duration: 0.6, stagger: 0.12 },
+        '<')
 
-    // ─── q-search-pipeline ───
-    tl.addLabel('q-search-pipeline', '+=0.3')
-    // 先整体淡出
-    tl.to(pipelineNodes.map((n) => `#${n.id}`),
-      { opacity: 0.3, fillOpacity: 0.3, duration: 0.25 }, '<')
-    // 字幕切换：GSAP 3 核心不处理 SVG <text> 的 textContent（需要 TextPlugin），
-    // 用 .call() 回调直接改 DOM
-    tl.call(() => {
-      const el = document.querySelector('#scene-subtitle')
-      if (el) el.textContent = '搜索优化流水线：问题报告 → AI 分析 → 提交分支 → CI/CD → 审查合并'
-    })
-    // 从左到右逐个点亮
-    tl.to('#scene-subtitle', { opacity: 1, duration: 0.3 }, '<')
-    tl.to(pipelineNodes.map((n) => `#${n.id}`),
-      {
-        opacity: 1,
-        fillOpacity: 1,
-        duration: 0.45,
-        stagger: 0.35,
-      },
-      '<+0.2')
+      // ─── q-search-pipeline 续：整体淡出 → 字幕切换 → 节点重新从左到右点亮 ───
+      tl.to(pipelineNodes.map((n) => `#${n.id}`),
+        { opacity: 0.3, fillOpacity: 0.3, duration: 0.25 }, '+=0.3')
+      // GSAP 3 核心不处理 SVG <text> 的 textContent（需要 TextPlugin），用 .call() 回调直接改 DOM
+      tl.call(() => {
+        const el = document.querySelector('#scene-subtitle')
+        if (el) el.textContent = '搜索优化流水线：问题报告 → AI 分析 → 提交分支 → CI/CD → 审查合并'
+      })
+      tl.to('#scene-subtitle', { opacity: 1, duration: 0.3 }, '<')
+      tl.to(pipelineNodes.map((n) => `#${n.id}`),
+        {
+          opacity: 1,
+          fillOpacity: 1,
+          duration: 0.45,
+          stagger: 0.35,
+        },
+        '<+0.2')
 
-    // ─── q-ops-backup ───
-    tl.addLabel('q-ops-backup', '+=0.3')
-    tl.call(() => {
-      const el = document.querySelector('#scene-subtitle')
-      if (el) el.textContent = '运维侧（影子备份 / GitOps）：后续接入，节点先预留'
-    })
-    tl.to('#scene-subtitle', { opacity: 1, duration: 0.3 }, '<')
-    // 最后一个节点（审查合并）回到 0.6 透明度作为"占位待接入"提示，其余保持
-    tl.to(`#${pipelineNodes[pipelineNodes.length - 1].id}`,
-      { opacity: 0.6, fillOpacity: 0.5, duration: 0.4 }, '<')
-
-    return tl
+      return tl
+    },
   },
 }
-
-export default scene
 
 /** 单独的 SVG 组件（仅供阅读视图/探索视图引用，scene.tsx 本体只是数据）。 */
 export function PipelineSvg() {
