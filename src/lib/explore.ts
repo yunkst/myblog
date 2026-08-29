@@ -1,4 +1,10 @@
 // src/lib/explore.ts
+//
+// ⚠️ 安全考量：探索视图把 article.mdx 的 <Answer> 内容以 innerHTML 形式注入
+// （ExploreView 的 dangerouslySetInnerHTML）。这些 HTML 来自作者本人编写的 MDX，
+// 构建期静态内容，可信；XSS 风险可接受。**但如果未来 MDX 内容来源被撑开
+// （评论、用户投稿等 UGC），必须重新评估并引入消毒层。**
+
 import fs from 'node:fs'
 import path from 'node:path'
 import yaml from 'js-yaml'

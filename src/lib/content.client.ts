@@ -9,6 +9,20 @@ import type { Post, Domain, Wip, Faq, SiteConfig, AnimProfile, PostStatus } from
 /* remarkExportFrontmatter（vite.config.ts）已把每个 MDX 的 frontmatter 编译为 `export const frontmatter` */
 type MdxModule = { default: ComponentType<any>; frontmatter: Record<string, any> }
 const postModules = import.meta.glob<MdxModule>('/content/posts/*/article.mdx', { eager: true })
+/* 客户端无法 fs.existsSync；用探索 yaml glob 反推 hasExplore（与 lib/explore.client 一致）。
+ * `query: '?raw'` + `import: 'default'`：避免 Vite 把 yaml 当 JS 模块加载（`?import`）。 */
+const exploreModules = import.meta.glob<unknown>('/content/posts/*/explore.yaml', {
+  eager: true,
+  query: '?raw',
+  import: 'default',
+})
+function slugHasExplore(slug: string): boolean {
+  for (const k of Object.keys(exploreModules)) {
+    const parts = k.split('/')
+    if (parts[parts.length - 2] === slug) return true
+  }
+  return false
+}
 
 import siteYamlRaw from '/content/site.yaml?raw'
 import faqsYamlRaw from '/content/faqs.yaml?raw'
@@ -25,6 +39,7 @@ function metaFromModule(modulePath: string, mod: MdxModule): Post | null {
   if (!fm?.title || !fm?.date) return null
   const anim = (fm.anim_profile as AnimProfile) || 'auto'
   const status = (fm.status as PostStatus) || 'published'
+  const fileName = modulePath.split('/').slice(-2, -1)[0] // 目录名即 slug，与服务端 content.ts 对齐
   return {
     slug: (fm.slug as string) || slugify(String(fm.title)),
     title: String(fm.title),
@@ -34,7 +49,8 @@ function metaFromModule(modulePath: string, mod: MdxModule): Post | null {
     status: VALID_STATUS.includes(status) ? status : 'published',
     excerpt: String(fm.excerpt || ''),
     body: '', // 正文由 mdxModules 的组件直接渲染，客户端不需要存原始 markdown
-    fileName: modulePath.split('/').slice(-2, -1)[0], // 目录名即 slug，与服务端 content.ts 对齐
+    fileName,
+    hasExplore: slugHasExplore(fileName),
   }
 }
 

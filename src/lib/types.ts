@@ -11,6 +11,7 @@ export interface Post {
   excerpt: string
   body: string
   fileName: string
+  hasExplore: boolean   // 文章目录下存在 explore.yaml 时为 true
 }
 
 export interface Domain {

@@ -56,6 +56,7 @@ export function getAllPosts(): Post[] {
       excerpt: String(data.excerpt || ''),
       body: content,
       fileName: normSlug, // 目录名即 slug；Post.tsx 用它映射 mdxModules
+      hasExplore: fs.existsSync(path.join(POSTS_DIR, slug, 'explore.yaml')),
     })
   }
   return posts.filter((p) => p.status === 'published').sort((a, b) => (a.date < b.date ? 1 : -1))
