@@ -1,0 +1,3 @@
+title: t
+nodes:
+  - { id: q-bad-seek, label: x, seek: nonexistent }

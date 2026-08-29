@@ -1,0 +1,3 @@
+title: t
+nodes:
+  - { id: q-ph, label: x, status: placeholder, detail: "..." }
