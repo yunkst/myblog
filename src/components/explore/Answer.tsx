@@ -1,17 +1,21 @@
-import { createContext, useContext, type ReactNode } from 'react'
+import { useContext, useEffect, useRef, type ReactNode } from 'react'
+import gsap from 'gsap'
 import SceneClip from './SceneClip'
 import ExitChips from './ExitChips'
 import { toChineseOrdinal } from '../../lib/explore'
-import type { ExploreConfig } from '../../lib/types'
+import { buildTypewriterTimeline } from './useTypewriter'
+import { ExploreConfigContext } from './AnswerContext'
+
+/** 重新导出供测试/外部消费者沿用旧路径 import Answer, { ExploreConfigContext }。 */
+export { ExploreConfigContext }
 
 /**
  * exploreConfig 经 Context 注入（Post.tsx 提供，Answer 消费）——MDX 端只写
  * `<Answer id="...">`，chips 由 Answer 依据 yaml scenes[].id === props.id 自动渲染，
  * 文案只在 yaml 一处（spec §1 三铁律「内容只写一遍」）。
+ *
+ * v3 分区（spec §2.2）：children → heading(first-found) / SceneClip / 其余
  */
-export const ExploreConfigContext = createContext<ExploreConfig | null>(null)
-
-/** v3 分区（spec §2.2）：children → heading(first-found) / SceneClip / 其余 */
 function partition(children: ReactNode) {
   const arr = Array.isArray(children) ? children : [children]
   const clips: ReactNode[] = []
@@ -39,6 +43,13 @@ function partition(children: ReactNode) {
  * - SceneClip：children 中所有 `type === SceneClip` 进 stage-inner。
  * - idx ≥ 0 才渲染 act-no（孤儿 Answer 无序号）。
  * - 无 SceneClip → 不渲染 `.stage`；其它区照常。
+ *
+ * 演出层（spec §4 / Task 5）：
+ * - act-head / choices：IO 进入后 GSAP fromTo（SSG 直出可见 → hydration 后演出时 from 隐藏 → to 显现）；
+ *   threshold 0.5，进入即 disconnect，不重播。
+ * - dialogue：IO 进入（threshold 0.4）后对每段 `buildTypewriterTimeline` 链式触发：
+ *   前一段 onComplete → 下一段 play。reduced-motion 直出原文。
+ * - 浏览器 only（jsdom 无 IO/matchMedia → 直接 return）。
  */
 export default function Answer({ id, children }: { id: string; children: ReactNode }) {
   const config = useContext(ExploreConfigContext)
@@ -46,11 +57,100 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
   const idx = config?.scenes.findIndex((s) => s.id === id) ?? -1
   const { heading, clips, rest } = partition(children)
   const hasExits = !!scene && (!!scene.features?.length || !!scene.questions?.length)
+  const hasHead = !!(heading || idx >= 0)
+
+  /* 演出层 ref */
+  const headRef = useRef<HTMLDivElement>(null)
+  const dialogueRef = useRef<HTMLDivElement>(null)
+  const choicesRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    /* jsdom 无 IntersectionObserver；reduced-motion 也不演出 */
+    if (typeof IntersectionObserver === 'undefined') return
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (reduced) return
+
+    const tls: gsap.core.Timeline[] = []
+
+    /* act-head fade：threshold 0.5，duration 0.4 */
+    const headEl = headRef.current
+    if (headEl) {
+      const ioHead = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue
+          ioHead.disconnect()
+          const tl = gsap.timeline()
+          tl.fromTo(headEl, { opacity: 0 }, { opacity: 1, duration: 0.4 })
+          tls.push(tl)
+        }
+      }, { threshold: 0.5 })
+      ioHead.observe(headEl)
+    }
+
+    /* choices 浮现：threshold 0.5，stagger 0.18，duration 0.4，y 8→0 */
+    const choicesEl = choicesRef.current
+    if (choicesEl) {
+      const ioChoices = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue
+          ioChoices.disconnect()
+          const chips = choicesEl.querySelectorAll('.exit-chip')
+          if (chips.length === 0) return
+          const tl = gsap.timeline()
+          tl.fromTo(chips,
+            { opacity: 0, y: 8 },
+            { opacity: 1, y: 0, duration: 0.4, stagger: 0.18, ease: 'power2.out' })
+          tls.push(tl)
+        }
+      }, { threshold: 0.5 })
+      ioChoices.observe(choicesEl)
+    }
+
+    /* dialogue 打字机链式：threshold 0.4；段落选择器 :scope > p, :scope > blockquote
+     * 前一段 onComplete → 下一段 play；打字启动时 buildTypewriterTimeline 内部才清空 innerHTML（SSG 安全）。
+     * GSAP timeline position 单位是秒：charMs 传 0.028 = 28ms/字。
+     * 注：不用 tl onComplete 排链——useTypewriter 的 restore call 位置含「+60」（秒单位尾巴，
+     * 疑似 Task 1 单位错位），onComplete 会迟 60s；改为按打字完成点自排下一段。 */
+    const timers: number[] = []
+    const dlg = dialogueRef.current
+    if (dlg) {
+      const paras = Array.from(dlg.querySelectorAll<HTMLElement>(':scope > p, :scope > blockquote'))
+      if (paras.length > 0) {
+        const ioDlg = new IntersectionObserver((entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue
+            ioDlg.disconnect()
+            const chainPara = (i: number) => {
+              if (i >= paras.length) return
+              const p = paras[i]
+              const charCount = Array.from(p.textContent ?? '').length
+              const tl = buildTypewriterTimeline(p, { charMs: 0.028 })
+              if (!tl) { chainPara(i + 1); return }
+              tl.play(0)
+              tls.push(tl)
+              /* 打字完成点（chars*28ms + 50ms 缓冲）后排下一段；restore call 由 timeline 自己补 */
+              if (i + 1 < paras.length) {
+                timers.push(window.setTimeout(() => chainPara(i + 1), charCount * 28 + 50))
+              }
+            }
+            chainPara(0)
+          }
+        }, { threshold: 0.4 })
+        ioDlg.observe(dlg)
+      }
+    }
+
+    return () => {
+      /* cleanup：所有 timeline kill + 待排链定时器清掉 */
+      for (const tl of tls) tl.kill()
+      for (const t of timers) window.clearTimeout(t)
+    }
+  }, [])
 
   return (
     <section className="theater answer-block" id={id}>
-      {(heading || idx >= 0) && (
-        <div className="act-head">
+      {hasHead && (
+        <div className="act-head" ref={headRef}>
           {idx >= 0 && <span className="act-no">第{toChineseOrdinal(idx + 1)}幕</span>}
           {heading}
           <div className="act-rule" />
@@ -64,12 +164,12 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
           <div className="stage-inner">{clips}</div>
         </div>
       )}
-      <div className="dialogue">
+      <div className="dialogue" ref={dialogueRef}>
         <span className="dlg-name">解 说</span>
         {rest}
       </div>
       {hasExits && scene && config && (
-        <div className="choices">
+        <div className="choices" ref={choicesRef}>
           <span className="choices-label">─ 選択肢 ─</span>
           <ExitChips group="features" exits={scene.features ?? []} config={config} />
           <ExitChips group="questions" exits={scene.questions ?? []} config={config} />

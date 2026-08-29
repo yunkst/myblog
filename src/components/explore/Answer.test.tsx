@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import '@testing-library/jest-dom/vitest'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import gsap from 'gsap'
 import Answer, { ExploreConfigContext } from './Answer'
 import SceneClip from './SceneClip'
 import { parseExploreYaml } from '../../lib/explore'
@@ -155,5 +156,47 @@ describe('Answer v3 分区渲染', () => {
     expect(dialogue?.querySelector('h3')?.textContent).toBe('又一个小标题')
     // stage-inner 内有 SceneClip + p 不在 stage（只摘 SceneClip）
     expect(container.querySelector('.stage-inner [data-scene-clip-demo="demo-a"]')).not.toBeNull()
+  })
+})
+
+/* v3 演出（Task 5）：IO 错峰 + 打字机 + 選択肢浮现
+ * jsdom 无 matchMedia——用 vi.stubGlobal 桩掉（useTypewriter.test.ts 同款手法）；
+ * jsdom 无 IntersectionObserver——Answer 的 useEffect 直接 return，不演出。 */
+const mockedReduce = vi.hoisted(() => ({ value: false }))
+vi.stubGlobal('matchMedia', vi.fn().mockImplementation((q: string) => ({
+  matches: mockedReduce.value && q.includes('prefers-reduced-motion'),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
+})))
+
+describe('Answer v3 演出', () => {
+  beforeEach(() => { mockedReduce.value = false })
+  afterEach(() => { gsap.globalTimeline.clear() })
+
+  it('打字机/reduced-motion：reduce 下不建 timeline、段落直接显示', () => {
+    mockedReduce.value = true
+    render(<Answer id="q-a"><p>文本</p></Answer>)
+    // buildTypewriterTimeline 返回 null → 段落未被清空，原文直出
+    const p = screen.getByText('文本')
+    expect(p.textContent).toBe('文本')
+  })
+
+  it('ExitChips 前缀：features 渲染 ▸、questions 渲染 ？', () => {
+    render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={config}>
+          <Answer id="q-a"><p>正文</p></Answer>
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
+    // features chip：▸ 前缀；questions chip：？ 前缀（aria-hidden 装饰字符）
+    const feat = document.querySelector('.exit-chips-features .exit-chip')!
+    const ques = document.querySelector('.exit-chips-questions .exit-chip')!
+    expect(feat.querySelector('.chip-prefix')?.textContent).toBe('▸')
+    expect(feat.querySelector('.chip-prefix')?.getAttribute('aria-hidden')).toBe('true')
+    expect(ques.querySelector('.chip-prefix')?.textContent).toBe('？')
+    // 前缀在文本之前
+    expect(feat.textContent).toContain('▸')
+    expect(feat.textContent!.indexOf('▸')).toBeLessThan(feat.textContent!.indexOf('看 B'))
   })
 })
