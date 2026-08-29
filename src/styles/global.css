@@ -899,7 +899,7 @@ body::before {
 .post-wrap--stage .dialogue code { background: rgba(76,194,163,0.12); color: var(--stext); }
 .post-wrap--stage .dialogue table th { background: var(--panel); color: var(--stext); }
 .post-wrap--stage .dialogue table td, .post-wrap--stage .dialogue table th { border-color: var(--sline); color: var(--stext); }
-/* 選択肢 */
+/* 选项区 */
 .post-wrap--stage .choices { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .post-wrap--stage .choices-label { font: 11px var(--mono); letter-spacing: 0.55em; color: var(--sfaint); margin-bottom: 4px; }
 .post-wrap--stage .choices .exit-chips { flex-direction: column; align-items: center; margin: 0; }
