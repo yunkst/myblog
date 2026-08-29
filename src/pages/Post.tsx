@@ -12,7 +12,7 @@ import { getPost, getAllPosts } from '../lib/content'
 import { registry } from '../components/blog-anim/registry'
 import { parseExploreYaml } from '../lib/explore'
 import type { ExploreConfig } from '../lib/types'
-import Answer from '../components/explore/Answer'
+import Answer, { ExploreConfigContext } from '../components/explore/Answer'
 import SceneClip, { setCurrentSlug } from '../components/explore/SceneClip'
 import SceneToc from '../components/explore/SceneToc'
 
@@ -70,6 +70,7 @@ export default function Component() {
 
   return (
     <MDXProvider components={{ ...registry, Answer, SceneClip }}>
+      <ExploreConfigContext.Provider value={exploreConfig}>
       <Head>
         <title>{post.title} · {post.domain}</title>
         <meta name="description" content={post.excerpt} />
@@ -94,6 +95,7 @@ export default function Component() {
         </nav>
         <SceneToc config={exploreConfig} />
       </main>
+      </ExploreConfigContext.Provider>
     </MDXProvider>
   )
 }
