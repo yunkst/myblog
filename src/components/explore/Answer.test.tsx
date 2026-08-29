@@ -132,7 +132,7 @@ describe('Answer v3 分区渲染', () => {
     expect(container.querySelector('.choices')).toBeNull()
   })
 
-  it('heading 不在最前：不提取到 act-head，留在 dialogue', () => {
+  it('heading first-found：遍历遇到的第一个 heading 提取到 act-head，其余 heading 留 dialogue', () => {
     const cfg = makeConfig(yaml)
     const { container } = render(
       <MemoryRouter>
@@ -141,16 +141,18 @@ describe('Answer v3 分区渲染', () => {
             <SceneClip demo="demo-a" />
             <p>先一段</p>
             <h3>小标题</h3>
+            <h3>又一个小标题</h3>
           </Answer>
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
-    // heading 已被 partition 提取到 act-head
+    // first-found heading（小标题）被提取到 act-head
     const actHead = container.querySelector('.act-head')
     expect(actHead?.querySelector('h3')?.textContent).toBe('小标题')
-    // 非 heading 元素留在 dialogue
+    // 第二个 heading 不被提取，留在 dialogue
     const dialogue = container.querySelector('.dialogue')
     expect(dialogue?.textContent).toContain('先一段')
+    expect(dialogue?.querySelector('h3')?.textContent).toBe('又一个小标题')
     // stage-inner 内有 SceneClip + p 不在 stage（只摘 SceneClip）
     expect(container.querySelector('.stage-inner [data-scene-clip-demo="demo-a"]')).not.toBeNull()
   })

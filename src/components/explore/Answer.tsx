@@ -11,7 +11,7 @@ import type { ExploreConfig } from '../../lib/types'
  */
 export const ExploreConfigContext = createContext<ExploreConfig | null>(null)
 
-/** v3 分区（spec §2.2）：children → heading(最前) / SceneClip / 其余 */
+/** v3 分区（spec §2.2）：children → heading(first-found) / SceneClip / 其余 */
 function partition(children: ReactNode) {
   const arr = Array.isArray(children) ? children : [children]
   const clips: ReactNode[] = []
@@ -34,7 +34,8 @@ function partition(children: ReactNode) {
  * v3：theater 五段式渲染（theater / act-head / stage / dialogue / choices）。
  * - `.theater` 同 id 锚点（v2 `.answer-block` 改名）；类名双挂 `answer-block`
  *   保留为过渡别名，让 v2 遗留的 `.answer-block` 查询继续命中。
- * - heading：children 中**最前**的 h2/h3 进 act-head；不在最前的留在 dialogue。
+ * - heading：children 中 **first-found**（遍历遇到的第一个）h2/h3 进 act-head；
+ *   后续 heading 留在 dialogue。
  * - SceneClip：children 中所有 `type === SceneClip` 进 stage-inner。
  * - idx ≥ 0 才渲染 act-no（孤儿 Answer 无序号）。
  * - 无 SceneClip → 不渲染 `.stage`；其它区照常。
