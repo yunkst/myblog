@@ -51,6 +51,7 @@ export interface ExploreNode {
   id: string
   label: string
   seek?: string
+  focus?: string[]   // 该节点激活时高亮的元素 id 列表
   kind?: QuestionKind
   status?: QuestionStatus
   detail?: string       // 仅 placeholder 用
