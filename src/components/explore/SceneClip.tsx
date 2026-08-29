@@ -42,6 +42,7 @@ export default function SceneClip({ demo }: { demo: string }) {
     }
 
     const tl = scene.build()
+    tl.eventCallback('onComplete', () => el.setAttribute('data-finished', ''))
     const handle = createDemoHandle(tl)
     let started = false
 

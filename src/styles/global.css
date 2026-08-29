@@ -378,6 +378,7 @@ body::before {
   transition: opacity 0.2s ease;
 }
 .scene-clip .scene-replay:hover { color: var(--accent); border-color: var(--accent); }
+.scene-clip[data-finished] .scene-replay { opacity: 1; pointer-events: auto; }
 
 /* ===== 探索视图 SVG 场景（ai-it-system scene.tsx PipelineSvg）===== */
 .scene-svg {
