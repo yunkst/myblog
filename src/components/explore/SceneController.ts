@@ -1,8 +1,15 @@
 import type {} from 'gsap' // 加载 gsap 全局类型 namespace（declare namespace gsap）
+import type { ComponentType } from 'react'
 
 export interface Scene {
   build(): gsap.core.Timeline
   focusable: string[]
+  /**
+   * 探索视图舞台内容组件（必填，无场景时 ExploreView 不会走 SceneStage 分支）。
+   * 多数文章会渲染一个静态 SVG 概览（如 ai-it-system 的 PipelineSvg），
+   * 复杂动画（GSAP）由 SceneHandle.seek() 触发。
+   */
+  Stage: ComponentType
 }
 
 export interface SceneHandle {

@@ -16,6 +16,9 @@ import type { Scene } from '../../../src/components/explore/SceneController'
  */
 const scene: Scene = {
   focusable: pipelineNodes.map((n) => n.id),
+  // 探索视图舞台默认渲染 PipelineSvg 静态概览；
+  // 节点激活时 SceneHandle.seek() 触发对应 timeline label 切换动画效果。
+  Stage: PipelineSvg,
   build() {
     const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
 

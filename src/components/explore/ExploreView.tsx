@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ExploreNode } from '../../lib/types'
 import type { Scene, SceneHandle } from './SceneController'
 import SceneStage from './SceneStage'
@@ -9,13 +9,37 @@ interface Props {
   nodes: ExploreNode[]
   scene: Scene | null
   seekRoot?: string
-  initialHash: string | null
   slug: string
 }
 
-export default function ExploreView({ nodes, scene, seekRoot, initialHash, slug }: Props) {
+/**
+ * 激活节点状态（activeId）放在本组件——而非 QuestionTree 内部——是 M2/M3 修复的一部分：
+ * - detail 面板（DetailForActiveId）需要跟随激活节点（含 hashchange），
+ *   若 activeId 在 QuestionTree 内部，detail 只能用 freeze 的 initialHash，点击/hash 变化都不联动。
+ * - hash 初值在 useEffect 里读（客户端 only）：SSG 阶段没有 window，渲染期直接取会拿到 null，
+ *   hydration 后再同步才能让 #<node-id> 落地生效。
+ */
+function readHashId(): string | null {
+  if (typeof window === 'undefined') return null
+  return window.location.hash.replace(/^#/, '') || null
+}
+
+export default function ExploreView({ nodes, scene, seekRoot, slug }: Props) {
   const [handle, setHandle] = useState<SceneHandle | null>(null)
+  const [activeId, setActiveId] = useState<string | null>(readHashId)
   const answerCtx = useAnswerContext()
+
+  // hydration 后同步一次 hash（SSG 首帧无 window；Explore.tsx 传入的 initialHash 也是 null）
+  useEffect(() => {
+    setActiveId(readHashId())
+  }, [])
+
+  // hashchange 时同步激活节点（浏览器返回 / QuestionAnchor 跳转带 hash 落地）
+  useEffect(() => {
+    const sync = () => setActiveId(readHashId())
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
+  }, [])
 
   // 把 AnswerMap 提供给 DetailForActiveId。
   // 不用 useMemo 缓存：Answer 子组件在 effect 里才 register（首渲染后），
@@ -25,12 +49,16 @@ export default function ExploreView({ nodes, scene, seekRoot, initialHash, slug 
   // （answerCtx/nodes）都不会变，缓存住反而会把空 Map 永久固化。
   const answerMap = answerCtx ? answerCtx.snapshot() : {}
 
+  // 详情面板渲染条件：激活节点存在且不是 cross-link（cross-link 的"详情"就是目标文章本身，点击即跳转）
+  const activeNode = activeId ? findNode(nodes, activeId) : null
+  const showDetail = Boolean(handle && activeNode && activeNode.kind !== 'cross-link')
+
   return (
     <div className="explore-grid" data-slug={slug}>
       <section className="explore-stage">
         {scene ? (
           <SceneStage scene={scene} seekTo={seekRoot} onReady={setHandle}>
-            {() => null}
+            {() => (scene.Stage ? <scene.Stage /> : null)}
           </SceneStage>
         ) : (
           <div className="explore-no-anim">这篇文章没有动画舞台，只有问题树。</div>
@@ -40,12 +68,11 @@ export default function ExploreView({ nodes, scene, seekRoot, initialHash, slug 
         <QuestionTree
           nodes={nodes}
           handle={handle}
-          initialId={initialHash}
+          activeId={activeId}
+          onActivate={setActiveId}
         />
-        {/* Detail panel —— ExploreView 自己的 DetailForActiveId。
-            QuestionTree 内部 DetailPanel 是占位，两份并存是预期（控制器裁决 6）。 */}
-        {handle && initialHash && (
-          <DetailForActiveId nodes={nodes} activeId={initialHash} answerMap={answerMap} />
+        {showDetail && activeId && (
+          <DetailForActiveId nodes={nodes} activeId={activeId} answerMap={answerMap} />
         )}
       </aside>
     </div>

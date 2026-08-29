@@ -120,7 +120,7 @@ export function getHeadingsWithIds(slug: string): Array<{ id: string; text: stri
   return out
 }
 
-function slugifyHeading(text: string): string {
+export function slugifyHeading(text: string): string {
   return text.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-龥-]/g, '')
 }
 

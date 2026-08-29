@@ -50,7 +50,12 @@ export function getAllPosts(): Post[] {
       slug: normSlug,
       title: String(data.title),
       domain,
-      date: String(data.date).slice(0, 10),
+      // gray-matter 把 yaml `date: 2026-08-29` 解析为 Date 对象（UTC 午夜），
+      // 直接 String() 得到 "Sat Aug 29 2026..."，slice(0,10) 就丢年份。
+      // 必须先转 ISO 再截。
+      date: data.date instanceof Date
+        ? data.date.toISOString().slice(0, 10)
+        : String(data.date).slice(0, 10),
       anim_profile: VALID_ANIM.includes(anim) ? anim : 'auto',
       status: VALID_STATUS.includes(status) ? status : 'published',
       excerpt: String(data.excerpt || ''),

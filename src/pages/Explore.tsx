@@ -44,9 +44,6 @@ export default function Component() {
   const config = useMemo(() => getExplore(slug), [slug])
   const scene = useMemo(() => pickScene(slug), [slug])
   const Body = useMemo(() => pickArticleBody(slug), [slug])
-  const initialHash = typeof window !== 'undefined'
-    ? window.location.hash.replace(/^#/, '') || null
-    : null
 
   if (!post || !config) {
     return (
@@ -68,13 +65,14 @@ export default function Component() {
             <h1>{config.title}</h1>
           </header>
           {/* key=slug：控制器裁决 1 —— SceneStage 内部 useEffect deps=[]，scene 切换不重建 timeline，
-              必须靠 remount 强制重建，防旧 scene 的 timeline 跨文章复用。 */}
+              必须靠 remount 强制重建，防旧 scene 的 timeline 跨文章复用。
+              initialHash 不再从 SSG 读 window（SSG 期无 window 拿到 null），
+              ExploreView 在 hydration 后用 useEffect 读 window.location.hash 同步。 */}
           <ExploreView
             key={slug}
             nodes={config.nodes}
             scene={scene}
             seekRoot={config.seek_root}
-            initialHash={initialHash}
             slug={slug}
           />
           {/* 把正文里所有 <Answer> 也渲染进 DOM（给 AnswerProvider 注入 AnswerMap）。

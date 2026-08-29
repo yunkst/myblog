@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import type { ExploreNode } from '../../lib/types'
 import type { SceneHandle } from './SceneController'
 import QuestionNode from './QuestionNode'
@@ -6,23 +6,22 @@ import QuestionNode from './QuestionNode'
 interface Props {
   nodes: ExploreNode[]
   handle: SceneHandle | null
-  /** 进入页面默认激活的 id（来自 #hash） */
-  initialId?: string | null
+  /** 当前激活节点 id（受控，由 ExploreView 拥有，详见 ExploreView 顶部注释） */
+  activeId: string | null
+  /** 激活变化回调：点节点时上报，便于 ExploreView 同步 detail/hash */
+  onActivate: (id: string, node: ExploreNode) => void
 }
 
-export default function QuestionTree({ nodes, handle, initialId }: Props) {
-  const [activeId, setActiveId] = useState<string | null>(initialId || null)
-
-  // hash 变化时同步激活
-  useEffect(() => {
-    const sync = () => {
-      const h = window.location.hash.replace(/^#/, '')
-      if (h) setActiveId(h)
-    }
-    window.addEventListener('hashchange', sync)
-    return () => window.removeEventListener('hashchange', sync)
-  }, [])
-
+/**
+ * 任务 7 review 后由 final-review 整段重构（M2/M3 fix）：
+ * - 删掉内部的 DetailPanel（含"本 Task 阶段预留"占位文字）—— detail 职责完全归
+ *   ExploreView 的 DetailForActiveId。原先两份 detail 并存且普通节点只显示占位，
+ *   直接违背 spec §4.1"答案面板从正文 <Answer> 抽出"的核心承诺。
+ * - activeId 状态从内部 state 提升为受控 prop，初始化 + hashchange 监听
+ *   都在 ExploreView（useEffect 内读 window.location.hash，SSG 期无 window，
+ *   故 hydration 后再同步）。
+ */
+export default function QuestionTree({ nodes, handle, activeId, onActivate }: Props) {
   // 移动端：点击节点后滚到舞台
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 920 && activeId) {
@@ -31,23 +30,21 @@ export default function QuestionTree({ nodes, handle, initialId }: Props) {
     }
   }, [activeId])
 
-  function onActivate(id: string, node: ExploreNode) {
-    setActiveId(id)
+  function activate(id: string, node: ExploreNode) {
+    onActivate(id, node)
     if (handle) {
       if (node.seek) handle.seek(node.seek)
-      handle.focus(node.focus || [])    // 节点的 focus 字段（YAML 里加，见 Step 5 加 schema）
+      handle.focus(node.focus || [])
     }
   }
 
-  // detail 面板：placeholder 放 detail，正文 Answer 内容取自 AnswerProvider
   return (
     <aside className="qtree" aria-label="问题树">
       <ul className="qtree-root">
         {nodes.map((n) => (
-          <TreeBranch key={n.id} node={n} activeId={activeId} onActivate={onActivate} />
+          <TreeBranch key={n.id} node={n} activeId={activeId} onActivate={activate} />
         ))}
       </ul>
-      <DetailPanel activeId={activeId} rootNodes={nodes} />
     </aside>
   )
 }
@@ -71,36 +68,4 @@ function TreeBranch({ node, activeId, onActivate }: BranchProps) {
       )}
     </>
   )
-}
-
-function DetailPanel({ activeId, rootNodes }: { activeId: string | null; rootNodes: ExploreNode[] }) {
-  const found = activeId ? findNode(rootNodes, activeId) : null
-  if (!found) return null
-  return (
-    <div className="qtree-detail" data-detail-for={activeId}>
-      <h3 className="qtree-detail-title">{found.label}</h3>
-      {found.status === 'placeholder' && found.detail && (
-        <p className="qtree-detail-body">{found.detail}</p>
-      )}
-      {found.kind === 'cross-link' && found.preview && (
-        <p className="qtree-detail-body">{found.preview}</p>
-      )}
-      {(!found.status || found.status !== 'placeholder') && found.kind !== 'cross-link' && (
-        // 正文 Answer 内容由 SceneStage 内部的 AnswerMap 注入到全局可用（侵入式方案见 Step 5 修正）。
-        // 此处占位：本 Task 阶段先打 TODO，下一 Task 让 ExploreView 注入完整内容。
-        <p className="qtree-detail-body"><em>答案正文由 explore 视图层注入，本 Task 阶段预留。</em></p>
-      )}
-    </div>
-  )
-}
-
-function findNode(nodes: ExploreNode[], id: string): ExploreNode | undefined {
-  for (const n of nodes) {
-    if (n.id === id) return n
-    if (n.children) {
-      const r = findNode(n.children, id)
-      if (r) return r
-    }
-  }
-  return undefined
 }

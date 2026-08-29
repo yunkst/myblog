@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm'
 import { visit } from 'unist-util-visit'
 import remarkFrontmatter from 'remark-frontmatter'
 import yaml from 'js-yaml'
+import { slugifyHeading } from './src/lib/explore'
 
 function mimeOf(file: string): string {
   const ext = path.extname(file).toLowerCase()
@@ -77,6 +78,8 @@ function yamlToExpression(value: any): any {
   if (value === null) return { type: 'Literal', value: null, raw: 'null' }
   if (typeof value === 'string') return { type: 'Literal', value }
   if (typeof value === 'number' || typeof value === 'boolean') return { type: 'Literal', value }
+  // Date 单独序列化为 ISO 字符串（MDX ESM 序列化会把 Date 变成 {}，导致客户端 String(date) = '[object Object]'）
+  if (value instanceof Date) return { type: 'Literal', value: value.toISOString().slice(0, 10) }
   if (Array.isArray(value)) {
     return { type: 'ArrayExpression', elements: value.map(yamlToExpression) }
   }
@@ -97,11 +100,43 @@ function yamlToExpression(value: any): any {
   return { type: 'Literal', value: null }
 }
 
+/* 给每个 heading 补 id（与 lib/explore.ts 的 slugifyHeading 同一算法）。
+ * spec §8 规则 4 用 getHeadingsWithIds/slugifyHeading 校验 cross-link anchor，
+ * 渲染侧必须产出相同 id，否则校验通过但浏览器锚点失效（final-review I3 缺陷）。
+ *
+ * seen map 必须按 MDX 文件路径隔离 —— 同一文件被多次编译（dev HMR / SSR+CSR）
+ * 时算法必须幂等，否则 SSR/CSR 各自从 seen[0] 开始给同一 heading 产出不同后缀 id，
+ * 触发 React hydration mismatch。 */
+const fileSeen = new WeakMap<object, Map<string, number>>()
+function getSeen(file: any): Map<string, number> {
+  let m = fileSeen.get(file)
+  if (!m) { m = new Map(); fileSeen.set(file, m) }
+  return m
+}
+function rehypeHeadingIds() {
+  return (tree: any, file: any) => {
+    const seen = getSeen(file)
+    visit(tree, 'element', (node: any) => {
+      if (!/^h[1-6]$/.test(node.tagName || '')) return
+      const text = ((node.children || []) as any[])
+        .map((c: any) => (c.type === 'text' ? c.value : (c.value || '')))
+        .join('')
+      let id = slugifyHeading(text)
+      if (!id) return
+      const n = seen.get(id) ?? 0
+      seen.set(id, n + 1)
+      if (n > 0) id = `${id}-${n}`   // 重复 heading 时加 -1/-2 后缀（GitHub 约定）
+      node.properties = { ...(node.properties || {}), id }
+    })
+  }
+}
+
 export default defineConfig(({ isSsrBuild }) => ({
   plugins: [
     { enforce: 'pre', ...mdx({
       providerImportSource: '@mdx-js/react',
       remarkPlugins: [remarkFrontmatter, remarkExportFrontmatter, remarkGfm],
+      rehypePlugins: [rehypeHeadingIds],
     }) },
     react(),
     /* dev 期：拦截 /posts/<slug>/<file>，即时从 content/posts/<slug>/assets/ 返回。
@@ -114,6 +149,8 @@ export default defineConfig(({ isSsrBuild }) => ({
           if (!url.startsWith('/posts/')) return next()
           const m = url.match(/^\/posts\/([^/]+)\/(.+)$/)
           if (!m) return next()
+          // 拦截路径穿越：m[2] 不能含 ".."，否则能跳出 content/posts/<slug>/assets/ 读任意文件
+          if (m[2].includes('..')) return next()
           const file = path.join(process.cwd(), 'content', 'posts', m[1], 'assets', m[2])
           if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return next()
           res.setHeader('Content-Type', mimeOf(file))

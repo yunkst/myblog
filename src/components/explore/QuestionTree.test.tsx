@@ -8,6 +8,7 @@ import type { ExploreNode } from '../../lib/types'
 describe('<QuestionTree>', () => {
   it('渲染节点 label 并响应 click', () => {
     const calls: string[] = []
+    const onAct: string[] = []
     const nodes: ExploreNode[] = [{ id: 'q1', label: '问题一', seek: 'lbl1' }]
     const fakeHandle = {
       seek: (l: string) => { calls.push(`seek:${l}`) },
@@ -17,15 +18,20 @@ describe('<QuestionTree>', () => {
     const { container } = render(
       <MemoryRouter>
         <AnswerProvider>
-          <QuestionTree nodes={nodes} handle={fakeHandle as any} initialId="q1" />
+          <QuestionTree
+            nodes={nodes}
+            handle={fakeHandle as any}
+            activeId="q1"
+            onActivate={(id) => onAct.push(id)}
+          />
         </AnswerProvider>
       </MemoryRouter>,
     )
-    // label 渲染（不用 getByText：initialId 命中时 DetailPanel 标题也会出现同文本）
     const label = container.querySelector('.qnode-label')
     expect(label?.textContent).toBe('问题一')
     fireEvent.click(label!.closest('button')!)
     expect(calls).toContain('seek:lbl1')
+    expect(onAct).toContain('q1')
   })
 
   it('placeholder 节点 className 包含 dim/placeholder', () => {
@@ -33,7 +39,9 @@ describe('<QuestionTree>', () => {
     const fakeHandle = { seek: () => {}, focus: () => {}, play: () => {}, pause: () => {}, reset: () => {}, labels: () => [], currentLabel: () => null, kill: () => {} }
     const { container } = render(
       <MemoryRouter>
-        <AnswerProvider><QuestionTree nodes={nodes} handle={fakeHandle as any} /></AnswerProvider>
+        <AnswerProvider>
+          <QuestionTree nodes={nodes} handle={fakeHandle as any} activeId={null} onActivate={() => {}} />
+        </AnswerProvider>
       </MemoryRouter>,
     )
     expect(container.querySelector('.qnode-placeholder')).toBeTruthy()
@@ -44,7 +52,9 @@ describe('<QuestionTree>', () => {
     const fakeHandle = { seek: () => {}, focus: () => {}, play: () => {}, pause: () => {}, reset: () => {}, labels: () => [], currentLabel: () => null, kill: () => {} }
     const { container } = render(
       <MemoryRouter>
-        <AnswerProvider><QuestionTree nodes={nodes} handle={fakeHandle as any} /></AnswerProvider>
+        <AnswerProvider>
+          <QuestionTree nodes={nodes} handle={fakeHandle as any} activeId={null} onActivate={() => {}} />
+        </AnswerProvider>
       </MemoryRouter>,
     )
     const a = container.querySelector('a')

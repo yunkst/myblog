@@ -44,7 +44,11 @@ function metaFromModule(modulePath: string, mod: MdxModule): Post | null {
     slug: (fm.slug as string) || slugify(String(fm.title)),
     title: String(fm.title),
     domain: (fm.domain as string) || 'general',
-    date: String(fm.date).slice(0, 10),
+    // remarkExportFrontmatter 已把 Date 序列化为 ISO 字符串（vite.config.ts 的 yamlToExpression），
+    // 此处仍保留 instanceof Date 兜底防 Date 在 ESM 序列化后未被转换的边界 case。
+    date: fm.date instanceof Date
+      ? fm.date.toISOString().slice(0, 10)
+      : String(fm.date).slice(0, 10),
     anim_profile: VALID_ANIM.includes(anim) ? anim : 'auto',
     status: VALID_STATUS.includes(status) ? status : 'published',
     excerpt: String(fm.excerpt || ''),

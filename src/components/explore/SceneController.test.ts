@@ -7,6 +7,7 @@ describe('SceneHandle', () => {
   // label 之间塞 tween 撑开时间轴：addLabel 默认追加在当前位置，无 tween 时三个 label 全在 t=0，无法区分
   const dummyScene: Scene = {
     focusable: ['a', 'b'],
+    Stage: () => null,
     build() {
       const tl = gsap.timeline()
       tl.to({}, { duration: 1 }).addLabel('intro')
