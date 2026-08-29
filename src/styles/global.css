@@ -857,13 +857,13 @@ body::before {
 
 /* ===== v3 CRT 剧场（.post-wrap--stage 作用域；无 explore 文章零影响）===== */
 .post-wrap--stage {
-  --bg: #0B100E; --panel: #0F1512;
+  --stage-bg: #0B100E; --panel: #0F1512;
   --stext: #DCE5E1; --sdim: #8CA098; --sfaint: #56665F;
   --sline: rgba(220, 229, 225, 0.12);
   --sacc: #4CC2A3; --sacc-soft: rgba(76, 194, 163, 0.12);
   --smark: #E06A5A;
   max-width: 1120px;
-  background: var(--bg);
+  background: var(--stage-bg);
   color: var(--stext);
 }
 .post-wrap--stage .post-meta, .post-wrap--stage > h1, .post-wrap--stage .post-excerpt,
@@ -926,3 +926,8 @@ body::before {
 .post-wrap--stage .choices .exit-chips-questions .chip-prefix {
   color: var(--smark);
 }
+/* v3 final review B1：暗色探索页内归零 v2 answer-block 左竖线样式，
+ * 避免 v2 遗留样式穿透进 .theater 暗厅（双类名兼容保留，视觉归零）。 */
+.post-wrap--stage .answer-block { border-left: 0; padding-left: 0; margin: 54px 0; }
+/* final review m7：打字期间段落锁最小高度，防塌陷 reflow */
+.post-wrap--stage .dialogue > p, .post-wrap--stage .dialogue > blockquote { min-height: 1.9em; }

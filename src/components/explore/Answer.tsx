@@ -72,48 +72,70 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
 
     const tls: gsap.core.Timeline[] = []
 
+    /* hydration 时已在视口内的元素直接跳过演出（终态直出）——
+     * 消除「先见原文 → fromTo 归零 → 再演出」的闪烁（final review M1）。
+     * 判定标准：元素中点在视口内即视为已入镜。 */
+    const alreadyInViewport = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect()
+      return r.top < window.innerHeight * 0.7 && r.bottom > window.innerHeight * 0.3
+    }
+
     /* act-head fade：threshold 0.5，duration 0.4 */
     const headEl = headRef.current
     if (headEl) {
-      const ioHead = new IntersectionObserver((entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue
-          ioHead.disconnect()
-          const tl = gsap.timeline()
-          tl.fromTo(headEl, { opacity: 0 }, { opacity: 1, duration: 0.4 })
-          tls.push(tl)
-        }
-      }, { threshold: 0.5 })
-      ioHead.observe(headEl)
+      if (alreadyInViewport(headEl)) {
+        /* 已入镜：不演出，保持终态 */
+      } else {
+        const ioHead = new IntersectionObserver((entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue
+            ioHead.disconnect()
+            const tl = gsap.timeline()
+            tl.fromTo(headEl, { opacity: 0 }, { opacity: 1, duration: 0.4 })
+            tls.push(tl)
+          }
+        }, { threshold: 0.5 })
+        ioHead.observe(headEl)
+      }
     }
 
     /* choices 浮现：threshold 0.5，stagger 0.18，duration 0.4，y 8→0 */
     const choicesEl = choicesRef.current
     if (choicesEl) {
-      const ioChoices = new IntersectionObserver((entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue
-          ioChoices.disconnect()
-          const chips = choicesEl.querySelectorAll('.exit-chip')
-          if (chips.length === 0) return
-          const tl = gsap.timeline()
-          tl.fromTo(chips,
-            { opacity: 0, y: 8 },
-            { opacity: 1, y: 0, duration: 0.4, stagger: 0.18, ease: 'power2.out' })
-          tls.push(tl)
-        }
-      }, { threshold: 0.5 })
-      ioChoices.observe(choicesEl)
+      if (alreadyInViewport(choicesEl)) {
+        /* 已入镜：不演出，保持终态 */
+      } else {
+        const ioChoices = new IntersectionObserver((entries) => {
+          for (const e of entries) {
+            if (!e.isIntersecting) continue
+            ioChoices.disconnect()
+            const chips = choicesEl.querySelectorAll('.exit-chip')
+            if (chips.length === 0) return
+            const tl = gsap.timeline()
+            tl.fromTo(chips,
+              { opacity: 0, y: 8 },
+              { opacity: 1, y: 0, duration: 0.4, stagger: 0.18, ease: 'power2.out' })
+            tls.push(tl)
+          }
+        }, { threshold: 0.5 })
+        ioChoices.observe(choicesEl)
+      }
     }
 
     /* dialogue 打字机链式：threshold 0.4；段落选择器 :scope > p, :scope > blockquote
      * 前一段 onComplete → 下一段 play；打字启动时 buildTypewriterTimeline 内部才清空 innerHTML（SSG 安全）。
      * charMs 单位是毫秒（库内部换算成 GSAP 的秒语义），默认 28ms/字。
-     * 空段或 reduced-motion → buildTypewriterTimeline 返回 null，立即接力下一段。 */
+     * 空段或 reduced-motion → buildTypewriterTimeline 返回 null，立即接力下一段。
+     * final review B2：含媒体子元素（img/svg/figure/table/ul/ol）的段落整段跳过打字
+     * （buildTypewriterTimeline 会掏空 innerHTML，媒体会消失一段时间）——随容器直出。 */
+    const MEDIA_SELECTOR = 'img, svg, figure, table, ul, ol, video, canvas'
+    const typeable = (p: HTMLElement) => !p.querySelector(MEDIA_SELECTOR)
     const dlg = dialogueRef.current
     if (dlg) {
-      const paras = Array.from(dlg.querySelectorAll<HTMLElement>(':scope > p, :scope > blockquote'))
-      if (paras.length > 0) {
+      const paras = Array.from(
+        dlg.querySelectorAll<HTMLElement>(':scope > p, :scope > blockquote'),
+      ).filter(typeable)
+      if (paras.length > 0 && !alreadyInViewport(dlg)) {
         const ioDlg = new IntersectionObserver((entries) => {
           for (const e of entries) {
             if (!e.isIntersecting) continue

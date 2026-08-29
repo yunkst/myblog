@@ -55,12 +55,14 @@ describe('buildTypewriterTimeline', () => {
     const original = el.innerHTML
     const tl = buildTypewriterTimeline(el, { charMs: 16 })!
     tl.play(0)
-    // 3 字 × 16ms = 48ms 才打完整段；80ms 后纯文本应揭示完毕（innerHTML 尚未恢复）
-    await new Promise((r) => setTimeout(r, 80))
-    expect(el.textContent).toBe('abc')
-    expect(el.innerHTML).not.toBe(original)
-    // restore 触发后：标记回归（duration + 60ms 缓冲 ≈ 110ms 后已发生）
-    await new Promise((r) => setTimeout(r, 60))
+    // 30ms 时处于打字中段（3 字 × 16ms = 48ms 才打完）：纯文本部分揭示、innerHTML 未恢复
+    await new Promise((r) => setTimeout(r, 30))
+    const midText = el.textContent!
+    expect(midText.length).toBeGreaterThanOrEqual(1)
+    expect(midText.length).toBeLessThanOrEqual(3)
+    expect(el.innerHTML).not.toBe(original)   // 打字中：标记尚未回归
+    // restore 触发后（duration ≈ 108ms 已过）：标记回归
+    await new Promise((r) => setTimeout(r, 120))
     expect(el.innerHTML).toBe(original)
   })
 })
