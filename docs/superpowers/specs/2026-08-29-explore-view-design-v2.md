@@ -273,6 +273,17 @@ export const demos: Record<string, Scene>
 - 组件 unmount：`tl.kill()`；
 - `prefers-reduced-motion`：`tl.pause(0)` + 跳过所有 `tl.to`，直接渲染终态静帧。
 
+### 6.4 demo 的两档复杂度
+
+| 档 | 视觉语言 | 适用 | 成本 |
+|---|---|---|---|
+| **体验型** | mock UI：IM 对话框、打字机、确认按钮、模拟鼠标指针——观众"亲眼看一遍操作" | 演示系统真实交互流程（如分级执行的确认闭环） | 高（需要 mock UI 原子组件） |
+| **概念型** | 图形叙事：元素逐条出现、对比并置、堆积溢出、状态翻转——有叙事节拍但非 UI 拟真 | 论证一个观点（如"三个坑逐个砸下来""消息轰炸淹没一个人"） | 低（每段 3-6 秒） |
+
+一篇博客的 demo 组合策略：**入口场景和核心方案场景用体验型，其余论证场景用概念型**。两类共享同一套 mock UI 原子（IM 框、消息气泡、打字机、按钮、模拟光标），使"问题提出"与"方案演示"能形成视觉呼应（开场消息轰炸淹没 → 结尾消息井然有序被处理）。
+
+**论证优先原则**：无论哪一档，demo 里每一个动作必须对应正文里的一个论点——动画不是配图，是**观点的可视化证明**。画面讲不出论点的段落，不配动画（正文文字自足即可）。
+
 ---
 
 ## 7. 组件结构
@@ -324,9 +335,127 @@ src/
 
 ## 10. 首篇内容
 
-| 文章 | v2 内容 |
+### 10.1 场景图（`ai-digital-employee`）
+
+> 入口选择 **问题提出** 而非方案演示：观众看到结果前要先建立问题感，否则不解“为什么这样做”。打字机在 IM 窗口里逐条弹出消息，堆积、溢出、淹没——本身就是论证“痛点不是问题多，是一个人处理不过来”。
+
+```yaml
+title: 一个 AI 数字员工平台
+entry: q-problem
+
+scenes:
+  # ─── 入口（体验型 demo）───
+  - id: q-problem
+    label: 公司的技术问题，都是谁在解决？
+    demo: message-flood             # IM 窗口里消息逐条打字机弹出→堆积溢出→点题
+    features:
+      - { text: AI 分身怎么安全上岗？, to: q-badge-metaphor }
+      - { text: 直接看确认流程,       to: q-tiered-confirm }
+    questions:
+      - { text: 第一次尝试为什么失败？, to: q-why-not-openclaw }
+      - { text: 这套方案的边界,       to: q-limits }
+      - { text: 未来还能怎么扩展？,   to: q-future }
+
+  # ─── 方案核心场景（部分体验型 + 部分概念型）───
+  - id: q-why-not-openclaw
+    label: 第一次尝试：为什么没用 openclaw？
+    demo: openclaw-pitfalls           # 概念型：三个坑（凭证/权限/审计）逐条砸下来
+    questions:
+      - { text: 正确的前提是什么？, to: q-four-prerequisites }
+
+  - id: q-four-prerequisites
+    label: AI 安全上岗的四个前提
+    demo: four-prerequisites          # 概念型：四前提依次点亮
+    questions:
+      - { text: 看整体设计, to: q-badge-metaphor }
+
+  - id: q-badge-metaphor
+    label: 一句话方案：把工牌借给 AI
+    demo: badge-metaphor              # 概念型：员工刷门动画，门=接口权限
+    features:
+      - { text: 协议仓库,  to: q-protocol-repo }
+      - { text: 统一身份,  to: q-unified-identity }
+      - { text: 分级执行,  to: q-tiered-execution }
+    questions:
+      - { text: 直接看分级确认流程, to: q-tiered-confirm }
+
+  - id: q-protocol-repo
+    label: 第一层：让接口自报家门
+    demo: protocol-repo               # 概念型：接口标注 → 导出协议仓库
+    questions:
+      - { text: 上一层：工牌比喻, to: q-badge-metaphor }
+      - { text: 下一层：统一身份, to: q-unified-identity }
+
+  - id: q-unified-identity
+    label: 第二层：AI 走人一样的权限通道
+    demo: unified-identity            # 概念型：请求流向，身份透传标记
+    questions:
+      - { text: 上一层：协议仓库, to: q-protocol-repo }
+      - { text: 下一层：分级执行, to: q-tiered-execution }
+
+  - id: q-tiered-execution
+    label: 第三层：分级执行（总览）
+    demo: tiered-execution            # 概念型：四级策略决策树动画
+    questions:
+      - { text: 看一段真实确认流程, to: q-tiered-confirm }
+
+  - id: q-tiered-confirm
+    label: 一段确认流程（体验型 demo）
+    demo: tiered-confirm              # 体验型：IM 打字→AI loading→确认卡→模拟鼠标点确认→完成
+    features:
+      - { text: 回到问题入口, to: q-problem }
+      - { text: 看分级策略总览, to: q-tiered-execution }
+    questions:
+      - { text: 这套方案解决不了什么？, to: q-limits }
+
+  # ─── 延伸场景 ───
+  - id: q-threat-model
+    label: 威胁模型：平台约束的是 AI，不是人
+    demo: threat-model                # 概念型：增量层叠加示意
+    questions:
+      - { text: 回到入口, to: q-problem }
+
+  - id: q-limits
+    label: 这套方案解决不了什么
+    demo: limits                      # 概念型：五条边界逐条浮现
+    questions:
+      - { text: 未来还能怎么扩展？, to: q-future }
+      - { text: 回到入口, to: q-problem }
+
+  - id: q-future
+    label: 未来拓展：让 AI 替我接需求
+    demo: dev-flow                    # 概念型：需求→方案→触发→落地→CI/CD→发布
+    questions:
+      - { text: 回到入口, to: q-problem }
+```
+
+### 10.2 demo 档位分布
+
+| 场景 | demo 类型 | 关键画面 |
+|---|---|---|
+| q-problem（入口） | **体验型** | IM 窗口、消息气泡、打字机、堆积溢出 |
+| q-why-not-openclaw | 概念型 | 三坑逐条出现 |
+| q-four-prerequisites | 概念型 | 四前提依次点亮 |
+| q-badge-metaphor | 概念型 | 员工刷门动画，门 = 接口权限 |
+| q-protocol-repo | 概念型 | 接口标注 → 协议仓库导出 |
+| q-unified-identity | 概念型 | 请求流向图，身份透传标记 |
+| q-tiered-execution | 概念型 | 四级策略决策树 |
+| q-tiered-confirm | **体验型** | IM 框、确认卡、模拟鼠标 |
+| q-threat-model | 概念型 | 增量层叠加 |
+| q-limits | 概念型 | 五条边界逐条浮现 |
+| q-future | 概念型 | 开发流节点 |
+
+### 10.3 正文改造范围
+
+1. **Answer 包裹**：现有 8 个核心章节叙述（背景/openclaw/前提/工牌/三层/威胁/边界/未来）改为 `<Answer id="q-xxx">` 包裹；
+2. **入口 Answer**：新增一个体验视角的入口 Answer（IM 视角，与现有"设计视角"引言互补，可放在引言之后）；
+3. **问题未覆盖的，先不上树**：「项目业绩 / 项目进展」正文无对应内容，按 v2 规则（§5.3）不上树；后续补写正文章节后再加场景；
+4. **胶囊与嵌入**：每个核心章节放 `<QuestionAnchor>`（阅读→探索跳转）和 `<SceneClip>`（章节内嵌 demo 播一遍），阅读视图体验增强但线性结构不动。
+
+### 10.4 其他文章
+
+| 文章 | 处理 |
 |---|---|
-| **`ai-digital-employee`**（重做，演示 v2 设计） | 入口场景"我是如何制作一个数字员工的？"——完整 mock IM 对话剧本（打字机输入需求 → AI loading → 确认卡片 → 模拟鼠标点击"确认" → 完成）。特性 3 个（权限复用 / 自报家门 / 分级执行，各为一个独立场景）。深入问题 4 个（为什么不用 openclaw / 项目业绩 / 项目进展 / 技术栈选择，能写出 Answer + demo 的上树，写不出的不上树） |
 | **`ai-it-system`**（重做） | 入口场景改为"一条 badcase 报告的旅程" mock（IM 报告 → AI commit → CI 灯变绿 → MR 合并 → 全程 6 步几乎零沟通）。废掉所有 v1 placeholder 节点，正文施工预告段落保留 |
 | 其他 3 篇 | 不动（无 explore.yaml，受 v2 影响为零） |
 
