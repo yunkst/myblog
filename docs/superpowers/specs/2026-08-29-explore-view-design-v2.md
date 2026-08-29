@@ -10,74 +10,80 @@
 
 ## 1. 背景与目标
 
-同一篇博客需要两种叙事形态，服务两类阅读方式：
+同一篇博客有**两种使用方式**，服务两类阅读习惯，但**只有一套页面**：
 
-1. **阅读视图**（现状，`/blog/<slug>/`）：线性文章，从头读到尾，动画嵌在章节里随文播放。
-2. **探索视图**（新增 `/blog/<slug>/explore/`）：以"场景"为单位，读者从某个悬念问题进入，**自动观看一段仿真 UI demo**（不是流程图、不是鸟瞰图，是一段可重看的 mock 交互录像），看完后右侧列出"系统特性 + 延伸问题"，点哪一个就跳到对应的下一个场景，递归展开。
+1. **顺序阅读**：从头滚到尾，demo 随章节内嵌播放；
+2. **跳转探索**：从首页的"悬念问题"按钮或页面右侧的"场景目录/出口 chips"跳到任意场景，递归展开。
 
 **v1 失败回顾（明确不重蹈）**：
 
 - v1 把舞台当"流程示意图"，动画只是淡入淡出——观众看完既没"被震撼"也没"被说服"。
 - v1 允许 `status: placeholder` 的节点上树——观众点开是空的，信任崩溃。
 - v1 的 yaml 是扁平问题列表，`seek` 指针指向同一根 timeline 上的不同 label——多场景切换和"重看一次"都被这层耦合堵死。
-- v1 的 GSAP timeline 是"一篇文章一整条"，无法容纳"AI 数字员工"这类**多分支剧本**（不同的观众触发不同的剧本流）。
 
-**北极星原则（不变）**：探索视图和博客是**同一份资源的不同渲染模式**。
+**v2 第一次失败回顾（明确不重蹈）**：
 
-三条铁律（保留并加强）：
+- 把"同一份资源，两种渲染模式"误读成"维护两个页面"——结果是双视图同步、双文件 lib、hash 时序 hydration 等一整层复杂度，而收益（单场景沉浸模式）不值得。
 
-- **内容只写一遍**：所有叙述文字只存在于 `article.mdx`；探索视图的解说文字从正文 `<Answer>` 块抽取，不写第二遍。
-- **结构一份，导航形状由视图决定**：
-  - 探索图的"哪些场景存在、彼此如何跳转"只在 `explore.yaml`；
-  - 阅读模式的"场景以什么顺序铺开"由 `article.mdx` 章节顺序与 `<SceneClip>` 位置决定（作者排章节即排顺序）；
-  - 两种结构都引用同一批 demo + 同一批 Answer；
-- **动画一份**：场景（scene）按"剧本"组织，每篇可拥有多个独立 scene 组件；阅读视图的 `<SceneClip>` 与探索视图的 `SceneStage` 引用同一个 scene。
+**v2 终态设计**：
 
-**本版新增的关键约束**：
+- **只有一套页面**：所有场景按 `article.mdx` 章节顺序竖向平铺，每个场景内嵌 `<SceneClip>`；
+- **探索 = 跳转**：右侧场景目录 + 每个场景下方的出口 chips，让读者在不离开当前页面的前提下"跳跃式探索"，跨文章跳页；
+- **入场**：首页/文章卡片的"悬念问题"按钮指向 `#<entry-id>`，浏览器原生 anchor scroll + IntersectionObserver 触发播放。
 
-- **场景是唯一单元**。探索视图 = 一张由"场景"构成的图（scene graph），递归深度不限。
-- **demo 是"嵌入式应用模拟"，不是示意图**。剧本的视觉元素是真实的 DOM（IM 对话框、按钮、loading 圈、模拟鼠标指针），不是抽象符号。
-- **进入即播放**。进入某个场景就从头播放该场景的 demo，结束停在终态；点 ↻ 重看。
-- **placeholder 彻底废除**。没有 demo 或没有 Answer 的场景不进入场景图。
+**北极星原则（保留并强化）**：**同一份资源，两种使用方式**——通过导航形状（顺序 vs 跳转）区分，不再通过页面形态区分。
+
+三条铁律：
+
+- **内容只写一遍**：所有叙述文字只存在于 `article.mdx`；场景目录、出口 chips 全部引用 `<Answer>` 的 `id` 与 demo 名，**不写第二遍文案**。
+- **结构一份**：
+  - 场景图（哪些场景存在、彼此如何跳转）只在 `explore.yaml`；
+  - 阅读顺序由 `article.mdx` 章节顺序 + `<SceneClip>` 位置决定；
+  - 两者引用同一批 demo + 同一批 Answer。
+- **动画一份**：每篇可拥有多个独立 demo 组件；`<SceneClip>` 是唯一播放入口。
 
 **非目标（明确不做）**：
 
 - 全景场景关系图（visual graph overview）：本期不画"全局地图"，由场景之间的跳转关系自然构成路径
 - 阅读足迹 / 节点解锁状态 / 进度统计
 - 让读者在 mock UI 里真实操作（本期是纯播放，鼠标动作是动画的一部分）
+- 单场景沉浸模式（全屏只放一个场景的剧场感）：与 v2 第一次设计相比的取舍，换取架构简化
 - 开源骨架整理（用户明确暂缓）
 
 ---
 
 ## 2. 核心概念：场景（Scene）
 
-**一个场景 = 一次完整的"演示 + 解说 + 出口"**。观众进入某个场景，看到的就是这一块内容：
+**一个场景 = 章节 + demo + 出口**。一篇文章的全部场景按章节顺序竖向平铺在一个页面里：
 
 ```
-┌────────────────────────────────────────────────────┐
-│  场景：我是如何制作一个数字员工的？                      │
-├──────────────────────────────┬─────────────────────┤
-│                              │  解说（来自正文 Answer）  │
-│   演示舞台（自动播放）           │  "左边演示的是 AI 数字员工的 │
-│   · IM 对话框弹出               │   日常用法——从需求到执行         │
-│   · 打字机输入需求              │   的完整闭环……"               │
-│   · AI loading 运行            │                     │
-│   · 确认卡片弹出                │  系统特性             │
-│   · 模拟鼠标点击"确认"           │  · 权限复用    → 场景A │
-│   · "已完成"                   │  · 自报家门    → 场景B │
-│                              │  · 分级执行    → 场景C │
-│   [↻ 重看]                    │                     │
-│                              │  深入了解              │
-│                              │  · 为什么不用 openclaw? → D │
-│                              │  · 项目业绩   → E     │
-│                              │  · 技术栈选择 → F     │
-└──────────────────────────────┴─────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  文章标题 / 「顺序阅读或点击出口探索」提示语              │
+├─────────────────────────────────────────────────────┤
+│ ▸ 场景 1：公司的技术问题，都是谁在解决？  (#q-problem)   │
+│ ┌─────────────────────────┐                         │
+│ │ demo: message-flood      │  正文（Answer 原位渲染）  │
+│ │ IM 窗口消息轰炸→淹没       │  "公司的技术人员只有…      │
+│ │ （滚入视口自动播放）        │  ……能不能做一个 AI 分身？" │
+│ └─────────────────────────┘  [↻ 重看]                │
+│   出口: [AI 分身怎么安全上岗 →] [第一次尝试为什么失败 →]   │
+├─────────────────────────────────────────────────────┤
+│ ▸ 场景 2：第一次尝试为什么失败？  (#q-why-not-openclaw)  │
+│ ┌─────────────────────────┐                         │
+│ │ demo: openclaw-pitfalls  │  正文……                  │
+│ └─────────────────────────┌  出口: [正确的前提是什么 →] │
+├─────────────────────────────────────────────────────┤
+│   …… 全部场景依章节顺序铺开 …                           │
+└─────────────────────────────────────────────────────┘
+        ▲
+        │ 右侧悬浮：场景目录（有序，点击滚动到对应场景）
 ```
 
-- **演示（demo）**：作者编写的"虚构剧本"，由 GSAP 编排的真实 DOM 动画。进入场景时**自动从头播放**，播放结束停在终态；点 ↻ 可重看。**纯播放型**，读者不参与交互。
-- **解说**：右侧上方，等于正文 `<Answer id="...">` 包裹的那一段（详见 §4）。同一份内容，阅读视图原位渲染、探索视图抽到解说面板。
-- **系统特性 + 深入了解**：两组跳转出口，结构完全相同（都是"跳到另一个场景"），只是语义分组——前者是"刚看过的 demo 里有哪些值得展开的能力点"，后者是"读者下一步可能想问的事"。两者**共享一种数据结构**，UI 上视觉区分。
-- **递归无限制**：场景 A → 场景 B → 场景 C → 场景 A 也合法。跨文章跳转只是"目标场景在另一篇文章里"，URL 上多一层 `post=<slug>`。
+- **demo**：作者编写的"虚构剧本"，由 GSAP 编排的真实 DOM 动画。滚动入视口时自动从头播放一次，播完停终态；↻ 重看随时可用。**纯播放型**。
+- **正文（解说）**：`<Answer id>` **原位渲染**——不再有"抽取到右侧面板"的机制；顺序阅读与跳转探索看到的都是同一段落。
+- **出口 chips**：每个场景下方一排按钮，分两组视觉（特性 / 深入问题），点击**站内滚动**到目标场景并触发其播放；跨文章则**整页跳转**并落 `#<scene-id>` 锚点。
+- **场景目录**：右侧悬浮目录（桌面）/ 顶部折叠（移动），列表项 = yaml 场景顺序，点击滚动定位（不改 hash）。
+- **递归无限制**：出口可以指向任何场景（包括跨文章、指回入口），图结构合法即可。
 
 ---
 
@@ -87,36 +93,43 @@
 
 | 视图 | URL | 说明 |
 |---|---|---|
-| 阅读 | `/blog/<slug>/` | 现状沿用 |
-| 探索（入场） | `/blog/<slug>/explore/` | 进入 `explore.yaml` 的 `entry` 场景，自动播放 |
-| 探索（场景落地） | `/blog/<slug>/explore/#<scene-id>` | 同上但落地在指定场景（`#q-why-not-openclaw`） |
-| 探索（跨文章） | `/blog/<other-slug>/explore/#<scene-id>` | 跳转其他文章的场景 |
+| 文章（唯一页面） | `/blog/<slug>/` | 全部场景竖向平铺 |
+| 场景锚点落地 | `/blog/<slug>/#<scene-id>` | 浏览器原生 anchor scroll；首页"悬念问题"按钮即指向此 |
+| 跨文章跳转 | `/blog/<other-slug>/#<scene-id>` | 出口 chips 的跨文章形态 |
+
+- `/explore/` 路由**废除**。没有第二个页面。
+- `entry` 字段的语义：首页"悬念问题"按钮指向哪个锚点。页面本身渲染全部场景，不存在"默认场景"概念。
 
 ### 3.2 入口
 
-- **首页/文章卡片**：每篇博客至少展示一个"悬念问题"按钮（按钮文字 = `entry` 场景的 `label`），点击落到探索视图。
-- **阅读视图**：保留一个顶部的"走进探索视图 →"入口（链接到 `/blog/<slug>/explore/`），**正文内部不再嵌入跳转胶囊**（原 `<QuestionAnchor>` 已废除，详见 §4.2）；
-- **探索视图入口**：URL 带 hash（如 `#q-why-not-openclaw`）时落到指定场景；无 hash 落地 `entry`；
-- **场景间跳转**：右侧"特性"和"深入了解"列表点击后，**更新 URL hash** 并触发对应场景加载/播放；浏览器前进后退可用。
+- **首页/文章卡片**：每篇博客展示"悬念问题"按钮（文字 = `entry` 场景的 `label`），`<a href="/blog/<slug>/#<entry-id>">`；
+- **文章页顶部**：一行提示语说明"本文可顺序阅读，也可点击各场景下的出口跳转探索"；
+- **右侧场景目录**：点击滚动定位（`scrollIntoView`），不改 hash（与出口 chips 区分：出口产生 hash 历史，支持前进后退）；
+- **出口 chips**：站内跳转更新 hash（前进后退可用）；跨文章跳转整页跳转并落目标锚点；
 - **顶栏导航**：不加探索入口（保持「博客 / 联系」）。
+
+### 3.3 浏览器行为
+
+- 原生 anchor scroll 负责定位——SSG HTML 自带 `id`，无需 hydration 时序补丁；
+- IntersectionObserver 负责触发该场景 demo 播放：进入视口从头播放一次，离开视口 pause；
+- `prefers-reduced-motion`：跳过播放，直接渲染 demo 终态静帧。
 
 ---
 
 ## 4. 内容协议：article.mdx 的新增块
 
-### 4.1 `<Answer id="...">` —— 探索视图引用的解说文字
+### 4.1 `<Answer id="...">` —— 场景解说文字（原位渲染）
 
 ```mdx
-<Answer id="q-make-digital-employee">
-左边演示的是 AI 数字员工的日常用法：从 IM 接收需求、按分级策略执行
-并向人确认，到最后完成操作。这里重点展示"分级执行 + 权限复用"
-两个核心特性……
+<Answer id="q-problem">
+公司的技术人员只有我一个。软件出问题找我、后台不会用找我……
+能不能做一个 AI 数字分身，替我答疑、替我处理这些重复劳动？
 </Answer>
 ```
 
-- **阅读视图**：照常渲染为正文流（带左侧标记线的轻微样式），不打断阅读；
-- **探索视图**：该块整体抽出，渲染进对应场景的解说面板；
-- 同一段文字两种视图各自渲染，**只写一遍**。
+- **唯一渲染形态**：原位渲染为正文流中一个带左侧标记线的块；
+- 探索用法（目录 / 出口 chips / 首页悬念按钮）定位到该块的锚点 `#<id>`，**不存在"抽取到别处渲染"的第二渲染路径**；
+- 同一段文字被两种用法消费，**只写一遍**。
 
 ### 4.2 （废除）原 `<QuestionAnchor>` 胶囊不再使用
 
@@ -125,7 +138,7 @@
 > - 内容跳转的唯一形态统一为"两种渲染模式"本身：同一份 demo + 同一份 Answer，探索模式用图导航、阅读模式用顺序浏览；
 > - 去除一个组件意味着阅读视图的内嵌动画天然就是`<SceneClip>`，组件职责更清晰。
 
-### 4.3 `<SceneClip demo="...">` —— 阅读视图里的动画嵌入（v2 升级为主要嵌入机制）
+### 4.3 `<SceneClip demo="...">` —— demo 嵌入（唯一播放入口）
 
 ```mdx
 <SceneClip demo="make-employee" />
@@ -292,23 +305,29 @@ export const demos: Record<string, Scene>
 ```
 src/
   pages/
-    Post.tsx                    # 阅读视图（<Answer>/<QuestionAnchor>/<SceneClip> 适配）
-    Explore.tsx                 # 探索视图入口（读 entry / hash、注入 AnswerProvider）
+    Post.tsx                    # 文章页（<Answer>/<SceneClip> 适配 + 场景目录 + 出口 chips）
   components/
     blog-anim/                  # 全站动画原子（不动）
-    explore/                    # 探索机制
-      ExploreView.tsx           # 场景页骨架：左舞台 + 右解说/特性/问题
-      SceneStage.tsx            # mount scene、持 SceneHandle、自动 play
+    explore/                    # 探索机制（v2 大幅缩水）
       SceneController.ts        # Scene/SceneHandle 接口 + demos 注册
-      SceneGraph.tsx            # 渲染右侧 features/questions 列表 + 跳转
-      SceneClip.tsx             # 阅读视图嵌入
-      Answer.tsx                # <Answer> 块渲染（两视图共用）
-      QuestionAnchor.tsx        # 阅读视图胶囊
+      SceneClip.tsx             # demo 嵌入：IntersectionObserver 触发从头播放
+      SceneToc.tsx              # 右侧场景目录（yaml 顺序 → 滚动定位）
+      ExitChips.tsx             # 每个场景下的出口按钮组（站内滚动 / 跨文章跳页）
+      Answer.tsx                # <Answer> 块渲染（原位唯一形态）
+      mock-ui/                  # 体验型 demo 复用原子（IM 框、打字机、按钮、模拟光标）
+        ChatPane.tsx
+        Typewriter.tsx
+        MockButton.tsx
+        MockCursor.tsx
+        ...
   lib/
-    content.ts                  # 改：目录结构迁移
-    explore.ts                  # 重写：v2 schema 解析 + 校验
-    explore.client.ts           # 浏览器侧（与 v1 同模式）
+    content.ts                  # 读 article.mdx frontmatter + explore.yaml（统一接口，build/浏览器同源）
+    explore.ts                  # 解析 + 校验（不再需要 .client.ts 双文件——见 §8）
 ```
+
+**与 v1 相比删除**：`Explore.tsx`、`ExploreView.tsx`、`SceneStage.tsx`、`QuestionTree.tsx`、`QuestionNode.tsx`、`QuestionAnchor.tsx`、`AnswerProvider.tsx`、`explore.client.ts`、vite alias `lib/explore.client.ts`。
+
+理由：单页面方案不需要"单场景切换"机制，自然消解 v1 一整层复杂度（双视图同步、hash 时序 hydration、双文件 lib）。
 
 ---
 
@@ -317,20 +336,21 @@ src/
 1. **内容扫描**：`content/posts/*/article.mdx` + 同目录 `explore.yaml` + `scene.tsx`；
 2. **scene 模块注册**：`import.meta.glob('../content/posts/*/scene.tsx', { eager: true })`，导出 `demos` 字典；
 3. **资源同步**：构建时把 `assets/` 拷到 `public/posts/<slug>/`（保持现有图片引用不失效）；
-4. **构建时校验**（`scripts/validate-explore.ts`，prebuild/predev/prepreview）：
+4. **统一数据源**（v2 简化）：`lib/explore.ts` 用 `js-yaml` 解析 yaml 字符串，`?raw` glob 把 yaml 文本直接拿到，**build 与浏览器 hydration 走同一份代码**——`lib/explore.client.ts` 与 vite alias 整体删除；
+5. **构建时校验**（`scripts/validate-explore.ts`，prebuild/predev/prepreview）：
    - yaml `entry` 指向存在的场景；
    - 所有 `scenes[].id` 在正文 `<Answer id>` 中存在（**且非 placeholder——placeholder 已废除**）；
-   - 正文 `<Answer id>` 均被某个场景引用（否则警告：探索视图用不上）；
+   - 正文 `<Answer id>` 均被某个场景引用（否则警告：目录与首页入口用不上）；
    - 所有 `scenes[].demo` 在 scene.tsx 导出中存在；
    - 所有 `to` 指向真实存在的场景（`{ post, scene }` 时跨文章校验）；
-   - 循环引用允许（v2 显式支持递归），但同一 `post:scene` 路径不能无限（不强制深度限制，让作者自负责任）。
+   - 循环引用允许（v2 显式支持递归），不强制深度限制，让作者自负责任。
 
 ---
 
 ## 9. 响应式布局
 
-- **桌面（≥920px）**：左右分栏——左 demo 舞台（大）、右解说 + 特性 + 问题（窄列）；
-- **移动（<920px）**：上下布局——demo 在上（全宽）、解说什么的在下面；点击跳转后自动滚动到顶部，舞台重新播放。
+- **桌面（≥920px）**：右侧悬浮场景目录，固定定位，正文流式滚动；
+- **移动（<920px）**：场景目录折叠到顶部一个 `<details>` 块，点击展开后是滚动定位；出口 chips 自适应宽度。
 
 ---
 
@@ -450,12 +470,9 @@ scenes:
 
 1. **Answer 包裹**：现有 8 个核心章节叙述（背景/openclaw/前提/工牌/三层/威胁/边界/未来）改为 `<Answer id="q-xxx">` 包裹；
 2. **入口 Answer**：新增一个体验视角的入口 Answer（IM 视角，与现有"设计视角"引言互补，可放在引言之后）；
-3. **阅读模式改为场景平铺**（v2 修订）：
-   - 章节顺序即场景顺序，每个有 demo 的章节内嵌 `<SceneClip>`，滚动到视口自动播放；
-   - **删除所有 `<QuestionAnchor>`**（组件 + MDX 引用一并清理）；
-   - 文章顶部保留一个「走进探索视图 →」入口，正文内不再有跳转点；
-   - 没有 demo 的章节（如「知识库问答」「AI 侧审计」）保持纯文字，不为平铺硬凑动画；
-4. **问题未覆盖的，先不上树**：「项目业绩 / 项目进展」正文无对应内容，按 v2 规则（§5.3）不上树；后续补写正文章节后再加场景。
+3. **每个场景章节内嵌 `<SceneClip>`**（11 个场景 × 1 demo，滚动入视口自动播放）；
+4. **每个场景块下方挂出口 chips**（`features` / `questions` 两组）；
+5. **问题未覆盖的，先不上树**：「项目业绩 / 项目进展」正文无对应内容，按 v2 规则（§5.3）不上树；后续补写正文章节后再加场景。纯文字章节（「知识库问答」「AI 侧审计」）保持纯文字，不为平铺硬凑动画。
 
 ### 10.4 其他文章
 
@@ -468,19 +485,21 @@ scenes:
 
 ## 11. 测试策略
 
-- **单元**：v2 yaml 解析与校验规则（每条规则一个用例）；SceneHandle play/pause/reset/kill；SceneGraph 跳转目标解析（本地 / 跨文章）；mock UI 组件渲染；
-- **组件**：ExploreView 渲染场景、AnswerProvider 注册链路、SceneGraph 列表渲染、跨文章 URL 拼接；
-- **端到端手测清单**：入场自动播放、↻ 重看、跨文章跳转、reduced-motion 降级、浏览器前进后退、移动端跳转后滚动。
+- **单元**：v2 yaml 解析与校验规则（每条规则一个用例）；SceneHandle play/pause/reset/kill；ExitChips 跳转目标解析（本地站内滚动 / 跨文章跳页）；SceneToc 目录顺序与 yaml 一致；
+- **组件**：Post 页 `<Answer>` 原位渲染、`<SceneClip>` IntersectionObserver 触发、ExitChips 链接 href 正确（站内 `#id` / 跨文章 `/blog/<slug>/#id`）、SceneToc 点击滚动定位、mock-ui 原子组件；
+- **端到端手测清单**：滚动入视口播放、↻ 重看、跨文章跳转、reduced-motion 降级、浏览器前进后退、移动端目录折叠展开、桌右侧悬浮目录。
 
 ---
 
 ## 12. 里程碑（建议实现顺序）
 
-1. **基础设施**：`lib/explore.ts` v2 schema 解析 + 校验、`Scene/SceneHandle` 接口调整、demo 模块注册机制（沿用 v1 的 `?raw` glob 模式）；
-2. **场景图组件**：SceneGraph（特性 / 问题列表 + 跳转）+ ExploreView 重写（场景页骨架，左 demo 右解说/出口）；
-3. **mock UI 原型**：做一个 demo 原子库（IM 对话框、按钮、loading、模拟鼠标等），先在 ai-digital-employee 第一个场景落地，验证 mock UI 真实 DOM + GSAP 编排可行；
-4. **首篇内容**：ai-digital-employee 全场景按你给的剧本原样落地（4 个深入问题中能写出 Answer + demo 的全部上树）；
-5. **迁移**：ai-it-system 重做（删 placeholder、改入口场景为 badcase 旅程）；
-6. **回归**：v1 旧测试与 fixture 全部重写以匹配 v2 schema；旧 yaml 在迁移过程中删掉。
+1. **基础设施**：`lib/explore.ts` 重写为 v2 schema 解析 + 校验；`Scene/SceneHandle` 接口简化为 play/pause/reset/kill；demo 模块 `?raw` glob 注册；删除 `lib/explore.client.ts` 与 vite alias；
+2. **删除双视图层**：移除 `Explore.tsx`、`ExploreView.tsx`、`SceneStage.tsx`、`QuestionTree.tsx`、`QuestionNode.tsx`、`QuestionAnchor.tsx`、`AnswerProvider.tsx`、`routes.tsx` 中的 explore 子路由；
+3. **mock UI 原子**：在 `components/explore/mock-ui/` 落 ChatPane / Typewriter / MockButton / MockCursor 等复用组件；
+4. **Post 页集成**：`<Answer>` 改为原位渲染（保留少量样式：左侧标记线）；`<SceneClip>` 接入 IntersectionObserver 触发播放；
+5. **SceneToc + ExitChips**：右侧悬浮目录 + 每个场景下方的出口按钮组（站内滚动 / 跨文章跳页）；
+6. **首篇内容**：ai-digital-employee 11 个场景全部按 §10 场景图落地（Answer + demo + 出口），章节顺序与 yaml 一致；
+7. **迁移**：ai-it-system 重做（删 placeholder、改入口场景为 badcase 旅程）；
+8. **回归**：v1 旧测试与 fixture 全部重写以匹配 v2 schema；旧 yaml 与 v1 路由相关代码在迁移过程中清理。
 
-每步独立可交付，前 3 步完成后现有网站行为不变（无 explore.yaml 的文章不受影响）。
+每步独立可交付，前 4 步完成后现有网站行为不变（无 explore.yaml 的文章不受影响）。
