@@ -14,6 +14,13 @@ function nosOf(concept: string) {
   return `[data-concept="${concept}"] .concept-no`
 }
 
+/** unified-identity：把 is-active 精确切到一个节点（null = 全部熄灭） */
+function activateIdentityNode(sel: string | null) {
+  document.querySelectorAll<HTMLElement>('.identity-node.is-active')
+    .forEach((n) => n.classList.remove('is-active'))
+  if (sel) document.querySelector<HTMLElement>(sel)?.classList.add('is-active')
+}
+
 /** 概念型 1：openclaw-pitfalls — 3 条 stagger 出现 → 全部变灰 + 「未上线」标签 */
 export function buildOpenclawPitfalls() {
   const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
@@ -38,15 +45,20 @@ export function buildOpenclawPitfalls() {
   return tl
 }
 
-/** 概念型 2：four-prerequisites — 4 条 stagger，编号方块 → accent 实心 */
+/** 概念型 2：four-prerequisites — 4 条 stagger，编号方块依次点亮为 accent 实心 */
 export function buildFourPrerequisites() {
   const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
   const items = setConcept('four-prerequisites')
   const nos = nosOf('four-prerequisites')
   tl.set(items, { opacity: 0, y: 12 })
   tl.set(nos, { backgroundColor: 'var(--accent-soft)', color: 'var(--accent)' })
-  // 强调：每条出现时编号方块由弱色点亮为 accent 实心（GSAP 写 inline style 覆盖 set）
-  tl.to(nos, { backgroundColor: '#0E6E5C', color: '#FFFFFF', duration: 0.3 })
+  // 强调：4 个编号方块**依次**点亮（与 items stagger:0.55 对齐），GSAP 写 inline style 覆盖 set。
+  tl.to(nos, {
+    backgroundColor: '#0E6E5C',
+    color: '#FFFFFF',
+    duration: 0.3,
+    stagger: 0.55,
+  })
   tl.to(items, { opacity: 1, y: 0, duration: 0.4, stagger: 0.55 }, '<')
   return tl
 }
@@ -89,28 +101,39 @@ export function buildProtocolRepo() {
   return tl
 }
 
-/** 概念型 5：unified-identity — 4 节点横排，徽章沿链移动并依次激活节点 */
+/**
+ * unified-identity：徽章初始中心 → 目标节点中心的 x 偏移（px），作为徽章绝对 x 目标。
+ * build() 时 Stage 已挂载；GSAP set 写入的 opacity/scale/y 不改变 rect 中心（origin center），
+ * 结果精确。jsdom/SSG 无布局（rect 全 0）时返回 0——仅丢失位移量，不影响 duration。
+ */
+function badgeToNodeX(nodeSel: string) {
+  const badge = document.querySelector<HTMLElement>('#id-badge')
+  const node = document.querySelector<HTMLElement>(nodeSel)
+  if (!badge || !node) return 0
+  const br = badge.getBoundingClientRect()
+  const nr = node.getBoundingClientRect()
+  if (!br.width && !nr.width) return 0
+  return nr.left + nr.width / 2 - (br.left + br.width / 2)
+}
+
+/** 概念型 5：unified-identity — 4 节点横排，徽章沿链逐段移动，每停一站该节点闪 accent */
 export function buildUnifiedIdentity() {
   const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
   const nodes = ['#id-employee', '#id-platform', '#id-apisix', '#id-backend']
   tl.set(nodes, { opacity: 0, y: 10 })
-  tl.set('#id-badge', { opacity: 0, scale: 0.8, transformOrigin: 'center' })
+  // 徽章先定位到节点 1「员工」下方（x 目标按 rect 实测），再淡入
+  tl.set('#id-badge', { opacity: 0, scale: 0.8, x: badgeToNodeX(nodes[0]), transformOrigin: 'center' })
   tl.to(nodes, { opacity: 1, y: 0, duration: 0.35, stagger: 0.25 })
-  // 徽章出现并依次闪烁各节点（timeline 内插值模拟"逐站停下"）
   tl.to('#id-badge', { opacity: 1, scale: 1, duration: 0.4 }, '+=0.2')
-  nodes.forEach((sel, i) => {
-    tl.call(() => {
-      document.querySelectorAll<HTMLElement>('.identity-node.is-active')
-        .forEach((n) => n.classList.remove('is-active'))
-      document.querySelector<HTMLElement>(sel)?.classList.add('is-active')
-    }, [], i === 0 ? '+=0.0' : '>+0.45')
-    tl.to({}, { duration: 0.45 })
-  })
-  // 结束：移除 active，徽章保持可见
-  tl.call(() => {
-    document.querySelectorAll<HTMLElement>('.identity-node.is-active')
-      .forEach((n) => n.classList.remove('is-active'))
-  })
+  // 沿链逐段右移：员工 → 平台 → Apisix → 后台；每停一站该节点边框/背景闪 accent，停留片刻
+  for (let i = 1; i < nodes.length; i++) {
+    const sel = nodes[i]
+    tl.to('#id-badge', { x: badgeToNodeX(sel), duration: 0.5, ease: 'power1.inOut' }, '+=0.05')
+    tl.call(() => activateIdentityNode(sel), [], '>-0.05')
+    tl.to({}, { duration: 0.4 })
+  }
+  // 结束：移除 active，徽章停在「后台」下方保持可见
+  tl.call(() => activateIdentityNode(null))
   return tl
 }
 
