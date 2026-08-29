@@ -380,16 +380,6 @@ body::before {
 .scene-clip .scene-replay:hover { color: var(--accent); border-color: var(--accent); }
 .scene-clip[data-finished] .scene-replay { opacity: 1; pointer-events: auto; }
 
-/* ===== demo stub（Task 7 占位）===== */
-.demo-stub {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 120px;
-  font: 12px var(--mono);
-  color: var(--ink-faint, #999);
-}
-
 /* ===== mock-ui 附属（体验型 Stage 自身布局）===== */
 .flood-line {
   text-align: center;
@@ -441,6 +431,348 @@ body::before {
 .confirm-stage .mock-cursor {
   top: 14px;
   left: 14px;
+}
+
+/* ===== 概念型 demo 通用样式（Task 7：9 个概念型 Stage 共享）===== */
+.concept-demo {
+  margin: 8px 6px;
+  font-family: var(--sans);
+  color: var(--ink);
+}
+.concept-title {
+  font: 14px var(--fang);
+  letter-spacing: 0.18em;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+}
+.concept-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.concept-item {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 14px;
+  background: var(--paper-raise);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 2px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.concept-text { color: var(--ink); flex: 1 1 auto; }
+.concept-no {
+  font: 700 13px var(--mono);
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  text-align: center;
+  background: var(--accent-soft);
+  border-radius: 2px;
+  padding: 1px 0;
+  transition: background 0.25s, color 0.25s;
+}
+.concept-no.is-lit {
+  background: var(--accent);
+  color: #fff;
+}
+.concept-item.is-dim {
+  opacity: 0.4;
+}
+.concept-no.is-warn {
+  background: rgba(192, 57, 43, 0.10);
+  color: var(--mark);
+}
+.concept-tag {
+  font: 11px var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* badge-metaphor 专属：门 + 工牌 */
+.badge-stage { position: relative; padding: 24px 16px 30px; }
+.badge-scene {
+  position: relative;
+  height: 140px;
+  margin: 12px auto 0;
+  max-width: 520px;
+}
+.badge-human, .badge-ai {
+  position: absolute;
+  top: 6px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font: 13px var(--mono);
+  color: var(--ink-soft);
+  background: var(--paper-raise);
+  border: 1px solid var(--line);
+}
+.badge-human { left: 8px; }
+.badge-ai { right: 8px; }
+.badge-card {
+  position: absolute;
+  top: 14px;
+  left: 56px;
+  width: 60px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font: 700 12px var(--mono);
+  color: #fff;
+  background: var(--accent);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(14,110,92,0.3);
+}
+.badge-door {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 64px;
+  height: 80px;
+  border: 2px solid var(--ink-faint);
+  border-bottom: 0;
+  border-radius: 36px 36px 4px 4px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(241,243,238,0.6));
+  transition: border-color 0.4s, background 0.4s;
+}
+.badge-door.is-open {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, rgba(14,110,92,0.18), rgba(14,110,92,0.04));
+}
+
+/* protocol-repo 专属：接口方块 + 箭头 + 仓库 */
+.repo-stage { padding: 8px 6px; }
+.repo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.repo-tag {
+  display: inline-block;
+  font: 10px var(--mono);
+  letter-spacing: 0.06em;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.repo-tag-read { background: rgba(14,110,92,0.85); }
+.repo-tag-write { background: rgba(28,43,40,0.85); }
+.repo-tag-risk { background: var(--mark); }
+.repo-card {
+  display: inline-block;
+  padding: 10px 14px;
+  background: var(--paper-raise);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font: 13px var(--sans);
+  color: var(--ink);
+  min-width: 92px;
+  text-align: left;
+}
+.repo-card.is-flash { border-color: var(--accent); background: var(--accent-soft); }
+.repo-arrow {
+  display: inline-block;
+  width: 36px;
+  height: 1.5px;
+  background: var(--accent);
+  position: relative;
+  align-self: center;
+  transform-origin: left center;
+}
+.repo-arrow::after {
+  content: "";
+  position: absolute;
+  right: -1px; top: -4px;
+  border-left: 7px solid var(--accent);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.repo-arrow-line {
+  display: inline-block;
+  width: 36px;
+  height: 1.5px;
+  background: var(--accent);
+  position: relative;
+  align-self: center;
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+.repo-arrow-line::after {
+  content: "";
+  position: absolute;
+  right: -1px; top: -4px;
+  border-left: 7px solid var(--accent);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.repo-warehouse {
+  display: inline-block;
+  padding: 12px 18px;
+  background: var(--accent);
+  color: #fff;
+  font: 700 14px var(--sans);
+  letter-spacing: 0.04em;
+  border-radius: 2px;
+  box-shadow: 0 4px 12px rgba(14,110,92,0.25);
+}
+
+/* unified-identity 专属：链路方块 + 徽章 */
+.identity-stage { padding: 8px 6px; }
+.identity-chain {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  margin: 12px 0 6px;
+}
+.identity-node {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background: var(--paper-raise);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font: 13px var(--sans);
+  color: var(--ink);
+  min-width: 78px;
+  text-align: center;
+  transition: border-color 0.3s, background 0.3s;
+}
+.identity-node.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.identity-arrow {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 1.5px;
+  background: var(--accent);
+  position: relative;
+}
+.identity-arrow::after {
+  content: "";
+  position: absolute;
+  right: -1px; top: -4px;
+  border-left: 7px solid var(--accent);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.identity-badge {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 6px 14px;
+  background: var(--accent);
+  color: #fff;
+  font: 600 13px var(--sans);
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(14,110,92,0.25);
+}
+
+/* threat-model 专属：双框叠加 */
+.threat-stage { padding: 8px 6px; }
+.threat-wrap {
+  position: relative;
+  margin: 12px auto 0;
+  max-width: 520px;
+  height: 160px;
+}
+.threat-legacy {
+  position: absolute;
+  inset: 18px 6px 6px 6px;
+  background: var(--paper-raise);
+  border: 2px solid var(--ink-faint);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font: 700 15px var(--sans);
+  color: var(--ink-soft);
+}
+.threat-platform {
+  position: absolute;
+  inset: 0 30px 30px 30px;
+  background: rgba(14,110,92,0.10);
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font: 700 15px var(--sans);
+  color: var(--accent);
+}
+.threat-caption {
+  text-align: center;
+  margin: 14px 0 0;
+  font: 12px var(--mono);
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+  opacity: 0;
+}
+
+/* dev-flow 专属：6 节点 + 箭头线 */
+.devflow-stage { padding: 8px 6px; }
+.devflow-rail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-wrap: nowrap;
+  margin: 12px 0;
+}
+.devflow-node {
+  flex: 0 0 auto;
+  padding: 10px 12px;
+  background: var(--paper-raise);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font: 13px var(--sans);
+  color: var(--ink);
+  min-width: 76px;
+  text-align: center;
+  opacity: 0.3;
+  transition: opacity 0.3s, border-color 0.3s, background 0.3s;
+}
+.devflow-node.is-lit {
+  opacity: 1;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.devflow-arrow {
+  flex: 1 1 auto;
+  height: 1.5px;
+  background: var(--accent);
+  position: relative;
+  min-width: 12px;
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+.devflow-arrow::after {
+  content: "";
+  position: absolute;
+  right: -1px; top: -4px;
+  border-left: 7px solid var(--accent);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+/* badge-metaphor 字幕 */
+.badge-caption {
+  margin: 14px 0 0;
+  text-align: center;
+  font: 600 13px var(--sans);
+  color: var(--ink);
 }
 
 /* ===== 探索视图 SVG 场景（ai-it-system scene.tsx PipelineSvg）===== */

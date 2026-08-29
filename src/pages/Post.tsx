@@ -13,7 +13,7 @@ import { registry } from '../components/blog-anim/registry'
 import { parseExploreYaml } from '../lib/explore'
 import type { ExploreConfig } from '../lib/types'
 import Answer from '../components/explore/Answer'
-import SceneClip from '../components/explore/SceneClip'
+import SceneClip, { setCurrentSlug } from '../components/explore/SceneClip'
 import SceneToc from '../components/explore/SceneToc'
 
 /* 构建期：所有 content/posts/<slug>/article.mdx 编译为组件映射（Vite 原生，eager） */
@@ -51,6 +51,11 @@ export default function Component() {
   if (!post) {
     return <main className="post-wrap"><p>文章不存在。</p></main>
   }
+
+  /* 同步设置当前文章 slug——SceneClip 在 SSG/hydration 的渲染期读取它来解析
+   * demos 字典。放在 return 之前保证 SSR 与客户端同一顺序执行，Stage 渲染
+   * 一致，避免 React hydration mismatch（closest() 在 SSG 无 DOM 不可用）。 */
+  setCurrentSlug(post.slug)
 
   const idx = list.findIndex((p) => p.slug === post.slug)
   const prev = idx > 0 ? list[idx - 1] : undefined

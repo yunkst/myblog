@@ -1,27 +1,37 @@
 // scene.tsx — ai-digital-employee 探索视图动画舞台（v2 demos 字典）
 //
 // 11 个 demo：
-//   - message-flood    体验型：群消息洪水 + 点题字幕
-//   - tiered-confirm   体验型：一次"安全写"确认卡流程
-//   - 其余 9 个        stub：Task 7 替换为真实可视化
+//   - message-flood, tiered-confirm           体验型（build 内联在本文件）
+//   - 其余 9 个                                概念型（build 在 scene-builds.tsx）
 import { gsap } from 'gsap'
 import type { Scene } from '../../../src/components/explore/SceneController'
-import { FloodStage, ConfirmStage } from './scene-stages'
-
-/** 概念型 demo 占位 Stage（Task 7 替换为真实可视化） */
-function stubStage(label: string) {
-  return function Stub() {
-    return <div className="demo-stub" data-demo-stub={label}>{label}</div>
-  }
-}
-
-/** stub 用 build：0.1s 静默 timeline（满足 validator 规则 4 + smoke 测试 duration > 0） */
-function stubBuild(): gsap.core.Timeline {
-  return gsap.timeline().to({}, { duration: 0.1 })
-}
+import {
+  FloodStage,
+  ConfirmStage,
+  OpenclawPitfallsStage,
+  FourPrerequisitesStage,
+  BadgeMetaphorStage,
+  ProtocolRepoStage,
+  UnifiedIdentityStage,
+  TieredExecutionStage,
+  ThreatModelStage,
+  LimitsStage,
+  DevFlowStage,
+} from './scene-stages'
+import {
+  buildOpenclawPitfalls,
+  buildFourPrerequisites,
+  buildBadgeMetaphor,
+  buildProtocolRepo,
+  buildUnifiedIdentity,
+  buildTieredExecution,
+  buildThreatModel,
+  buildLimits,
+  buildDevFlow,
+} from './scene-builds'
 
 export const demos: Record<string, Scene> = {
-  // ─── 体验型 1：message-flood ────────────────────────────────────────────
+  // ─── 体验型 1：message-flood ───────────────────────────────────────────
   'message-flood': {
     name: 'message-flood',
     Stage: FloodStage,
@@ -100,14 +110,14 @@ export const demos: Record<string, Scene> = {
     },
   },
 
-  // ─── 9 个 stub（Task 7 替换） ──────────────────────────────────────────
-  'openclaw-pitfalls':  { name: 'openclaw-pitfalls',  Stage: stubStage('openclaw-pitfalls'),  build: stubBuild },
-  'four-prerequisites':  { name: 'four-prerequisites',  Stage: stubStage('four-prerequisites'),  build: stubBuild },
-  'badge-metaphor':     { name: 'badge-metaphor',     Stage: stubStage('badge-metaphor'),     build: stubBuild },
-  'protocol-repo':      { name: 'protocol-repo',      Stage: stubStage('protocol-repo'),      build: stubBuild },
-  'unified-identity':   { name: 'unified-identity',   Stage: stubStage('unified-identity'),   build: stubBuild },
-  'tiered-execution':   { name: 'tiered-execution',   Stage: stubStage('tiered-execution'),   build: stubBuild },
-  'threat-model':       { name: 'threat-model',       Stage: stubStage('threat-model'),       build: stubBuild },
-  'limits':             { name: 'limits',             Stage: stubStage('limits'),             build: stubBuild },
-  'dev-flow':           { name: 'dev-flow',           Stage: stubStage('dev-flow'),           build: stubBuild },
+  // ─── 概念型 9 个（Stage 见 scene-stages.tsx，build 见 scene-builds.tsx） ──
+  'openclaw-pitfalls':  { name: 'openclaw-pitfalls',  Stage: OpenclawPitfallsStage,  build: buildOpenclawPitfalls },
+  'four-prerequisites': { name: 'four-prerequisites', Stage: FourPrerequisitesStage, build: buildFourPrerequisites },
+  'badge-metaphor':     { name: 'badge-metaphor',     Stage: BadgeMetaphorStage,     build: buildBadgeMetaphor },
+  'protocol-repo':      { name: 'protocol-repo',      Stage: ProtocolRepoStage,      build: buildProtocolRepo },
+  'unified-identity':   { name: 'unified-identity',   Stage: UnifiedIdentityStage,   build: buildUnifiedIdentity },
+  'tiered-execution':   { name: 'tiered-execution',   Stage: TieredExecutionStage,   build: buildTieredExecution },
+  'threat-model':       { name: 'threat-model',       Stage: ThreatModelStage,       build: buildThreatModel },
+  'limits':             { name: 'limits',             Stage: LimitsStage,            build: buildLimits },
+  'dev-flow':           { name: 'dev-flow',           Stage: DevFlowStage,           build: buildDevFlow },
 }
