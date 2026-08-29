@@ -53,7 +53,7 @@ export default function Component() {
           <title>{post.title} · {post.domain}</title>
           <meta name="description" content={post.excerpt} />
         </Head>
-        <main className="post-wrap">
+        <main className="post-wrap" data-article-slug={post.slug}>
           <div className="post-meta">
             <Link to={`/domain/${encodeURIComponent(post.domain)}/`} className="tag">{post.domain}</Link>
             <time>{post.date}</time>
