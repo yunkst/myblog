@@ -28,6 +28,15 @@ const FIXTURES: Array<{ slug: string; yaml: string; article: string }> = [
   { slug: 'r6p',
     yaml: `title: t\nnodes:\n  - { id: q, label: x }`,
     article: '<Answer id="q">a</Answer><SceneClip from="missing" />' },
+  // 规则1 cross-link 豁免 fixture：
+  // - 有 preview 的 cross-link 即便正文没有 <Answer> 也应被豁免（rule 4 单独校验目标存在性）
+  // - 没有 preview 的 cross-link 没有豁免，正文无 <Answer> 应报规则 1 错
+  { slug: 'r7-xlink-with-preview',
+    yaml: `title: t\nnodes:\n  - { id: q-xlink, label: x, kind: cross-link, to: { post: r-target, anchor: "#错位置" }, preview: "跨篇预览" }`,
+    article: '正文没有对应 Answer' },
+  { slug: 'r7-xlink-no-preview',
+    yaml: `title: t\nnodes:\n  - { id: q-xlink-np, label: x, kind: cross-link, to: { post: r-target, anchor: "#错位置" } }`,
+    article: '正文没有对应 Answer' },
 ]
 
 const FIX = path.join(process.cwd(), 'src/lib/__fixtures__/explore-val')
@@ -102,5 +111,17 @@ describe('validateExplore 规则', () => {
   it('规则6 正向: 传入 sceneLabels 但 SceneClip from 不在集合里时报错', () => {
     const r = validateExplore('r6p', ['good-label'])
     expect(r.errors.some(e => e.includes('SceneClip') && e.includes('missing'))).toBe(true)
+  })
+
+  // ===== 规则1 cross-link 豁免（正反两态）=====
+
+  it('规则1 豁免正向: cross-link 有 preview 且正文无 <Answer> 时不报规则 1 错', () => {
+    const r = validateExplore('r7-xlink-with-preview')
+    expect(r.errors.some(e => e.includes('q-xlink 未在 article.mdx 找到 <Answer'))).toBe(false)
+  })
+
+  it('规则1 豁免反向: cross-link 无 preview 且正文无 <Answer> 时报规则 1 错', () => {
+    const r = validateExplore('r7-xlink-no-preview')
+    expect(r.errors.some(e => e.includes('q-xlink-np 未在 article.mdx 找到 <Answer'))).toBe(true)
   })
 })

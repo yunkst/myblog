@@ -35,8 +35,12 @@ const scene: Scene = {
     // 先整体淡出
     tl.to(pipelineNodes.map((n) => `#${n.id}`),
       { opacity: 0.3, fillOpacity: 0.3, duration: 0.25 }, '<')
-    // 字幕切换
-    tl.set('#scene-subtitle', { text: '搜索优化流水线：问题报告 → AI 分析 → 提交分支 → CI/CD → 审查合并' })
+    // 字幕切换：GSAP 3 核心不处理 SVG <text> 的 textContent（需要 TextPlugin），
+    // 用 .call() 回调直接改 DOM
+    tl.call(() => {
+      const el = document.querySelector('#scene-subtitle')
+      if (el) el.textContent = '搜索优化流水线：问题报告 → AI 分析 → 提交分支 → CI/CD → 审查合并'
+    })
     // 从左到右逐个点亮
     tl.to('#scene-subtitle', { opacity: 1, duration: 0.3 }, '<')
     tl.to(pipelineNodes.map((n) => `#${n.id}`),
@@ -50,7 +54,10 @@ const scene: Scene = {
 
     // ─── q-ops-backup ───
     tl.addLabel('q-ops-backup', '+=0.3')
-    tl.set('#scene-subtitle', { text: '运维侧（影子备份 / GitOps）：后续接入，节点先预留' })
+    tl.call(() => {
+      const el = document.querySelector('#scene-subtitle')
+      if (el) el.textContent = '运维侧（影子备份 / GitOps）：后续接入，节点先预留'
+    })
     tl.to('#scene-subtitle', { opacity: 1, duration: 0.3 }, '<')
     // 最后一个节点（审查合并）回到 0.6 透明度作为"占位待接入"提示，其余保持
     tl.to(`#${pipelineNodes[pipelineNodes.length - 1].id}`,
