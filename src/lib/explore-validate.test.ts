@@ -1,127 +1,79 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
-import { validateExplore, setExploreSourceForTest, resetExploreSourceForTest } from './explore'
+import { describe, it, expect } from 'vitest'
+import { parseExploreYaml, validateExploreConfig, type ValidateCtx } from './explore'
 
-// 集中定义所有 6 个 case 的 fixture —— 每次测试运行时重建，
-// 完整目录被 git 跟踪，便于审阅者直接看到所有测试输入。
-const FIXTURES: Array<{ slug: string; yaml: string; article: string }> = [
-  { slug: 'r1', yaml: `title: t\nnodes:\n  - { id: q-missing, label: x }`, article: '普通正文' },
-  { slug: 'r2', yaml: `title: t\nnodes:\n  - { id: q-used, label: x }`,
-    article: '<Answer id="q-used">正文</Answer><Answer id="q-orphan">孤儿</Answer>' },
-  { slug: 'r3', yaml: `title: t\nnodes:\n  - { id: q-bad-seek, label: x, seek: nonexistent }`,
-    article: '<Answer id="q-bad-seek">a</Answer>' },
-  { slug: 'r-target', yaml: `title: t\n---\n## 目标锚点\n`, article: '' },
-  { slug: 'r4',
-    yaml: `title: t\nnodes:\n  - { id: q, label: l, kind: cross-link, to: { post: r-target, anchor: "#错位置" }, preview: x }`,
-    article: '<Answer id="q">a</Answer>' },
-  { slug: 'r5',
-    yaml: `title: t\nnodes:\n  - { id: q-ph, label: x, status: placeholder, detail: "..." }`,
-    article: '<Answer id="q-ph">a</Answer><QuestionAnchor id="q-ph" />' },
-  { slug: 'r6',
-    yaml: `title: t\nnodes:\n  - { id: q, label: x }`,
-    article: '<Answer id="q">a</Answer><SceneClip from="nope" />' },
-  // 正向触发 fixture：传入 sceneLabels 但引用了不在集合里的值
-  { slug: 'r3p',
-    yaml: `title: t\nnodes:\n  - { id: q-bad-seek, label: x, seek: nonexistent }`,
-    article: '<Answer id="q-bad-seek">a</Answer>' },
-  { slug: 'r6p',
-    yaml: `title: t\nnodes:\n  - { id: q, label: x }`,
-    article: '<Answer id="q">a</Answer><SceneClip from="missing" />' },
-  // 规则1 cross-link 豁免 fixture：
-  // - 有 preview 的 cross-link 即便正文没有 <Answer> 也应被豁免（rule 4 单独校验目标存在性）
-  // - 没有 preview 的 cross-link 没有豁免，正文无 <Answer> 应报规则 1 错
-  { slug: 'r7-xlink-with-preview',
-    yaml: `title: t\nnodes:\n  - { id: q-xlink, label: x, kind: cross-link, to: { post: r-target, anchor: "#错位置" }, preview: "跨篇预览" }`,
-    article: '正文没有对应 Answer' },
-  { slug: 'r7-xlink-no-preview',
-    yaml: `title: t\nnodes:\n  - { id: q-xlink-np, label: x, kind: cross-link, to: { post: r-target, anchor: "#错位置" } }`,
-    article: '正文没有对应 Answer' },
-]
-
-const FIX = path.join(process.cwd(), 'src/lib/__fixtures__/explore-val')
-
-beforeEach(() => {
-  if (!fs.existsSync(FIX)) fs.mkdirSync(FIX, { recursive: true })
-  // 清掉旧的 fixture 子目录（保留目录本身），然后重建所有 6 个输入
-  for (const d of fs.readdirSync(FIX)) {
-    fs.rmSync(path.join(FIX, d), { recursive: true, force: true })
-  }
-  for (const fx of FIXTURES) write(fx.slug, fx.yaml, fx.article)
-  setExploreSourceForTest(FIX)
-})
-afterEach(() => { resetExploreSourceForTest() })
-
-function write(slug: string, yaml: string, article: string) {
-  const dir = path.join(FIX, slug)
-  fs.mkdirSync(dir, { recursive: true })
-  fs.writeFileSync(path.join(dir, 'explore.yaml'), yaml)
-  fs.writeFileSync(path.join(dir, 'article.mdx'), `---
-title: ${slug}
-date: 2026-08-29
-status: published
----
-${article}
-`)
+function makeConfig(yaml: string) {
+  const r = parseExploreYaml(yaml)
+  if (!r.ok) throw new Error(r.error)
+  return r.value
 }
 
-describe('validateExplore 规则', () => {
-  it('规则1: YAML 非 placeholder 节点的 id 必须在正文 <Answer id> 里存在', () => {
-    const r = validateExplore('r1')
-    expect(r.errors.some(e => e.includes('q-missing 未在 article.mdx 找到 <Answer'))).toBe(true)
+const baseYaml = `
+title: t
+entry: q-a
+scenes:
+  - id: q-a
+    label: A
+    demo: demo-a
+    questions:
+      - { text: 去那篇, to: { post: other, scene: entry } }
+  - id: q-b
+    label: B
+    demo: demo-b
+`
+
+const baseCtx: ValidateCtx = {
+  answerIds: ['q-a', 'q-b'],
+  demoNames: ['demo-a', 'demo-b'],
+  sceneFileExists: true,
+  knownPosts: ['self', 'other'],
+  scenesOfPost: (p) => (p === 'other' ? ['q-o1'] : null),
+}
+
+describe('validateExploreConfig v2', () => {
+  it('合法配置零错误', () => {
+    const r = validateExploreConfig('self', makeConfig(baseYaml), baseCtx)
+    expect(r.errors).toEqual([])
   })
-
-  it('规则2: 正文 <Answer id> 在 YAML 树中未被引用 —— warn 不 fail', () => {
-    const r = validateExplore('r2')
-    expect(r.ok).toBe(true)
-    expect(r.warnings.some(w => w.includes('q-orphan 在 YAML 树未被引用'))).toBe(true)
+  it('规则1 entry 不在 scenes 报错', () => {
+    const c = makeConfig(baseYaml)
+    const r = validateExploreConfig('self', c, { ...baseCtx, answerIds: ['q-a', 'q-b'] })
+    c.entry = 'q-nope'
+    const r2 = validateExploreConfig('self', c, baseCtx)
+    expect(r2.errors.some((e) => e.includes('entry'))).toBe(true)
+    void r
   })
-
-  it('规则3: seek 值必须在 scene timeline labels 存在（无 scene 时跳过）', () => {
-    // 不提供 scene —— 此规则无法验证，应放过
-    const r = validateExplore('r3')
-    expect(r.errors.filter(e => e.includes('seek'))).toHaveLength(0)
+  it('规则2 场景缺 Answer 报错', () => {
+    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, answerIds: ['q-a'] })
+    expect(r.errors.some((e) => e.includes('q-b') && e.includes('Answer'))).toBe(true)
   })
-
-  it('规则4: cross-link to.post 存在且 to.anchor 是目标文章真实 heading id', () => {
-    const r = validateExplore('r4')
-    expect(r.errors.some(e => e.includes('r-target 找不到 anchor'))).toBe(true)
+  it('规则3 未被场景引用的 Answer 警告', () => {
+    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, answerIds: ['q-a', 'q-b', 'q-extra'] })
+    expect(r.warnings.some((w) => w.includes('q-extra'))).toBe(true)
   })
-
-  it('规则5: <QuestionAnchor> 不能引用 placeholder 节点', () => {
-    const r = validateExplore('r5')
-    expect(r.errors.some(e => e.includes('q-ph 是 placeholder'))).toBe(true)
+  it('规则4 demo 不存在报错', () => {
+    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, demoNames: ['demo-a'] })
+    expect(r.errors.some((e) => e.includes('demo-b'))).toBe(true)
   })
-
-  it('规则6: SceneClip from 标签必须存在于本文 scene timeline（无 scene 跳过）', () => {
-    const r = validateExplore('r6')
-    // 没场景不该报错
-    expect(r.errors).toHaveLength(0)
+  it('规则4b scene.tsx 不存在报错（demo 必填的推论）', () => {
+    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, sceneFileExists: false })
+    expect(r.errors.length).toBeGreaterThan(0)
   })
-
-  // ===== 正向触发路径（rule 3 / rule 6）=====
-  // 传入 sceneLabels 但节点 seek/SceneClip from 不在集合里 —— 应当报错
-
-  it('规则3 正向: 传入 sceneLabels 但节点 seek 不在集合里时报错', () => {
-    const r = validateExplore('r3p', ['good-label'])
-    // 错误文案用节点路径（nodes[0].seek="..."），不是 id
-    expect(r.errors.some(e => e.includes('seek="nonexistent"'))).toBe(true)
+  it('规则5 本地 to 指向不存在场景报错', () => {
+    const y = baseYaml.replace('- { text: 去那篇, to: { post: other, scene: entry } }', '- { text: 去不存在, to: q-nope }')
+    const r = validateExploreConfig('self', makeConfig(y), baseCtx)
+    expect(r.errors.some((e) => e.includes('q-nope'))).toBe(true)
   })
-
-  it('规则6 正向: 传入 sceneLabels 但 SceneClip from 不在集合里时报错', () => {
-    const r = validateExplore('r6p', ['good-label'])
-    expect(r.errors.some(e => e.includes('SceneClip') && e.includes('missing'))).toBe(true)
+  it('规则5b 跨文章 post 不存在报错', () => {
+    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, knownPosts: ['self'] })
+    expect(r.errors.some((e) => e.includes('other'))).toBe(true)
   })
-
-  // ===== 规则1 cross-link 豁免（正反两态）=====
-
-  it('规则1 豁免正向: cross-link 有 preview 且正文无 <Answer> 时不报规则 1 错', () => {
-    const r = validateExplore('r7-xlink-with-preview')
-    expect(r.errors.some(e => e.includes('q-xlink 未在 article.mdx 找到 <Answer'))).toBe(false)
+  it('规则5c 跨文章目标场景不存在报错', () => {
+    const y = baseYaml.replace("scene: entry }", "scene: q-nope }")
+    const r = validateExploreConfig('self', makeConfig(y), baseCtx)
+    expect(r.errors.some((e) => e.includes('q-nope'))).toBe(true)
   })
-
-  it('规则1 豁免反向: cross-link 无 preview 且正文无 <Answer> 时报规则 1 错', () => {
-    const r = validateExplore('r7-xlink-no-preview')
-    expect(r.errors.some(e => e.includes('q-xlink-np 未在 article.mdx 找到 <Answer'))).toBe(true)
+  it('规则5d 跨文章 scene: entry 且目标无 yaml 报错', () => {
+    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, scenesOfPost: () => null })
+    expect(r.errors.some((e) => e.includes('other'))).toBe(true)
   })
 })

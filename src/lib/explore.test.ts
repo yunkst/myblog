@@ -1,115 +1,101 @@
 import { describe, it, expect } from 'vitest'
-import { getExplore, parseExploreYaml, getRawAnswerIds } from './explore'
+import { parseExploreYaml, resolveExploreHref, scanDemoNames } from './explore'
 
-describe('explore config', () => {
-  it('parseExploreYaml 解析合法 YAML', () => {
-    const yaml = `
-title: 测试
-seek_root: intro
-nodes:
-  - id: q-foo
-    label: 问题
-    seek: q-foo
+const good = `
+title: 一个 AI 数字员工平台
+entry: q-problem
+scenes:
+  - id: q-problem
+    label: 公司的技术问题，都是谁在解决？
+    demo: message-flood
+    features:
+      - { text: 看方案, to: q-badge-metaphor }
+    questions:
+      - { text: 去别的文章, to: { post: other-post, scene: entry } }
+  - id: q-badge-metaphor
+    label: 把工牌借给 AI
+    demo: badge-metaphor
 `
-    const r = parseExploreYaml(yaml)
+
+describe('parseExploreYaml v2', () => {
+  it('合法配置解析成功', () => {
+    const r = parseExploreYaml(good)
     expect(r.ok).toBe(true)
     if (r.ok) {
-      expect(r.value.title).toBe('测试')
-      expect(r.value.nodes[0].id).toBe('q-foo')
+      expect(r.value.entry).toBe('q-problem')
+      expect(r.value.scenes).toHaveLength(2)
+      expect(r.value.scenes[0].features?.[0].to).toBe('q-badge-metaphor')
     }
   })
-
-  it('parseExploreYaml 失败时返回明确错误', () => {
-    const r = parseExploreYaml('not: a: valid: yaml:')
+  it('非对象顶层报错', () => {
+    const r = parseExploreYaml('- a\n- b\n')
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error).toContain('YAML')
   })
-
-  it('parseExploreYaml 节点 id 重复报错', () => {
-    const yaml = `
-title: t
-nodes:
-  - id: q-a
-    label: A
-  - id: q-a
-    label: A2
-`
-    const r = parseExploreYaml(yaml)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error).toContain('重复')
-  })
-
-  it('parseExploreYaml 子节点递归校验', () => {
-    const yaml = `
-title: t
-nodes:
-  - id: q-parent
-    label: P
-    children:
-      - id: q-child
-        label: C
-`
-    const r = parseExploreYaml(yaml)
-    expect(r.ok).toBe(true)
-  })
-
-  it('parseExploreYaml kind 非法值报错', () => {
-    const yaml = `
-title: t
-nodes:
-  - id: q-bad
-    label: B
-    kind: weird
-`
-    const r = parseExploreYaml(yaml)
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error).toContain('kind')
-  })
-
-  it('parseExploreYaml 顶层不是对象报错', () => {
-    const r = parseExploreYaml('- a\n- b')
-    expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error).toContain('对象')
-  })
-
-  it('parseExploreYaml 缺 title 报错', () => {
-    const yaml = `
-nodes:
-  - id: q-x
-    label: X
-`
-    const r = parseExploreYaml(yaml)
+  it('title 缺失报错', () => {
+    const r = parseExploreYaml('entry: a\nscenes:\n  - { id: a, label: x, demo: d }\n')
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error).toContain('title')
   })
-
-  it('parseExploreYaml nodes 非数组报错', () => {
-    const yaml = `
-title: t
-nodes: not-array
-`
-    const r = parseExploreYaml(yaml)
+  it('entry 缺失报错', () => {
+    const r = parseExploreYaml('title: t\nscenes:\n  - { id: a, label: x, demo: d }\n')
     expect(r.ok).toBe(false)
-    if (!r.ok) expect(r.error).toContain('nodes')
+    if (!r.ok) expect(r.error).toContain('entry')
   })
-
-  it('parseExploreYaml id 非法字符报错', () => {
-    const yaml = `
-title: t
-nodes:
-  - id: Bad Id!
-    label: X
-`
-    const r = parseExploreYaml(yaml)
+  it('scenes 空数组报错', () => {
+    const r = parseExploreYaml('title: t\nentry: a\nscenes: []\n')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toContain('scenes')
+  })
+  it('scene.id 非法报错', () => {
+    const r = parseExploreYaml('title: t\nentry: a\nscenes:\n  - { id: "A!", label: x, demo: d }\n')
     expect(r.ok).toBe(false)
     if (!r.ok) expect(r.error).toContain('id')
   })
-
-  it('getExplore 对不存在的 slug 返回 null', () => {
-    expect(getExplore('__nope__')).toBeNull()
+  it('scene.id 重复报错', () => {
+    const r = parseExploreYaml('title: t\nentry: a\nscenes:\n  - { id: a, label: x, demo: d }\n  - { id: a, label: y, demo: d }\n')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toContain('重复')
   })
+  it('demo 缺失报错（placeholder 废除，spec §5.3）', () => {
+    const r = parseExploreYaml('title: t\nentry: a\nscenes:\n  - { id: a, label: x }\n')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toContain('demo')
+  })
+  it('exit.to 非法形态报错', () => {
+    const r = parseExploreYaml('title: t\nentry: a\nscenes:\n  - id: a\n    label: x\n    demo: d\n    features:\n      - { text: t, to: { post: p } }\n')
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toContain('to')
+  })
+})
 
-  it('getRawAnswerIds 对不存在的 article.mdx 返回 []', () => {
-    expect(getRawAnswerIds('__nope__')).toEqual([])
+describe('resolveExploreHref', () => {
+  const config = parseExploreYaml(good)
+  it('本地目标 → #id', () => {
+    expect(config.ok && resolveExploreHref('q-badge-metaphor', config.value)).toBe('#q-badge-metaphor')
+  })
+  it('跨文章 entry → /blog/<post>/#entry（保留字别名）', () => {
+    expect(config.ok && resolveExploreHref({ post: 'other-post', scene: 'entry' }, config.value))
+      .toBe('/blog/other-post/#entry')
+  })
+  it('跨文章具体场景 → /blog/<post>/#<scene-id>', () => {
+    expect(config.ok && resolveExploreHref({ post: 'p2', scene: 'q-x' }, config.value))
+      .toBe('/blog/p2/#q-x')
+  })
+})
+
+describe('scanDemoNames（demo 键书写契约：缩进≥2 的 name: { 形式）', () => {
+  it('扫出字面量键', () => {
+    const src = `export const demos: Record<string, Scene> = {
+  'message-flood': {
+    name: 'message-flood',
+    Stage: FloodStage,
+    build() { return gsap.timeline() },
+  },
+  badge: { name: 'badge', Stage: B, build: () => gsap.timeline() },
+}`
+    expect(scanDemoNames(src).sort()).toEqual(['badge', 'message-flood'])
+  })
+  it('无 demos 导出返回空数组', () => {
+    expect(scanDemoNames('export default {}')).toEqual([])
   })
 })

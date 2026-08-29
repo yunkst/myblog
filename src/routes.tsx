@@ -2,7 +2,6 @@ import React from 'react'
 import type { ComponentType } from 'react'
 import type { RouteRecord } from 'vite-react-ssg'
 import { getAllPosts, getAllDomains } from './lib/content'
-import { listExplorable } from './lib/explore'
 
 /* React.lazy 返回 LazyExoticComponent，RouteRecord.Component 期望 Promise<{default: ComponentType}>；
  * 保留这种包装方式——SSG 阶段能正确产出每个路由的静态 HTML。 */
@@ -25,11 +24,6 @@ export const routes: RouteRecord[] = [
         path: 'domain/:slug',
         Component: lazyRoute(() => import('./pages/Domain')),
         getStaticPaths: () => getAllDomains().map((d) => `/domain/${encodeURIComponent(d.slug)}/`),
-      },
-      {
-        path: 'blog/:slug/explore',
-        Component: lazyRoute(() => import('./pages/Explore')),
-        getStaticPaths: () => listExplorable().map((slug) => `/blog/${slug}/explore/`),
       },
     ],
   },

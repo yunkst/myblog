@@ -173,11 +173,6 @@ export default defineConfig(({ isSsrBuild }) => ({
         find: /^\.{1,2}\/lib\/content$/,
         replacement: new URL('./src/lib/content.client.ts', import.meta.url).pathname,
       }]),
-      /* lib/explore 同理：客户端避免 node:fs（explore.client.ts 用 import.meta.glob 预读 yaml）。 */
-      ...(isSsrBuild ? [] : [{
-        find: /^\.{1,2}\/lib\/explore$/,
-        replacement: new URL('./src/lib/explore.client.ts', import.meta.url).pathname,
-      }]),
     ],
   },
   ssgOptions: {

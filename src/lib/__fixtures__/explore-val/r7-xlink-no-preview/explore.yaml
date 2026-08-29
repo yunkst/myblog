@@ -1,3 +1,0 @@
-title: t
-nodes:
-  - { id: q-xlink-np, label: x, kind: cross-link, to: { post: r-target, anchor: "#错位置" } }

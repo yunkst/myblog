@@ -45,25 +45,23 @@ export interface SiteConfig {
   }
 }
 
-export type QuestionKind = 'local' | 'cross-link'
-export type QuestionStatus = 'placeholder' | undefined | null
+export type ExploreTarget = string | { post: string; scene: string }
 
-export interface ExploreNode {
+export interface ExploreExit {
+  text: string
+  to: ExploreTarget
+}
+
+export interface ExploreScene {
   id: string
   label: string
-  seek?: string
-  focus?: string[]   // 该节点激活时高亮的元素 id 列表
-  kind?: QuestionKind
-  status?: QuestionStatus
-  detail?: string       // 仅 placeholder 用
-  preview?: string      // 仅 cross-link 用
-  to?: { post: string; anchor: string }
-  children?: ExploreNode[]
+  demo: string
+  features?: ExploreExit[]
+  questions?: ExploreExit[]
 }
 
 export interface ExploreConfig {
   title: string
-  anim?: string         // 相对路径字符串
-  seek_root?: string
-  nodes: ExploreNode[]
+  entry: string
+  scenes: ExploreScene[]
 }
