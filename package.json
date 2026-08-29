@@ -5,10 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite-react-ssg dev",
+    "predev": "pnpm validate:explore",
     "build": "vite-react-ssg build",
+    "prebuild": "pnpm validate:explore",
     "preview": "vite preview",
+    "prepreview": "pnpm validate:explore",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "validate:explore": "tsx scripts/validate-explore.ts",
     "deploy": "vite-react-ssg build && tcb hosting deploy dist -e blog-d9glz3crx8ae02654"
   },
   "dependencies": {
@@ -33,6 +37,7 @@
     "react-dom": "19.2.8",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
+    "tsx": "^4.23.12",
     "typescript": "5.9.3",
     "vite": "8.2.2",
     "vite-react-ssg": "0.9.2",
