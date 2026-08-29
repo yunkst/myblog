@@ -30,3 +30,21 @@ describe('<Post> explore entry link', () => {
     expect(container.textContent).not.toContain('走进探索视图')
   })
 })
+
+describe('<Post> v3 stage class', () => {
+  it('有 explore.yaml 的文章：main 有 post-wrap--stage 类', () => {
+    const { container } = renderAt('/blog/ai-digital-employee')
+    const main = container.querySelector('main')
+    expect(main).not.toBeNull()
+    expect(main!.className).toContain('post-wrap')
+    expect(main!.className).toContain('post-wrap--stage')
+  })
+
+  it('无 explore.yaml 的文章：main 无 post-wrap--stage 类', () => {
+    const { container } = renderAt('/blog/shixi-open-source-study-app')
+    const main = container.querySelector('main')
+    expect(main).not.toBeNull()
+    expect(main!.className).toContain('post-wrap')
+    expect(main!.className).not.toContain('post-wrap--stage')
+  })
+})
