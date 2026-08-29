@@ -8,7 +8,7 @@ import type { Post, Domain, Wip, Faq, SiteConfig, AnimProfile, PostStatus } from
 
 /* remarkExportFrontmatter（vite.config.ts）已把每个 MDX 的 frontmatter 编译为 `export const frontmatter` */
 type MdxModule = { default: ComponentType<any>; frontmatter: Record<string, any> }
-const postModules = import.meta.glob<MdxModule>('/content/posts/*.mdx', { eager: true })
+const postModules = import.meta.glob<MdxModule>('/content/posts/*/article.mdx', { eager: true })
 
 import siteYamlRaw from '/content/site.yaml?raw'
 import faqsYamlRaw from '/content/faqs.yaml?raw'
@@ -34,7 +34,7 @@ function metaFromModule(modulePath: string, mod: MdxModule): Post | null {
     status: VALID_STATUS.includes(status) ? status : 'published',
     excerpt: String(fm.excerpt || ''),
     body: '', // 正文由 mdxModules 的组件直接渲染，客户端不需要存原始 markdown
-    fileName: modulePath.split('/').pop()!.replace(/\.(mdx|md)$/, ''),
+    fileName: modulePath.split('/').slice(-2, -1)[0], // 目录名即 slug，与服务端 content.ts 对齐
   }
 }
 

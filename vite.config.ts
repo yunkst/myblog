@@ -1,4 +1,6 @@
 /// <reference types="vitest/config" />
+import fs from 'node:fs'
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import mdx from '@mdx-js/rollup'
@@ -6,6 +8,31 @@ import remarkGfm from 'remark-gfm'
 import { visit } from 'unist-util-visit'
 import remarkFrontmatter from 'remark-frontmatter'
 import yaml from 'js-yaml'
+
+function mimeOf(file: string): string {
+  const ext = path.extname(file).toLowerCase()
+  const table: Record<string, string> = {
+    '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif', '.svg': 'image/svg+xml', '.avif': 'image/avif',
+  }
+  return table[ext] || 'application/octet-stream'
+}
+
+/* build 产物：dist/posts/<slug>/<file>，与文章内旧 URL /posts/<slug>/<file> 对齐 */
+function copyPostAssetsToDist() {
+  const postsRoot = path.join(process.cwd(), 'content', 'posts')
+  if (!fs.existsSync(postsRoot)) return
+  const posts = fs.readdirSync(postsRoot, { withFileTypes: true }).filter((d) => d.isDirectory())
+  for (const p of posts) {
+    const src = path.join(postsRoot, p.name, 'assets')
+    const dst = path.join(process.cwd(), 'dist', 'posts', p.name)
+    if (!fs.existsSync(src)) continue
+    fs.mkdirSync(dst, { recursive: true })
+    for (const file of fs.readdirSync(src)) {
+      fs.copyFileSync(path.join(src, file), path.join(dst, file))
+    }
+  }
+}
 
 /* remark-frontmatter 把 YAML 解析为 yaml 节点；本插件把 frontmatter 转成 MDX ESM export，并从 children 移除 yaml 节点 */
 function remarkExportFrontmatter() {
@@ -77,6 +104,27 @@ export default defineConfig(({ isSsrBuild }) => ({
       remarkPlugins: [remarkFrontmatter, remarkExportFrontmatter, remarkGfm],
     }) },
     react(),
+    /* dev 期：拦截 /posts/<slug>/<file>，即时从 content/posts/<slug>/assets/ 返回。
+     * 在 react() 之后注入，让 react 自己的 dev server 中间件先跑。 */
+    {
+      name: 'serve-post-assets',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          const url = req.url || ''
+          if (!url.startsWith('/posts/')) return next()
+          const m = url.match(/^\/posts\/([^/]+)\/(.+)$/)
+          if (!m) return next()
+          const file = path.join(process.cwd(), 'content', 'posts', m[1], 'assets', m[2])
+          if (!fs.existsSync(file) || !fs.statSync(file).isFile()) return next()
+          res.setHeader('Content-Type', mimeOf(file))
+          fs.createReadStream(file).pipe(res)
+        })
+      },
+      /* build 期：closeBundle 时把 assets 拷到 dist/posts/<slug>/ */
+      closeBundle() {
+        copyPostAssetsToDist()
+      },
+    },
   ],
   resolve: {
     alias: [

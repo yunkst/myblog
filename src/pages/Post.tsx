@@ -5,9 +5,9 @@ import { MDXProvider } from '@mdx-js/react'
 import { getPost, getAllPosts } from '../lib/content'
 import { registry } from '../components/blog-anim/registry'
 
-/* 构建期：所有 content/posts/*.mdx 编译为组件映射（Vite 原生，eager） */
+/* 构建期：所有 content/posts/<slug>/article.mdx 编译为组件映射（Vite 原生，eager） */
 const mdxModules = import.meta.glob<{ default: React.ComponentType }>(
-  '/content/posts/*.mdx',
+  '/content/posts/*/article.mdx',
   { eager: true },
 )
 
@@ -24,9 +24,11 @@ export default function Component() {
   const prev = idx > 0 ? list[idx - 1] : undefined
   const next = idx < list.length - 1 ? list[idx + 1] : undefined
 
-  const key = Object.keys(mdxModules).find((k) =>
-    k.split('/').pop()!.replace(/\.mdx$/, '') === post.fileName,
-  )
+  const key = Object.keys(mdxModules).find((k) => {
+    const parts = k.split('/')
+    const dir = parts[parts.length - 2]
+    return dir === post.slug
+  })
   const Body = key ? mdxModules[key].default : null
 
   return (

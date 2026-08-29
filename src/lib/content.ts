@@ -20,24 +20,34 @@ function slugify(title: string): string {
   return title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-龥-]/g, '')
 }
 
+function readPostFile(slug: string): { file: string; raw: string } | null {
+  const file = path.join(POSTS_DIR, slug, 'article.mdx')
+  if (!fs.existsSync(file)) return null
+  return { file, raw: fs.readFileSync(file, 'utf-8') }
+}
+
 export function getAllPosts(): Post[] {
-  const files = fs.readdirSync(POSTS_DIR).filter((f) => f.endsWith('.mdx') || f.endsWith('.md'))
+  if (!fs.existsSync(POSTS_DIR)) return []
+  const slugs = fs.readdirSync(POSTS_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
   const posts: Post[] = []
-  for (const file of files) {
-    const raw = fs.readFileSync(path.join(POSTS_DIR, file), 'utf-8')
-    const { data, content } = matter(raw)
+  for (const slug of slugs) {
+    const r = readPostFile(slug)
+    if (!r) continue
+    const { data, content } = matter(r.raw)
     if (!data.title || !data.date) {
-      console.warn(`[content] 跳过 ${file}: 缺 title 或 date`)
+      console.warn(`[content] 跳过 ${slug}: 缺 title 或 date`)
       continue
     }
-    const slug = (data.slug as string) || slugify(String(data.title))
+    const normSlug = (data.slug as string) || slugify(String(data.title))
     const domain = (data.domain as string) || 'general'
     const anim = (data.anim_profile as AnimProfile) || 'auto'
     const status = (data.status as PostStatus) || 'published'
-    if (!VALID_ANIM.includes(anim)) console.warn(`[content] ${file}: anim_profile=${anim} 非法，回退 auto`)
-    if (!VALID_STATUS.includes(status)) console.warn(`[content] ${file}: status=${status} 非法，回退 published`)
+    if (!VALID_ANIM.includes(anim)) console.warn(`[content] ${slug}: anim_profile=${anim} 非法，回退 auto`)
+    if (!VALID_STATUS.includes(status)) console.warn(`[content] ${slug}: status=${status} 非法，回退 published`)
     posts.push({
-      slug,
+      slug: normSlug,
       title: String(data.title),
       domain,
       date: String(data.date).slice(0, 10),
@@ -45,7 +55,7 @@ export function getAllPosts(): Post[] {
       status: VALID_STATUS.includes(status) ? status : 'published',
       excerpt: String(data.excerpt || ''),
       body: content,
-      fileName: file.replace(/\.(mdx|md)$/, ''),
+      fileName: normSlug, // 目录名即 slug；Post.tsx 用它映射 mdxModules
     })
   }
   return posts.filter((p) => p.status === 'published').sort((a, b) => (a.date < b.date ? 1 : -1))
