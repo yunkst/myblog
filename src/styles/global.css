@@ -380,6 +380,69 @@ body::before {
 .scene-clip .scene-replay:hover { color: var(--accent); border-color: var(--accent); }
 .scene-clip[data-finished] .scene-replay { opacity: 1; pointer-events: auto; }
 
+/* ===== demo stub（Task 7 占位）===== */
+.demo-stub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  font: 12px var(--mono);
+  color: var(--ink-faint, #999);
+}
+
+/* ===== mock-ui 附属（体验型 Stage 自身布局）===== */
+.flood-line {
+  text-align: center;
+  margin: 14px 0 0;
+  font: 600 14px/1.6 var(--sans);
+  color: var(--ink);
+}
+
+.confirm-card {
+  align-self: flex-start;
+  width: 300px;
+  max-width: 78%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-raise, #F6F7F4);
+  position: relative;
+}
+.confirm-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font: 600 13px var(--sans);
+  color: var(--ink);
+}
+.confirm-card-light {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #C4C7C1;
+}
+.confirm-card-row {
+  margin-top: 6px;
+  font: 12px/1.5 var(--mono);
+  color: var(--ink-soft);
+}
+.confirm-card-btn {
+  display: block;
+  margin-left: auto;
+  margin-top: 10px;
+  padding: 6px 20px;
+  font: 600 13px var(--sans);
+  color: #fff;
+  background: var(--accent, #0E6E5C);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.confirm-stage .mock-cursor {
+  top: 14px;
+  left: 14px;
+}
+
 /* ===== 探索视图 SVG 场景（ai-it-system scene.tsx PipelineSvg）===== */
 .scene-svg {
   display: block;

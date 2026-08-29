@@ -1,0 +1,84 @@
+title: 一个 AI 数字员工平台
+entry: q-problem
+
+scenes:
+  - id: q-problem
+    label: 公司的技术问题，都是谁在解决？
+    demo: message-flood
+    features:
+      - { text: AI 分身怎么安全上岗？, to: q-badge-metaphor }
+      - { text: 直接看确认流程, to: q-tiered-confirm }
+    questions:
+      - { text: 第一次尝试为什么失败？, to: q-why-not-openclaw }
+      - { text: 这套方案的边界, to: q-limits }
+      - { text: 未来还能怎么扩展？, to: q-future }
+
+  - id: q-why-not-openclaw
+    label: 第一次尝试：为什么没用 openclaw？
+    demo: openclaw-pitfalls
+    questions:
+      - { text: 正确的前提是什么？, to: q-four-prerequisites }
+
+  - id: q-four-prerequisites
+    label: AI 安全上岗的四个前提
+    demo: four-prerequisites
+    questions:
+      - { text: 看整体设计, to: q-badge-metaphor }
+
+  - id: q-badge-metaphor
+    label: 一句话方案：把工牌借给 AI
+    demo: badge-metaphor
+    features:
+      - { text: 协议仓库, to: q-protocol-repo }
+      - { text: 统一身份, to: q-unified-identity }
+      - { text: 分级执行, to: q-tiered-execution }
+    questions:
+      - { text: 直接看分级确认流程, to: q-tiered-confirm }
+
+  - id: q-protocol-repo
+    label: 第一层：让接口自报家门
+    demo: protocol-repo
+    questions:
+      - { text: 上一层：工牌比喻, to: q-badge-metaphor }
+      - { text: 下一层：统一身份, to: q-unified-identity }
+
+  - id: q-unified-identity
+    label: 第二层：AI 走人一样的权限通道
+    demo: unified-identity
+    questions:
+      - { text: 上一层：协议仓库, to: q-protocol-repo }
+      - { text: 下一层：分级执行, to: q-tiered-execution }
+
+  - id: q-tiered-execution
+    label: 第三层：分级执行（总览）
+    demo: tiered-execution
+    questions:
+      - { text: 看一段真实确认流程, to: q-tiered-confirm }
+
+  - id: q-tiered-confirm
+    label: 一段确认流程
+    demo: tiered-confirm
+    features:
+      - { text: 回到问题入口, to: q-problem }
+      - { text: 看分级策略总览, to: q-tiered-execution }
+    questions:
+      - { text: 这套方案解决不了什么？, to: q-limits }
+
+  - id: q-threat-model
+    label: 威胁模型：平台约束的是 AI，不是人
+    demo: threat-model
+    questions:
+      - { text: 回到入口, to: q-problem }
+
+  - id: q-limits
+    label: 这套方案解决不了什么
+    demo: limits
+    questions:
+      - { text: 未来还能怎么扩展？, to: q-future }
+      - { text: 回到入口, to: q-problem }
+
+  - id: q-future
+    label: 未来拓展：让 AI 替我接需求
+    demo: dev-flow
+    questions:
+      - { text: 回到入口, to: q-problem }

@@ -10,10 +10,18 @@ excerpt: 公司技术就我一个人。我做的不是"ALL IN AI"，而是搭了
 
 import ArchDiagram from '../../../src/components/blog-anim/ArchDiagram'
 import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../../src/components/blog-anim/diagrams/ai-digital-employee'
+import Answer from '../../../src/components/explore/Answer'
+import SceneClip from '../../../src/components/explore/SceneClip'
 
 > 原文标题《怎么让公司 ALL IN AI》。写的过程中我越来越觉得 "ALL IN AI" 这个词不够准确——它听起来像一句口号，而我实际做的，是搭了一个「AI 数字员工平台」——让 AI 成为公司里一名普通员工，走和人一模一样的权限、审批与审计通道，去调用公司所有后台系统。以下是我的完整设计方案。
 
+> 下面的内容有两种读法：从上往下顺序读，是完整的设计论证；每节开头有一段动画演示，点各节下方的出口按钮可以跳跃式探索。建议第一次先顺序读完，再回头点你感兴趣的问题。
+
+<Answer id="q-problem">
+
 ## 背景：公司技术就我一个人
+
+<SceneClip demo="message-flood" />
 
 公司的技术人员只有我一个。软件出问题找我、后台不会用找我、什么东西怎么配置也找我。
 
@@ -21,7 +29,13 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 
 我自然想到：能不能做一个 AI 数字分身，替我答疑、替我处理这些重复劳动？
 
+</Answer>
+
 ## 第一次尝试：OpenClaw 数字分身，为什么最终没上线
+
+<Answer id="q-why-not-openclaw">
+
+<SceneClip demo="openclaw-pitfalls" />
 
 我最初的方案是用 OpenClaw 做一个数字分身，知识库直接对接代码库。思路很直接，但实践下来暴露了三个绕不过去的问题：
 
@@ -33,7 +47,13 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 
 这三个问题叠加，第一次尝试最终没有上线。
 
+</Answer>
+
 ## 想清楚：让 AI 安全上岗的四个前提
+
+<Answer id="q-four-prerequisites">
+
+<SceneClip demo="four-prerequisites" />
 
 这次失败让我意识到，搭建 AI 数字员工平台**没有捷径**。在处理好下面四个问题之前，一切接入生产系统的尝试都是危险的：
 
@@ -44,7 +64,13 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 
 下面是我的设计方案。需要说明的是，这个方案涉及整个运维体系的迁移和配合——还好我上面没人，可以让我大展拳脚。
 
+</Answer>
+
 ## 总体设计：三层结构
+
+<Answer id="q-badge-metaphor">
+
+<SceneClip demo="badge-metaphor" />
 
 在展开技术细节之前，先打个比方——这套方案用一句话就能讲完：
 
@@ -65,7 +91,13 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 
 <ArchDiagram {...figArchitecture} caption="三层结构：协议仓库（接口自报家门）→ 统一身份（AI 走人一样的通道）→ 分级执行（AI 发疯也有兜底）" />
 
+</Answer>
+
 ### 第一层：协议仓库——让每个接口"自报家门"
+
+<Answer id="q-protocol-repo">
+
+<SceneClip demo="protocol-repo" />
 
 后台服务（Flask、FastAPI 都无所谓）接入一个注解包，可以给接口标注格式化的元数据，然后一行命令把全量接口信息导出，存放到一个**协议仓库**中。这个功能对任何框架来说实现起来都相当简单。
 
@@ -80,7 +112,13 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 
 协议仓库会作为知识接入 AI 体系。配合后面的设计，AI 就能像调用工具一样调用公司任意后台的接口。
 
+</Answer>
+
 ### 第二层：统一身份——AI 走和人一模一样的权限通道
+
+<Answer id="q-unified-identity">
+
+<SceneClip demo="unified-identity" />
 
 权限管理这块，我用的是：
 
@@ -101,7 +139,13 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 - 以往的审计体系**零改动**——因为在审计系统眼里，AI 发起的请求和人发起的请求长得一模一样，且日志里的身份就是真实操作人；
 - 整个机制简单直白，几乎不存在出错的可能。
 
+</Answer>
+
 ### 第三层：分级执行——AI 发疯也有兜底
+
+<Answer id="q-tiered-execution">
+
+<SceneClip demo="tiered-execution" />
 
 在 平台内部，按照协议仓库里的接口分类，执行不同的约束策略：
 
@@ -122,7 +166,26 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 
 到这里，四个前提全部闭环：权限沿用 RBAC（前提 1）、分级确认 + 管理员审批 + 可撤回 + 载荷锁定（前提 2、3）、核心逻辑精简（前提 4）。
 
+</Answer>
+
+### 一段确认流程
+
+<Answer id="q-tiered-confirm">
+
+<SceneClip demo="tiered-confirm" />
+
+左边演示的是一次典型的「安全写」操作：运维同事在 IM 里说"给张三开通 BI 看板权限"，
+AI 识别出这不是只读操作，弹回一张确认卡——操作的完整参数、以谁的身份执行、影响哪个系统，
+全部列清楚。点下确认，动作才真正发生。全程审计日志记的是操作人本人，而不是"AI"。
+这正是分级执行里"安全写接口：获得人类确认后立即触发"的那条路径。
+
+</Answer>
+
 ## 这套方案的威胁模型：平台约束的是 AI，不是人
+
+<Answer id="q-threat-model">
+
+<SceneClip demo="threat-model" />
 
 先做个消歧：这个平台不是业界常说的那种 AI Gateway——Kong、Cloudflare 那类网关管的是应用怎么调模型，方向正好相反；这个平台管的是 **AI 怎么调业务后台**。
 
@@ -134,6 +197,8 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 - **平台挂了不影响业务。** 人随时可以回到传统后台直接操作，它是效率工具，不是命脉。
 
 平台真正要回答的问题只有一个：**当 AI 顶着某个人的身份干活时，怎么保证它不干这个人不想干的事。** 分级执行、预演、审批、撤回，全部是为这一个问题服务的。
+
+</Answer>
 
 ## 顺手的事：知识库问答不用污染核心逻辑
 
@@ -147,6 +212,10 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 
 ## 未来拓展：让 AI 替我接需求
 
+<Answer id="q-future">
+
+<SceneClip demo="dev-flow" />
+
 除了管理后台和问答，这套框架还能很自然地向"开发"延伸。我的初步构思是：
 
 1. **方案生成 Agent（只读接口）**：可以阅读源码。收到需求后，它会反向追问，直到把所有细节确认清楚，然后输出一份完整方案。因为只读，所以零风险，随便它跑。
@@ -159,7 +228,13 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 
 这一步落地之后，我就能从"接收需求 → 转述给 Claude Code"这个复读机循环里彻底解放出来了。
 
+</Answer>
+
 ## 坦诚地说：这套方案解决不了什么
+
+<Answer id="q-limits">
+
+<SceneClip demo="limits" />
 
 写技术方案只讲优点是不负责任的，这套设计有明确的边界：
 
@@ -168,6 +243,8 @@ import { figArchitecture, figRequestFlow, figTiered, figDevFlow } from '../../..
 3. **分级过滥会让管理员变成橡皮印章。** 如果把大量接口都划成高风险，管理员每天批几百条，审批就会退化成机械点确定，兜底机制名存实亡。接口分类需要克制和定期回顾——这是治理问题，不是代码问题。
 4. **防不住针对人的诱导。** 身份透传意味着：如果 AI 在处理恶意内容时被注入指令，被诱导发起的调用携带的是当前对话人的真实身份。RBAC 管得住"以谁的身份"，管不住"这个人被 AI 骗了"。人类确认是最后一道防线，这也是为什么高风险审批的 UI 必须完整展示参数细节，防止盲签。
 5. **测试服的数据是陈旧的。** 定期同步意味着预演基于的是历史状态，涉及实时余额、库存之类的操作，预演结果仅供参考，不能当作生产的精确预言。
+
+</Answer>
 
 ## 最后
 
