@@ -1,0 +1,12 @@
+title: AI 与工程的整体改造骨架
+entry: q-search-pipeline
+
+scenes:
+  - id: q-search-pipeline
+    label: 一条 badcase 报告的旅程
+    demo: badcase-journey
+    features:
+      - { text: ALL IN AI 总体设计, to: { post: ai-digital-employee, scene: q-badge-metaphor } }
+    questions:
+      - { text: 一段确认流程长什么样？, to: { post: ai-digital-employee, scene: q-tiered-confirm } }
+      - { text: 这套方案的边界, to: { post: ai-digital-employee, scene: q-limits } }

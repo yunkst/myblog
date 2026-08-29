@@ -5,17 +5,14 @@ import type { Scene } from '../../../src/components/explore/SceneController'
 /**
  * ai-it-system 的探索视图动画舞台（v2 demos 字典）。
  *
- * 单一 demo `badcase-journey`：把 v1 的 intro + q-search-pipeline 两段合并为一条连续叙事，
- * 删除 q-ops-backup 段——它原本就是死 label（v1 只声明未触发）。
+ * 单一 demo `badcase-journey`：一条完整叙事——
+ * - 顶部 left bubble 打字机出现「搜索 badcase：query X 召回不全，预期 Y 实际 Z」
+ * - 节点从左到右 stagger 点亮（问题报告→AI 分析→开发分支→CI/CD→审查合并）
+ * - CI 节点亮起时旁边小方块由灰转绿（#ci-light backgroundColor → #0E6E5C）
+ * - MR 节点亮起时右上角「✓ merged」标签淡入
+ * - 底部字幕最终变为「全程几乎零沟通：人只在报告与验收出现两次」
  *
- * 节拍：
- * - set 全部节点 opacity 0
- * - subtitle 淡入"全链路总览"
- * - 节点 stagger 淡入（0.12 间隔）
- * - subtitle 切换为"搜索优化流水线：问题报告 → AI 分析 → 提交分支 → CI/CD → 审查合并"（tl.call 改 textContent）
- * - 节点再次从左到右 stagger 点亮（0.35 间隔）
- *
- * 总时长约 4s。
+ * 总时长约 6s。
  */
 export const demos: Record<string, Scene> = {
   'badcase-journey': {
@@ -24,33 +21,51 @@ export const demos: Record<string, Scene> = {
     build() {
       const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
 
-      // 初始：所有节点透明
-      tl.set(pipelineNodes.map((n) => `#${n.id}`), { opacity: 0, fillOpacity: 0.2 })
+      const nodeSelectors = pipelineNodes.map((n) => `#${n.id}`)
+
+      // 初始：所有节点透明、副元素隐藏
+      tl.set(nodeSelectors, { opacity: 0, fillOpacity: 0.2 })
       tl.set('#scene-subtitle', { opacity: 0 })
+      tl.set('#report-bubble', { opacity: 0 })
+      tl.set('#ci-light', { opacity: 1, backgroundColor: '#cccccc' })
+      tl.set('#merged-tag', { opacity: 0 })
 
-      // ─── intro：字幕"全链路总览"+ 节点 stagger 淡入 ───
-      tl.to('#scene-subtitle', { opacity: 1, duration: 0.4 })
-      tl.to(pipelineNodes.map((n) => `#${n.id}`),
-        { opacity: 1, fillOpacity: 1, duration: 0.6, stagger: 0.12 },
-        '<')
+      // ─── 1) 顶部 left bubble 打字机出现（≈2.2s） ───
+      const bubbleText = '搜索 badcase：query X 召回不全，预期 Y 实际 Z'
+      tl.to('#report-bubble', { opacity: 1, duration: 0.2 })
+      for (let i = 1; i <= bubbleText.length; i++) {
+        tl.call(() => {
+          const el = document.getElementById('report-bubble')
+          if (el) el.textContent = bubbleText.slice(0, i)
+        })
+        tl.to({}, { duration: 0.08 })
+      }
+      tl.to({}, { duration: 0.3 }) // 打字机结束后停留
 
-      // ─── q-search-pipeline 续：整体淡出 → 字幕切换 → 节点重新从左到右点亮 ───
-      tl.to(pipelineNodes.map((n) => `#${n.id}`),
-        { opacity: 0.3, fillOpacity: 0.3, duration: 0.25 }, '+=0.3')
-      // GSAP 3 核心不处理 SVG <text> 的 textContent（需要 TextPlugin），用 .call() 回调直接改 DOM
+      // ─── 2) 字幕"全链路总览"淡入 ───
       tl.call(() => {
         const el = document.querySelector('#scene-subtitle')
-        if (el) el.textContent = '搜索优化流水线：问题报告 → AI 分析 → 提交分支 → CI/CD → 审查合并'
+        if (el) el.textContent = '全链路总览'
       })
-      tl.to('#scene-subtitle', { opacity: 1, duration: 0.3 }, '<')
-      tl.to(pipelineNodes.map((n) => `#${n.id}`),
-        {
-          opacity: 1,
-          fillOpacity: 1,
-          duration: 0.45,
-          stagger: 0.35,
-        },
+      tl.to('#scene-subtitle', { opacity: 1, duration: 0.3 })
+
+      // ─── 3) 节点从左到右 stagger 点亮（≈2.1s） ───
+      tl.to(nodeSelectors,
+        { opacity: 1, fillOpacity: 1, duration: 0.45, stagger: 0.42 },
         '<+0.2')
+
+      // ─── 4) CI 节点（n-cicd）亮起时—— ci-light 由灰转绿 ───
+      tl.set('#ci-light', { backgroundColor: '#0E6E5C' }, '>-0.15')
+
+      // ─── 5) MR 节点（n-review）亮起时—— merged-tag 右上角淡入 ───
+      tl.to('#merged-tag', { opacity: 1, duration: 0.35 }, '<+0.2')
+
+      // ─── 6) 字幕最终切换为「全程几乎零沟通：人只在报告与验收出现两次」 ───
+      tl.call(() => {
+        const el = document.querySelector('#scene-subtitle')
+        if (el) el.textContent = '全程几乎零沟通：人只在报告与验收出现两次'
+      }, [], '+=0.6')
+      tl.to('#scene-subtitle', { opacity: 1, duration: 0.45 }, '<')
 
       return tl
     },
@@ -66,6 +81,28 @@ export function PipelineSvg() {
       aria-label="搜索优化流水线：问题报告、AI 分析、开发分支、CI/CD、审查合并"
       className="scene-svg"
     >
+      {/* 顶部 left bubble：报告内容（打字机） */}
+      <g>
+        <rect
+          id="report-bubble-bg"
+          x={20}
+          y={20}
+          width={420}
+          height={56}
+          rx={12}
+          ry={12}
+          className="scene-bubble-bg"
+        />
+        <text
+          id="report-bubble"
+          x={36}
+          y={54}
+          className="scene-bubble-text"
+        >
+          {''}
+        </text>
+      </g>
+
       {/* 节点 */}
       {pipelineNodes.map((n) => (
         <g key={n.id}>
@@ -97,6 +134,28 @@ export function PipelineSvg() {
           </text>
         </g>
       ))}
+
+      {/* CI 节点旁边的小方块（默认灰色；CI 节点亮起时由灰转绿 #0E6E5C） */}
+      <rect
+        id="ci-light"
+        x={pipelineNodes[3].x + pipelineNodes[3].w - 14}
+        y={pipelineNodes[3].y - 18}
+        width={14}
+        height={14}
+        rx={3}
+        ry={3}
+      />
+
+      {/* MR 节点右上角「✓ merged」标签 */}
+      <text
+        id="merged-tag"
+        x={pipelineNodes[4].x + pipelineNodes[4].w}
+        y={pipelineNodes[4].y - 8}
+        textAnchor="end"
+        className="scene-merged-tag"
+      >
+        ✓ merged
+      </text>
 
       {/* 连接线（静态，几何位置只算一次） */}
       {pipelineNodes.slice(0, -1).map((n, i) => {
