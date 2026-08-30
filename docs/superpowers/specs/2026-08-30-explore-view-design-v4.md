@@ -50,13 +50,13 @@ v4 改成**幕式导航**：单幕单屏，去掉滚动，所有演出在「幕�
 
 ### 2.2 主线 / 支线
 
-- **主线**：yaml `scenes[]` 顺序。每幕底部固定出现「▸ 继续（主线）」按钮，指向 `scenes[(idx+1) % scenes.length].id`（最后一幕绕回首幕，可后续换成"结束提示"）；
-- **支线**：现有 features/questions 出口，与主线同级出现在選択肢区。支线区首位置加「─ 主线 ─」分隔与「▸ 继续」按钮，支线区再加分隔「─ 支线 ─」；
+- **主线**：yaml `scenes[]` 顺序。主线入口（「▸ 继续：<下一幕 label>」）在履历面板上半部的出口树首位置，指向 `scenes[(idx+1) % scenes.length].id`（最后一幕绕回首幕，可后续换成"结束提示"）；
+- **支线**：现有 features/questions 出口，与主线同级出现在履历面板出口树（主线之后，不加额外分隔标题）；
 - **场景目录**：v3 右侧 fixed toc 不适合幕式（不是滚动定位了）→ 改为底栏「履历」按钮，点击弹出**面板**：上半部是当前幕的「出口树」（主线 + 支线）；下半部是**访问历史**（履历栈），点任意一条跳回该幕。
 
 ### 2.3 履历（History Stack）
 
-- **栈项**：`{ sceneId, mode, ts }`，点击任一出口 / 「继续」时 push；
+- **栈项**：`{ sceneId }`（当前无消费场景，YAGNI；最终 review fix round C1 强化语义：跨会话残留由 mount effect 无条件 reset 清空，履历栈只反映「本次会话的点击路径」），点击任一出口 / 「继续」时 push；
 - **回退**：底栏「◀ 返回」按钮 = `pop`（一步）；履历面板里点击某项 = 跳转（不算回退，可视为"快进/倒带"）；
 - **持久化**：sessionStorage 缓存，刷新页面不丢；关闭标签页清空；
 - **降级**：无 JS 时履历不存在，浏览靠 hash 直达（与 v3 锚点行为一致）。
@@ -140,7 +140,7 @@ src/
       HistoryPanel.tsx          # 新建：履历面板（出口树 + 访问历史）
       HistoryFAB.tsx            # 新建：底栏「履历」「◀ 返回」按钮
       Answer.tsx                # 改动：去掉 IO 触发；接收 Director 的 ref 句柄；改按 mode 触发演出
-      SceneClip.tsx             # 改动：保留内部 IO 不动，但暴露 imperative `playSceneDemo()` / `pauseSceneDemo()` / `replaySceneDemo()` 给 Director
+      SceneClip.tsx             # 改动：保留内部 IO 不动，但暴露 imperative `play()` / `pause()` / `replay()` 给 Director
       ExitChips.tsx             # 改动：本地跳转走 hash + ExploreRouter.pushHistory；不再 scrollIntoView
       SceneToc.tsx              # **删除**（v3 右侧 fixed toc 不适用）
       useTypewriter.ts          # 不动（v3 已在 T5 评审修复过单位）
@@ -167,7 +167,7 @@ src/
 
 ```
 [幕激活]
-  ├─► act-head fade-in（缩短到 0.2s，快进感）
+  ├─► act-head fade-in 0.3s（fast；final review fix round 由 0.2s 校正为 0.3s，与 mode 2 一致）
   ├─► StageClip 外部 playSceneDemo() 立即触发（全屏效果靠 CSS：.stage--fullscreen { position:fixed; inset:0; z-index:50 }）
   ├─► demo onComplete → 全屏退场 + 缩小动画 0.6s（power3.inOut）
   ├─► dialogue 打字链
@@ -193,9 +193,11 @@ src/
 
 ```ts
 function interactive(t: EventTarget | null): boolean {
-  return t instanceof Element && t.closest('a, button, [role="button"], .chip-prefix, .scene-replay') !== null
+  return t instanceof Element && t.closest('a, button, [role="button"], .chip-prefix, .scene-replay, .history-fab, .history-panel') !== null
 }
 ```
+
+另：`onClick` 第一行做**文本选择守卫**（final review fix round I3）——`window.getSelection().toString()` 非空时 early return，拖选文字复制不再误触 skip。
 
 `director.skip()` 实现：
 
@@ -216,8 +218,8 @@ function skip() {
 
 ```html
 <main class="post-wrap post-wrap--stage" data-stage-nojs>
-  <div class="scene" id="q-problem">…完整内容（act-head + stage + dialogue + choices）…</div>
-  <div class="scene" id="q-why-not-openclaw">…</div>
+  <div class="theater" id="q-problem">…完整内容（act-head + stage + dialogue + choices）…</div>
+  <div class="theater" id="q-why-not-openclaw">…</div>
   ...
 </main>
 ```
@@ -226,10 +228,10 @@ CSS：
 
 ```css
 /* 有 JS 时：单幕可见 */
-.post-wrap--stage[data-has-router] .scene:not([data-active]) { display: none; }
+.post-wrap--stage[data-has-router] .theater:not([data-active]) { display: none; }
 
 /* 无 JS 时：所有幕可见，竖向平铺滚动 */
-.post-wrap--stage:not([data-has-router]) .scene { display: block; }
+.post-wrap--stage:not([data-has-router]) .theater { display: block; }
 ```
 
 JS hydration 时给 `<main>` 加 `data-has-router` 属性。SSR/SSG 渲染时**不带**该属性（默认无 JS 体验）。
