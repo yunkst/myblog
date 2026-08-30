@@ -933,11 +933,12 @@ body.stage-locked { overflow: hidden; }
   /* 唯一滚动层：浏览器原生滚动条（用户可感知、可拖动）。
    * overflow-y: scroll 强制留出滚动条槽避免内容抖动；
    * scrollbar-gutter: stable 短幕时槽位空置但不消失。
-   * 水平方向 hidden——表格等内容超宽按舞台宽截断，不出横向滚动条。 */
+   * 水平方向 hidden——表格等内容超宽按舞台宽截断，不出横向滚动条。
+   * v5 追加（用户裁定）：不设 max-width，内容撑满舞台可用宽度。 */
   overflow-y: scroll; overflow-x: hidden;
   scrollbar-gutter: stable;
   display: flex; flex-direction: column; align-items: center;
-  max-width: 1120px; margin: 0 auto; width: 100%;
+  width: 100%;
 }
 .stage-frame .theater { width: 100%; margin: 0 auto; animation: v4-scene-in 0.35s ease both; }
 
@@ -1024,7 +1025,8 @@ body.stage-locked { overflow: hidden; }
 .stage-frame .choices .exit-chips { flex-direction: column; align-items: center; margin: 0; }
 .stage-frame .choices .exit-chip {
   position: relative;
-  min-width: min(500px, 100%); text-align: left;
+  /* v5 追加（用户裁定）：chip 撑满 choices 容器宽（不设 500px min-width 上限） */
+  width: 100%; text-align: left;
   padding: 11px 22px; border-width: 1px; border-radius: 0;
   font: 14px var(--sans); letter-spacing: 0.03em;
   color: var(--stext); border-color: var(--sline);
