@@ -908,10 +908,15 @@ body.stage-locked { overflow: hidden; }
   justify-items: stretch;
   align-items: start;
 }
-.stage-frame .theater--dual > .stage     { grid-area: stage; width: 100%; }
-.stage-frame .theater--dual > .act-head  { grid-area: head; }
-.stage-frame .theater--dual > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
-.stage-frame .theater--dual > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
+/* 六条子元素级规则用双类连写 .theater.theater--dual 而非裸 .theater--dual：
+ * 特异性 (0,4,0) 对齐原 :has(> .stage) 版（.stage-frame .theater:has(> .stage) > .x
+ * 也是 (0,4,0)）。若写裸 .theater--dual 则为 (0,3,0)，会被下方媒体查询里
+ * 源序更靠后的 .stage-frame .theater > .dialogue { max-width: none }（(0,3,0)）
+ * 翻转覆盖，窄屏断点内 grid-area/720px 约束失效。 */
+.stage-frame .theater.theater--dual > .stage     { grid-area: stage; width: 100%; }
+.stage-frame .theater.theater--dual > .act-head  { grid-area: head; }
+.stage-frame .theater.theater--dual > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
+.stage-frame .theater.theater--dual > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
 
 /* ExploreRouter 根容器（display: contents 让 children 直接参与父布局） */
 .stage-frame .explore-router { display: contents; }
@@ -968,8 +973,8 @@ body.stage-locked { overflow: hidden; }
 }
 /* grid 双列时 dialogue/choices 的原有 margin-top 会叠到 row-gap 上——
  * 把上下间距让 row-gap 统一管，避免「stage 后空 24 + dialogue 前 24 = 48」双重空白。 */
-.stage-frame .theater--dual > .dialogue { margin-top: 0; }
-.stage-frame .theater--dual > .choices { margin-top: 28px; }
+.stage-frame .theater.theater--dual > .dialogue { margin-top: 0; }
+.stage-frame .theater.theater--dual > .choices { margin-top: 28px; }
 /* 名字牌：翠绿底黑字 + mono 字符间距 */
 .stage-frame .dlg-name {
   position: absolute; top: 0; left: 22px; transform: translateY(-50%);
