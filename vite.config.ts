@@ -183,5 +183,9 @@ export default defineConfig(({ isSsrBuild }) => ({
     environment: 'jsdom',
     globals: true,
     setupFiles: './vitest.setup.ts',
+    // 主仓库下含 `.claude/worktrees/*` 隔离开发目录（自带 node_modules 与第二份 React）；
+    // vitest 默认会把 `**/*.test.{ts,tsx}` 一并扫到，触发「Invalid hook call」（双 React 拷贝）。
+    // 显式排除 worktree 子树，让 vitest 只跑主仓库测试。
+    exclude: ['node_modules', 'dist', '.claude/worktrees/**'],
   },
 }))
