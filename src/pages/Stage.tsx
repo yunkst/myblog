@@ -1,7 +1,10 @@
 /**
- * v5（spec §7.2）探索舞台壳。
+ * v5（spec §2.2/§7.1）探索舞台壳。
  *
- * - 渲染 main.stage-frame 容器；ExploreRouter 接管 hash / 履历栈 / 键盘接线；
+ * - main.stage-frame 包在 ExploreRouter **外层**（spec §2.2 嵌套契约）——
+ *   HistoryPanel 由 ExploreRouter 在 children 之后渲染，只有 main 包住 router，
+ *   面板才是 main 的后代，21 条 `.stage-frame .history-panel*` 选择器才能命中
+ *   （反嵌套会让面板画在不透明 fixed main 之下，履历 ▾ 按钮形同虚设）；
  *   SceneRoute 按 activeId 从 glob 命中场景组件；StageNav 渲染底栏 ◀/⏵/履历/✕。
  * - setCurrentSlug 渲染期同步调用（v4 SceneClip 反查机制不变；SSG/客户端一致）。
  * - exploreConfigFor 从旧 Post.tsx 迁入——文章 YAML 是 Stage 的数据源。
@@ -54,11 +57,11 @@ export default function Stage({ post }: { post: Post }) {
   }
 
   return (
-    <ExploreRouter config={config} onExit={handleExit}>
-      <main className="stage-frame" data-article-slug={post.slug}>
+    <main className="stage-frame" data-article-slug={post.slug}>
+      <ExploreRouter config={config} onExit={handleExit}>
         <SceneRoute slug={post.slug} />
         <StageNav />
-      </main>
-    </ExploreRouter>
+      </ExploreRouter>
+    </main>
   )
 }

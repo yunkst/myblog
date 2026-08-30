@@ -22,9 +22,13 @@ export { ExploreConfigContext }
  * v3 的 partition 只看顶层 children（MDX 手写场景里 <Answer> 的直接子元素就是
  * h2/SceneClip/p 等混排）。v5 SceneRoute 传 `body={<Scene />}`——**函数组件或
  * Fragment 包裹**，顶层 type 不是 h2/SceneClip。所以需要浅递归展开：
- * - Fragment（type === Fragment）→ 递归它的 children；
- * - 函数组件（typeof type === 'function'）→ 调用它拿到内部元素树再递归
- *   （场景文件都是 `export default function X() { return <>...</> }` 形态）；
+ * - 顶层函数组件（typeof type === 'function'，仅 depth 0）→ 调用它拿到内部
+ *   元素树再分类（场景文件都是 `export default function X() { return <>...</> }`
+ *   形态，无 hooks——直调安全）。**只展开这一层**：更深的函数组件
+ *   （如 ArchDiagram，内部 useRef/useEffect）保持为元素原样进 rest，交由 React
+ *   正常挂 fiber 渲染——直调会把它们的 hook 挂到 Answer 的 hook 槽位上（寄生）。
+ * - Fragment（type === Fragment）→ 任意深度都递归它的 children（Fragment 无 hooks，
+ *   直调无副作用；嵌在展开后的场景组件里也照穿）。
  * - DOM 元素（typeof type === 'string'）按 v3 规则分类。
  *
  * 不处理类组件 / memo / lazy —— v5 场景文件形态统一（T6 产物），无需覆盖。
@@ -35,18 +39,19 @@ function partition(children: ReactNode) {
   let heading: ReactNode | null = null
   let headingTaken = false
 
-  const walk = (nodes: ReactNode) => {
+  /* top：还在 depth 0（body 的直接子层 + 顶层 Fragment 穿透）——只有这一层允许展开函数组件 */
+  const walk = (nodes: ReactNode, top: boolean) => {
     const arr = Array.isArray(nodes) ? nodes : [nodes]
     for (const child of arr) {
       if (child == null || child === false || child === true) continue
       const el = child as { type?: unknown; props?: { children?: ReactNode } }
       const t = el.type
       if (t === SceneClip) { clips.push(child); continue }
-      if (t === Fragment) { walk(el.props?.children); continue }
-      if (typeof t === 'function') {
-        /* 函数组件：直接调用拿返回的元素树（SSG/render 期等价——无 hooks） */
+      if (t === Fragment) { walk(el.props?.children, top); continue }
+      if (top && typeof t === 'function') {
+        /* 仅顶层函数组件（场景包裹层，无 hooks）：直调展开 */
         const Comp = t as (props: unknown) => ReactNode
-        walk(Comp(el.props))
+        walk(Comp(el.props), false)
         continue
       }
       if (!headingTaken && typeof t === 'string' && (t === 'h2' || t === 'h3')) {
@@ -55,7 +60,7 @@ function partition(children: ReactNode) {
       rest.push(child)
     }
   }
-  walk(children)
+  walk(children, true)
 
   return { heading, clips, rest }
 }

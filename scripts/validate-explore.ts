@@ -10,6 +10,17 @@ import type { ExploreConfig } from '../src/lib/types'
 
 const POSTS = path.join(process.cwd(), 'content', 'posts')
 
+/** meta.yaml 形状（宽松）：仅校验 title/date 两个必填键，其余键不关心。 */
+type MetaYaml = { title?: unknown; date?: unknown } & Record<string, unknown>
+
+/** yaml date 是 string（"2026-08-29"）或 Date（无引号日期字面量经 js-yaml 解析）——
+ * content.ts 同款归一化：取 ISO 前 10 位，两种来源产出一致的 YYYY-MM-DD。 */
+function normalizeDate(d: unknown): string | null {
+  if (d instanceof Date) return d.toISOString().slice(0, 10)
+  if (typeof d === 'string' && d.trim()) return d.slice(0, 10)
+  return null
+}
+
 function readIfExists(p: string): string | null {
   return fs.existsSync(p) ? fs.readFileSync(p, 'utf-8') : null
 }
@@ -51,25 +62,29 @@ function main() {
       failures++
     } else {
       let metaOk = true
-      let meta: any
-      try { meta = yaml.load(metaRaw) } catch (e: any) {
+      let meta: MetaYaml = {}
+      try {
+        const parsed = yaml.load(metaRaw)
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 顶层必须是对象`)
+          failures++
+          metaOk = false
+        }
+        meta = parsed as MetaYaml
+      } catch (e: any) {
         console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 解析失败：${e.message}`)
         failures++
         metaOk = false
       }
       if (metaOk) {
-        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
-          console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 顶层必须是对象`)
+        if (typeof meta.title !== 'string' || !meta.title.trim()) {
+          console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 缺 title`)
           failures++
-        } else {
-          if (typeof meta.title !== 'string' || !meta.title.trim()) {
-            console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 缺 title`)
-            failures++
-          }
-          if (!meta.date) {
-            console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 缺 date`)
-            failures++
-          }
+        }
+        const date = normalizeDate(meta.date)
+        if (!date) {
+          console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 缺 date（必须是 string 或 Date）`)
+          failures++
         }
       }
     }

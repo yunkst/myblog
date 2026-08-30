@@ -150,22 +150,6 @@ export function scanDemoNames(sceneSource: string): string[] {
   return [...names]
 }
 
-export function slugifyHeading(text: string): string {
-  return text.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-龥-]/g, '')
-}
-
-export function getHeadingsWithIds(mdxRaw: string): Array<{ id: string; text: string }> {
-  const out: Array<{ id: string; text: string }> = []
-  const re = /^(#{1,6})\s+(.+?)(?:\s+\{#([^}]+)\})?\s*$/gm
-  let m: RegExpExecArray | null
-  while ((m = re.exec(mdxRaw)) !== null) {
-    const text = m[2].trim().replace(/\\([!"#\$%&'\(\)\*\+,\.\/:;<=>\?@\[\]\\^_`\{\|\}~])/g, '$1')
-    const id = m[3] || slugifyHeading(text)
-    if (id) out.push({ id, text })
-  }
-  return out
-}
-
 /** v3：场景幕序号中文数字（1→一 … 12→十二；>12 按 digit 组合，当前 11 场景够用） */
 const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九']
 export function toChineseOrdinal(n: number): string {

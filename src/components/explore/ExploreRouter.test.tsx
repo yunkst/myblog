@@ -182,9 +182,9 @@ describe('ExploreRouter', () => {
     expect(document.querySelector('.history-panel')).toBeNull()
   })
 
-  it('hydration 后 main.post-wrap--stage 挂 data-has-router', () => {
+  it('hydration 后 main.stage-frame 挂 data-has-router', () => {
     const main = document.createElement('main')
-    main.className = 'post-wrap post-wrap--stage'
+    main.className = 'stage-frame'
     document.body.appendChild(main)
     try {
       renderRouter()

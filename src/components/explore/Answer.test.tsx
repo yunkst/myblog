@@ -229,3 +229,50 @@ describe('Answer v3 演出', () => {
     expect(feat.textContent!.indexOf('▸')).toBeLessThan(feat.textContent!.indexOf('看 B'))
   })
 })
+
+/* v5 终审 fix round：partition 不再直调 hooks 组件。
+ * 真实场景组件 q-badge-metaphor 的 body 含 ArchDiagram（useRef×3 + useEffect），
+ * 把这个 body 喂给 Answer，必须不抛错、直调路径不该把 ArchDiagram 的 hook 寄生到
+ * Answer 的 fiber 上。视觉输出（dialogue 含 ArchDiagram figure）不变。
+ * jsdom + matchMedia stub（vitest.setup）→ ArchDiagram 走 reduced-motion 路径，jsdom 安全。 */
+describe('Answer v5 partition：top-level 函数组件展开，不递归深 hooks 组件', () => {
+  const yamlWithArch = [
+    'title: t',
+    'entry: q-badge-metaphor',
+    'scenes:',
+    '  - id: q-badge-metaphor',
+    '    label: 一句话方案：把工牌借给 AI',
+    '    demo: badge-metaphor',
+  ].join('\n')
+
+  /* 本文件模块级 stubGlobal 把 matchMedia 接到 mockedReduce（默认 false = 播放动画）；
+   * ArchDiagram 的 play() 在非 reduced 下要调 SVGPathElement.getTotalLength——
+   * jsdom 没有这个 API。置 true 走 reduced-motion 早退分支（vitest.setup 同款语义）。 */
+  beforeEach(() => { mockedReduce.value = true })
+
+  it('渲染含 ArchDiagram 的真实场景组件不抛错；ArchDiagram 落在 dialogue 区', async () => {
+    const cfg = parseExploreYaml(yamlWithArch)
+    if (!cfg.ok) throw new Error(cfg.error)
+    // 动态 import：scenes/q-badge-metaphor.tsx 物理上位于 content/posts/...
+    // vitest ESM 不会动 Vite 的 glob，所以走真实相对路径导入场景文件。
+    const { default: QBadgeMetaphor } = await import(
+      '../../../content/posts/ai-digital-employee/scenes/q-badge-metaphor'
+    )
+    const { container } = render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={cfg.value}>
+          <Answer scene={cfg.value.scenes[0]} body={<QBadgeMetaphor />} />
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
+    // dialogue 区含段落「让员工把自己的工牌借给 AI」（来自场景组件）
+    const dialogue = container.querySelector('.dialogue')
+    expect(dialogue).not.toBeNull()
+    expect(dialogue?.textContent).toContain('让员工把自己的工牌借给 AI')
+    // ArchDiagram 落在 dialogue（不是 stage——不在 SceneClip 区）
+    expect(dialogue?.querySelector('.ba-arch')).not.toBeNull()
+    // SceneClip 仍然进 stage 区
+    expect(container.querySelector('.stage-inner [data-scene-clip-demo="badge-metaphor"]')).not.toBeNull()
+    // 无 hook 寄生报警：React 渲染期非法 hook 调用会抛 "Invalid hook call"，渲染能走到断言即安全
+  })
+})

@@ -80,11 +80,11 @@ export function ExploreRouter({ config, children, onExit }: Props) {
       seenRef.current.add(activeId)
       writeSeenScenes(config.title, seenRef.current)
     }
-    document.querySelector('main.stage-frame, main.post-wrap--stage')?.setAttribute('data-has-router', '')
+    document.querySelector('main.stage-frame')?.setAttribute('data-has-router', '')
     document.body.classList.add('stage-locked')
     return () => {
       document.body.classList.remove('stage-locked')
-      document.querySelector('main.stage-frame, main.post-wrap--stage')?.removeAttribute('data-has-router')
+      document.querySelector('main.stage-frame')?.removeAttribute('data-has-router')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

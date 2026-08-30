@@ -24,7 +24,7 @@ interface Props {
  * 探索履历弹层（v4 视觉小说式）。
  * - 受控弹层：open=false 不渲染。
  * - 出口树（slot） + 访问历史（ol 倒序可点跳）。
- * - 样式由 Task 6 在 `.post-wrap--stage` 作用域下补齐，本组件只出 DOM + 语义 class。
+ * - 样式由 Task 6 在 `.stage-frame` 作用域下补齐，本组件只出 DOM + 语义 class。
  * - 无障碍：role=dialog + aria-label；关闭用 aria-label=关闭。
  */
 export default function HistoryPanel({ open, onClose, stack, onJumpTo, children, canBack, onBack, nextLabel, onNext, onExit }: Props) {
