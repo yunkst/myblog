@@ -1,5 +1,5 @@
 import yaml from 'js-yaml'
-import type { Post, Domain, Wip, Faq, SiteConfig, AnimProfile, PostStatus } from './types'
+import type { Post, Domain, Wip, Faq, SiteConfig, AnimProfile, PostStatus, ExploreConfig } from './types'
 import faqsYamlRaw from '/content/faqs.yaml?raw'
 import siteYamlRaw from '/content/site.yaml?raw'
 
@@ -34,7 +34,27 @@ function exploreEntryOf(slug: string): Post['exploreEntry'] {
   return undefined
 }
 
+/** 按目录名 slug 反查 explore.yaml 并解析(Stage 页数据源;无配置/解析失败 → null)。
+ * v5 review fix:从 Stage.tsx 收敛到数据层——glob 表与解析单点维护,结果缓存。 */
+const exploreConfigCache = new Map<string, ExploreConfig | null>()
+export function getExploreConfig(slug: string): ExploreConfig | null {
+  if (exploreConfigCache.has(slug)) return exploreConfigCache.get(slug)!
+  const key = Object.keys(exploreYamls).find((k) => slugOf(k) === slug)
+  if (!key) return null
+  try {
+    const parsed = yaml.load(exploreYamls[key]) as ExploreConfig | null
+    const out = parsed && Array.isArray(parsed.scenes) ? parsed : null
+    exploreConfigCache.set(slug, out)
+    return out
+  } catch {
+    exploreConfigCache.set(slug, null)
+    return null
+  }
+}
+
+let cachedPosts: Post[] | null = null
 export function getAllPosts(): Post[] {
+  if (cachedPosts) return cachedPosts
   const posts: Post[] = []
   for (const [modulePath, raw] of Object.entries(metaYamls)) {
     let data: any
@@ -47,7 +67,7 @@ export function getAllPosts(): Post[] {
       ? data.date.toISOString().slice(0, 10)
       : String(data.date).slice(0, 10)
     posts.push({
-      slug: (data.slug as string) || slugify(String(data.title)) || slug,
+      slug,
       title: String(data.title),
       domain: (data.domain as string) || 'general',
       date,
@@ -59,7 +79,8 @@ export function getAllPosts(): Post[] {
       exploreEntry: exploreEntryOf(slug),
     })
   }
-  return posts.filter((p) => p.status === 'published').sort((a, b) => (a.date < b.date ? 1 : -1))
+  cachedPosts = posts.filter((p) => p.status === 'published').sort((a, b) => (a.date < b.date ? 1 : -1))
+  return cachedPosts
 }
 
 export function getPost(slug: string): Post | undefined {
@@ -89,11 +110,17 @@ export function getWips(): Wip[] {
   return []
 }
 
+let cachedFaqs: Faq[] | null = null
 export function getFAQs(): Faq[] {
-  const parsed = yaml.load(faqsYamlRaw) as Faq[] | null
-  return Array.isArray(parsed) ? parsed : []
+  if (cachedFaqs === null) {
+    const parsed = yaml.load(faqsYamlRaw) as Faq[] | null
+    cachedFaqs = Array.isArray(parsed) ? parsed : []
+  }
+  return cachedFaqs
 }
 
+let cachedSite: SiteConfig | null = null
 export function getSite(): SiteConfig {
-  return yaml.load(siteYamlRaw) as SiteConfig
+  if (cachedSite === null) cachedSite = yaml.load(siteYamlRaw) as SiteConfig
+  return cachedSite
 }
