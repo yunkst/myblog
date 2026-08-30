@@ -334,6 +334,50 @@ describe('ExploreRouter v5 runtime 扩展', () => {
     fireEvent.click(screen.getByTestId('rt-open-panel'))
     expect(screen.getByTestId('rt').dataset.panelOpen).toBe('true')
   })
+
+  it('v5 review fix:back/jumpTo 回看不重演——目标幕切 firstActivation=false', () => {
+    const config3: ExploreConfig = {
+      title: 't3', entry: 'q-a',
+      scenes: [
+        { id: 'q-a', label: 'A', demo: 'da' },
+        { id: 'q-b', label: 'B', demo: 'db' },
+        { id: 'q-c', label: 'C', demo: 'dc' },
+      ],
+    }
+    window.history.replaceState(null, '', '/blog/test3/')
+    sessionStorage.clear()
+    render(
+      <ExploreConfigContext.Provider value={config3}>
+        <ExploreRouter config={config3}>
+          <AnswerProbe id="q-a" />
+          <AnswerProbe id="q-b" />
+          <AnswerProbe id="q-c" />
+          <GoProbe target="q-b" />
+          <GoProbe target="q-c" />
+          <RtProbe />
+        </ExploreRouter>
+      </ExploreConfigContext.Provider>,
+    )
+
+    /* 路径:mount(q-a) → goTo(q-b) → goTo(q-c),栈 [q-a,q-b,q-c] */
+    fireEvent.click(screen.getByText('go q-b'))
+    fireEvent.click(screen.getByText('go q-c'))
+    const probeA = screen.getByTestId('scene-q-a')
+    const probeB = screen.getByTestId('scene-q-b')
+    expect(screen.getByTestId('scene-q-c')).toHaveAttribute('data-first')
+
+    /* back() → q-b:该幕本会话已激活过 → 必须切 firstActivation=false(不重演) */
+    fireEvent.click(screen.getByTestId('rt-back'))
+    expect(probeB).toHaveAttribute('data-active')
+    expect(probeB).not.toHaveAttribute('data-first')
+
+    /* jumpTo 回 q-a(面板点击历史项路径):同样不重演 */
+    fireEvent.click(screen.getByTestId('rt-open-panel'))
+    fireEvent.click(screen.getByText('q-a'))
+    expect(probeB).not.toHaveAttribute('data-active')
+    expect(probeA).toHaveAttribute('data-active')
+    expect(probeA).not.toHaveAttribute('data-first')
+  })
 })
 
 describe('ExploreRouter v5 键盘', () => {

@@ -129,13 +129,23 @@ export function ExploreRouter({ config, children, onExit }: Props) {
   /* 切幕时清焦点：避免上一幕的 idx 落到新幕出口数组中越界 */
   useEffect(() => { setFocusedExitIdx(null) }, [activeId])
 
+  /* 当前幕 + 主线下一幕——单一查表（flatExits / 键盘 onNext / exitsWithMain / nextSceneId /
+   * nextSceneLabel 五处 findIndex+(idx+1)%len 的收敛点；StageNav 改消费 runtime.nextScene）。 */
+  const current = useMemo(() => {
+    const idx = config.scenes.findIndex((s) => s.id === activeId)
+    if (idx < 0) return { idx: -1, scene: null, next: undefined as ExploreScene | undefined }
+    return {
+      idx,
+      scene: config.scenes[idx],
+      next: config.scenes[(idx + 1) % config.scenes.length],
+    }
+  }, [activeId, config])
+
   /* 当前幕出口平铺序：features → questions（与 Answer.tsx 渲染顺序一致）。
    * 跨文章目标（to: { post, scene }）保留原形态，Enter 调 window.location.assign 整页跳。 */
   const flatExits = useMemo(() => {
-    const idx = config.scenes.findIndex((s) => s.id === activeId)
-    const scene = idx >= 0 ? config.scenes[idx] : null
-    return [...(scene?.features ?? []), ...(scene?.questions ?? [])]
-  }, [activeId, config])
+    return [...(current.scene?.features ?? []), ...(current.scene?.questions ?? [])]
+  }, [current])
 
   const goTo = useCallback((id: string) => {
     if (activeIdRef.current === id) return
@@ -159,6 +169,12 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     const prev = history.pop()
     if (prev) {
       window.history.pushState(null, '', `#${prev}`)
+      /* v5 review fix:back 目标必是本会话到过的幕(能 pop 到说明去过)——
+       * 与 goTo 同语义切 firstActivation=false,回看不重演。 */
+      if (activatedRef.current.has(prev)) {
+        setFirstActivation((m) => ({ ...m, [prev]: false }))
+      }
+      activatedRef.current.add(prev)
       setActiveId(prev)
       setPanelOpen(false)
     }
@@ -169,6 +185,11 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     /* jumpTo 内部 setStack 是异步的——用同步维护的 ref 读截断后的栈顶 */
     const last = stackRef.current[idx]?.sceneId ?? config.entry
     window.history.pushState(null, '', `#${last}`)
+    /* v5 review fix:同 back——面板跳转目标已激活过,不重演。 */
+    if (activatedRef.current.has(last)) {
+      setFirstActivation((m) => ({ ...m, [last]: false }))
+    }
+    activatedRef.current.add(last)
     setActiveId(last)
     setPanelOpen(false)
   }, [history, config.entry])
@@ -186,10 +207,7 @@ export function ExploreRouter({ config, children, onExit }: Props) {
    * - handlers 走 ref 同步取最新 activeId/panelOpen（hook 已用 ref.current 转发）。 */
   useKeyboardShortcuts({
     onBack: () => back(),
-    onNext: () => {
-      const idx = config.scenes.findIndex((s) => s.id === activeIdRef.current)
-      if (idx >= 0) goTo(config.scenes[(idx + 1) % config.scenes.length].id)
-    },
+    onNext: () => { if (current.next) goTo(current.next.id) },
     onArrowUp: () => setFocusedExitIdx((i) =>
       flatExits.length === 0 ? null : ((i ?? 0) - 1 + flatExits.length) % flatExits.length),
     onArrowDown: () => setFocusedExitIdx((i) =>
@@ -216,34 +234,19 @@ export function ExploreRouter({ config, children, onExit }: Props) {
      * runtime.onExit 保留为 Stage 直接退出入口（面板/Esc 决策只在 hook 一处）。 */
     onExit: () => onExitRef.current?.(),
     focusedExitIdx,
-  }), [activeId, goTo, onActivate, firstActivation, back, history.stack.length, panelOpen, focusedExitIdx])
+    nextScene: current.next,
+  }), [activeId, goTo, onActivate, firstActivation, back, history.stack.length, panelOpen, focusedExitIdx, current])
 
-  /* 出幕主线/支线（HistoryPanel slot 渲染）：yaml 顺序下一幕 = 主线；features/questions = 支线 */
+  /* 出幕主线/支线（HistoryPanel slot 渲染）：yaml 顺序下一幕 = 主线；features/questions = 支线
+   * （下一幕经 current.next 取——Task 9 查表收敛点） */
   const exitsWithMain = useMemo(() => {
-    const idx = config.scenes.findIndex((s) => s.id === activeId)
-    const scene = idx >= 0 ? config.scenes[idx] : null
-    const next: ExploreScene | undefined = idx >= 0 ? config.scenes[(idx + 1) % config.scenes.length] : undefined
-    const main = next ? [{ text: `▸ 继续：${next.label}`, to: next.id, main: true }] : []
+    const main = current.next ? [{ text: `▸ 继续：${current.next.label}`, to: current.next.id, main: true }] : []
     return [
       ...main,
-      ...(scene?.features ?? []),
-      ...(scene?.questions ?? []),
+      ...(current.scene?.features ?? []),
+      ...(current.scene?.questions ?? []),
     ]
-  }, [activeId, config])
-
-  /* v5 动作镜像（HistoryPanel props）：从 activeId 算主线下一幕的 id 与 label */
-  const nextSceneId = useMemo(() => {
-    const idx = config.scenes.findIndex((s) => s.id === activeId)
-    if (idx < 0) return null
-    const next = config.scenes[(idx + 1) % config.scenes.length]
-    return next?.id ?? null
-  }, [activeId, config])
-  const nextSceneLabel = useMemo(() => {
-    const idx = config.scenes.findIndex((s) => s.id === activeId)
-    if (idx < 0) return ''
-    const next = config.scenes[(idx + 1) % config.scenes.length]
-    return next?.label ?? ''
-  }, [activeId, config])
+  }, [current])
 
   return (
     <ExploreConfigContext.Provider value={config}>
@@ -263,8 +266,8 @@ export function ExploreRouter({ config, children, onExit }: Props) {
             stack={history.stack} onJumpTo={jumpTo}
             canBack={history.stack.length > 1}
             onBack={back}
-            nextLabel={`⏵ 继续：${nextSceneLabel}`}
-            onNext={() => nextSceneId && goTo(nextSceneId)}
+            nextLabel={current.next ? `⏵ 继续：${current.next.label}` : ''}
+            onNext={() => current.next && goTo(current.next.id)}
             onExit={() => { setPanelOpen(false); onExitRef.current?.() }}>
             <div className="exits-tree">
               <span className="history-panel__sub">─ 主线/支线 ─</span>

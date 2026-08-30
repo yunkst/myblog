@@ -2,32 +2,26 @@ import { render, fireEvent, screen } from '@testing-library/react'
 import '@testing-library/jest-dom/vitest'
 import { describe, it, expect, vi } from 'vitest'
 import StageNav from './StageNav'
-import { ExploreConfigContext, ExploreRuntimeContext, type ExploreRuntime } from './AnswerContext'
-import type { ExploreConfig } from '../../lib/types'
+import { ExploreRuntimeContext, type ExploreRuntime } from './AnswerContext'
+import type { ExploreScene } from '../../lib/types'
 
-const config: ExploreConfig = {
-  title: 't', entry: 'q-a',
-  scenes: [
-    { id: 'q-a', label: 'A', demo: 'da' },
-    { id: 'q-b', label: 'B', demo: 'db' },
-  ],
-}
+/* v5 review fix:StageNav 改消费 runtime.nextScene(不再自行 findIndex 查表,
+ * 也不再需要 ExploreConfigContext)。 */
+const nextScene: ExploreScene = { id: 'q-b', label: 'B', demo: 'db' }
 
 function mkRt(over: Partial<ExploreRuntime>): ExploreRuntime {
   return {
     activeId: 'q-a', goTo: vi.fn(), onActivate: vi.fn(), firstActivation: true,
     back: vi.fn(), canBack: false, panelOpen: false, setPanelOpen: vi.fn(),
-    onExit: vi.fn(), focusedExitIdx: null, ...over,
+    onExit: vi.fn(), focusedExitIdx: null, nextScene, ...over,
   } as ExploreRuntime
 }
 
 function renderNav(rt: ExploreRuntime) {
   return render(
-    <ExploreConfigContext.Provider value={config}>
-      <ExploreRuntimeContext.Provider value={rt}>
-        <StageNav />
-      </ExploreRuntimeContext.Provider>
-    </ExploreConfigContext.Provider>,
+    <ExploreRuntimeContext.Provider value={rt}>
+      <StageNav />
+    </ExploreRuntimeContext.Provider>,
   )
 }
 
@@ -45,11 +39,9 @@ describe('StageNav', () => {
     const { rerender } = renderNav(mkRt({ back }))
     expect(screen.getByText('◀ 返回').closest('button')).toBeDisabled()
     rerender(
-      <ExploreConfigContext.Provider value={config}>
-        <ExploreRuntimeContext.Provider value={mkRt({ back, canBack: true })}>
-          <StageNav />
-        </ExploreRuntimeContext.Provider>
-      </ExploreConfigContext.Provider>,
+      <ExploreRuntimeContext.Provider value={mkRt({ back, canBack: true })}>
+        <StageNav />
+      </ExploreRuntimeContext.Provider>,
     )
     fireEvent.click(screen.getByText('◀ 返回'))
     expect(back).toHaveBeenCalledOnce()
@@ -64,5 +56,13 @@ describe('StageNav', () => {
     expect(rt.setPanelOpen).toHaveBeenCalledWith(true)
     fireEvent.click(screen.getByText('✕ 退出'))
     expect(rt.onExit).toHaveBeenCalledOnce()
+  })
+
+  it('nextScene 缺失时隐藏「⏵ 继续」按钮(其余 3 个保留)', () => {
+    renderNav(mkRt({ nextScene: undefined }))
+    expect(screen.getByText('◀ 返回')).toBeInTheDocument()
+    expect(screen.queryByText(/⏵ 继续/)).toBeNull()
+    expect(screen.getByText('履历 ▾')).toBeInTheDocument()
+    expect(screen.getByText('✕ 退出')).toBeInTheDocument()
   })
 })
