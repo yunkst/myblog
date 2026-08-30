@@ -1,8 +1,10 @@
-// scripts/validate-explore.ts（v5 Task 7：article.mdx 退出）
+// scripts/validate-explore.ts（v5 Task 9：scenes 双向对齐 + meta 必填校验）
 import fs from 'node:fs'
 import path from 'node:path'
+import yaml from 'js-yaml'
 import {
   parseExploreYaml, validateExploreConfig, scanDemoNames,
+  validateScenesAlignment,
 } from '../src/lib/explore'
 import type { ExploreConfig } from '../src/lib/types'
 
@@ -19,9 +21,8 @@ function loadConfig(slug: string): ExploreConfig | null {
   if (!r.ok) {
     console.error(`\x1b[31m✗\x1b[0m [${slug}] ${r.error}`)
     process.exitCode = 1
-    return null
   }
-  return r.value
+  return r.ok ? r.value : null
 }
 
 function knownPosts(): string[] {
@@ -30,17 +31,54 @@ function knownPosts(): string[] {
     : []
 }
 
+function listSceneFiles(slug: string): string[] {
+  const dir = path.join(POSTS, slug, 'scenes')
+  if (!fs.existsSync(dir)) return []
+  // *.test.tsx 是测试工件，不是场景模块
+  return fs.readdirSync(dir).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))
+}
+
 function main() {
   let failures = 0
   const warnings: string[] = []
   const posts = knownPosts()
 
   for (const slug of posts) {
+    // meta.yaml 必填校验（title + date）
+    const metaRaw = readIfExists(path.join(POSTS, slug, 'meta.yaml'))
+    if (metaRaw === null) {
+      console.error(`\x1b[31m✗\x1b[0m [${slug}] 缺 meta.yaml`)
+      failures++
+    } else {
+      let metaOk = true
+      let meta: any
+      try { meta = yaml.load(metaRaw) } catch (e: any) {
+        console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 解析失败：${e.message}`)
+        failures++
+        metaOk = false
+      }
+      if (metaOk) {
+        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+          console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 顶层必须是对象`)
+          failures++
+        } else {
+          if (typeof meta.title !== 'string' || !meta.title.trim()) {
+            console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 缺 title`)
+            failures++
+          }
+          if (!meta.date) {
+            console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 缺 date`)
+            failures++
+          }
+        }
+      }
+    }
+
     const config = loadConfig(slug)
     if (!config) continue
     const sceneSrc = readIfExists(path.join(POSTS, slug, 'scene.tsx'))
     const r = validateExploreConfig(slug, config, {
-      /* v5 规则 2/3（Answer 存在性）已跳过——article.mdx 不存在；T9 用 scenes 对齐规则替换 */
+      /* v5 规则 2/3（Answer 存在性）已替换为 scenes 双向对齐（见下） */
       answerIds: [],
       demoNames: sceneSrc ? scanDemoNames(sceneSrc) : [],
       sceneFileExists: sceneSrc !== null,
@@ -50,8 +88,13 @@ function main() {
         return t ? t.scenes.map((s) => s.id) : null
       },
     })
-    failures += r.errors.length
+
+    // scenes/ 双向对齐（替换 T7 跳过的规则 2/3）
+    const sceneFileErrors = validateScenesAlignment(slug, config, listSceneFiles(slug))
+
+    failures += r.errors.length + sceneFileErrors.length
     r.errors.forEach((e) => console.error(`\x1b[31m✗\x1b[0m ${e}`))
+    sceneFileErrors.forEach((e) => console.error(`\x1b[31m✗\x1b[0m ${e}`))
     warnings.push(...r.warnings)
   }
 

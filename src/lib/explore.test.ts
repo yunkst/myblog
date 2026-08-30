@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { parseExploreYaml, resolveExploreHref, scanDemoNames, toChineseOrdinal } from './explore'
+import {
+  parseExploreYaml, resolveExploreHref, scanDemoNames, toChineseOrdinal,
+  validateScenesAlignment,
+} from './explore'
 
 const good = `
 title: 一个 AI 数字员工平台
@@ -135,5 +138,20 @@ describe('toChineseOrdinal（v3 幕序号）', () => {
     expect(() => toChineseOrdinal(0)).toThrow(RangeError)
     expect(() => toChineseOrdinal(-1)).toThrow(RangeError)
     expect(() => toChineseOrdinal(1.5)).toThrow(RangeError)
+  })
+})
+
+describe('validateScenesAlignment', () => {
+  it('yaml 有 id 无文件 → 报错；有文件无 id → 报错；对齐 → 空', () => {
+    expect(
+      validateScenesAlignment(
+        'x',
+        { scenes: [{ id: 'a' } as any, { id: 'b' } as any] } as any,
+        ['a.tsx', 'c.tsx'],
+      ),
+    ).toEqual([
+      expect.stringContaining('b'),
+      expect.stringContaining('c'),
+    ])
   })
 })

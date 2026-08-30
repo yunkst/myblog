@@ -22,7 +22,7 @@ scenes:
 `
 
 const baseCtx: ValidateCtx = {
-  /* v5（Task 7）：article.mdx 已删——answerIds 不再消费；T9 替换为 scenes 对齐规则 */
+  /* v5（Task 7/9）：article.mdx 已删——answerIds 不再消费；scenes 对齐由 validateScenesAlignment 负责 */
   answerIds: [],
   demoNames: ['demo-a', 'demo-b'],
   sceneFileExists: true,
@@ -69,8 +69,8 @@ describe('validateExploreConfig v2', () => {
   })
 })
 
-/* v5（Task 7）：规则 2/3（Answer 存在性 / 未引用 Answer 警告）暂跳过——
- * article.mdx 退出，<Answer> 不再存在；T9 替换为 scenes 目录对齐规则。 */
+/* v5（Task 7/9）：规则 2/3（Answer 存在性 / 未引用 Answer 警告）随 article.mdx 退出而失效；
+ * scenes 目录对齐由 validateScenesAlignment 负责（见 src/lib/explore.test.ts）。 */
 describe('validateExploreConfig v5 跳过的规则', () => {
   it('answerIds 不影响校验（规则 2/3 跳过）', () => {
     const r = validateExploreConfig('self', makeConfig(baseYaml), {

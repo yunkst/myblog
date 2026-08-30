@@ -5,7 +5,7 @@
 // v1 的 explore.client.ts 双文件模式废除（spec §8.4）。
 //
 // v5：article.mdx 退出，<Answer> 不再存在。answerIds 在 ValidateCtx 中保留为接口对齐位
-// （validate 内部不再消费），待 T9 替换为 scenes 目录对齐规则。
+// （validate 内部不再消费）；scenes 目录对齐由 T9 的 validateScenesAlignment 承担。
 //
 // ⚠️ 安全考量：v5 article.mdx 退出后，<Answer> 不再由 MDX 编译产物提供，
 // 文本/scene 内容由 scenes/*.tsx 直接产出 ReactNode（避免 innerHTML 注入路径）。
@@ -88,8 +88,8 @@ export function validateExploreConfig(
   // 规则1：entry 指向存在的场景
   if (!ids.has(config.entry)) errors.push(`[${slug}] entry="${config.entry}" 不在 scenes 里`)
 
-  // 规则2/3（Answer 存在性 / 未引用 Answer 警告）T7 暂跳过——article.mdx 已删除，
-  // <Answer> 不再存在；T9 换成 scenes 对齐规则（读 scenes/ 目录）。
+  // 规则2/3（Answer 存在性 / 未引用 Answer 警告）随 article.mdx 退出而失效；
+  // scenes 目录对齐由 validateScenesAlignment 承担（validate-explore.ts 调用）。
   void ctx.answerIds
 
   // 规则4：demo 存在
@@ -176,4 +176,18 @@ export function toChineseOrdinal(n: number): string {
   const tens = Math.floor(n / 10)
   const ones = n % 10
   return `${CN_DIGITS[tens]}十${ones ? CN_DIGITS[ones] : ''}`
+}
+
+/** v5：scenes/<id>.tsx 与 yaml scenes[].id 双向对齐 */
+export function validateScenesAlignment(
+  slug: string,
+  config: ExploreConfig,
+  sceneFiles: string[],   // scenes/ 目录下的 .tsx 文件名（含扩展名）
+): string[] {
+  const errors: string[] = []
+  const ids = new Set(config.scenes.map((s) => s.id))
+  const files = new Set(sceneFiles.map((f) => f.replace(/\.tsx$/, '')))
+  for (const s of config.scenes) if (!files.has(s.id)) errors.push(`[${slug}] 场景 ${s.id} 缺 scenes/${s.id}.tsx`)
+  for (const f of files) if (!ids.has(f)) errors.push(`[${slug}] scenes/${f}.tsx 未被 yaml 引用`)
+  return errors
 }

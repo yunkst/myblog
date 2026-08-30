@@ -19,7 +19,7 @@ export default function PostList() {
             <h3>{p.title}</h3>
             <p>{p.excerpt}</p>
             {p.exploreEntry && (
-              <span className="explore-entry-btn" aria-hidden="false">▶ {p.exploreEntry.label}</span>
+              <span className="explore-entry-btn" aria-hidden="false">▶ 进入舞台 · {p.exploreEntry.label}</span>
             )}
             <span className="anim-badge">anim · {p.anim_profile}</span>
           </Link>
