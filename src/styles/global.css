@@ -885,16 +885,18 @@ body.stage-locked { overflow: hidden; }
    * - 左列 .stage：动画/图片
    * - 右列 .act-head → .dialogue → .choices：叙事文本整体右移
    * - 文本宽 max 720px（含 padding）——避免全屏阅读拉得过宽
-   * 单列场景（含/不含 .stage 都成立）：align-items 居中后文本列固定宽。 */
+   * 单列场景（含/不含 .stage 都成立）：align-items 居中后文本列固定宽。
+   * v7 布局显式化（三原则 1）：单列/双列由 Answer 声明的 modifier class 决定
+   * （clips.length > 0 ⇔ 渲染 .stage ⇔ theater--dual），不再用 :has() 探测 DOM。 */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   row-gap: 24px;
 }
-.stage-frame .theater:has(> .stage) {
+.stage-frame .theater--dual {
   /* 双列：动画略宽强调视觉；窄屏（<920px）回退单列见媒体查询。
-   * :has() 现代浏览器支持（firefox 121+ / safari 15.4+），Explore 场景页走
-   * vite-react-ssg 直出静态站点，可放心用。
+   * v7：modifier class 由 Answer 依据「本幕是否渲染 .stage」显式挂上
+   * （三原则 1 布局显式化），与原 `:has(> .stage)` 探测严格等价。
    * 用 grid-template-areas 显式把 stage 钉到第 1 列、文本到第 2 列——
    * 否则 act-head 在 DOM 第 1 个会占走左上角，把 stage 挤到右列。 */
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
@@ -906,10 +908,10 @@ body.stage-locked { overflow: hidden; }
   justify-items: stretch;
   align-items: start;
 }
-.stage-frame .theater:has(> .stage) > .stage     { grid-area: stage; width: 100%; }
-.stage-frame .theater:has(> .stage) > .act-head  { grid-area: head; }
-.stage-frame .theater:has(> .stage) > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
-.stage-frame .theater:has(> .stage) > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
+.stage-frame .theater--dual > .stage     { grid-area: stage; width: 100%; }
+.stage-frame .theater--dual > .act-head  { grid-area: head; }
+.stage-frame .theater--dual > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
+.stage-frame .theater--dual > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
 
 /* ExploreRouter 根容器（display: contents 让 children 直接参与父布局） */
 .stage-frame .explore-router { display: contents; }
@@ -966,8 +968,8 @@ body.stage-locked { overflow: hidden; }
 }
 /* grid 双列时 dialogue/choices 的原有 margin-top 会叠到 row-gap 上——
  * 把上下间距让 row-gap 统一管，避免「stage 后空 24 + dialogue 前 24 = 48」双重空白。 */
-.stage-frame .theater:has(> .stage) > .dialogue { margin-top: 0; }
-.stage-frame .theater:has(> .stage) > .choices { margin-top: 28px; }
+.stage-frame .theater--dual > .dialogue { margin-top: 0; }
+.stage-frame .theater--dual > .choices { margin-top: 28px; }
 /* 名字牌：翠绿底黑字 + mono 字符间距 */
 .stage-frame .dlg-name {
   position: absolute; top: 0; left: 22px; transform: translateY(-50%);
@@ -1221,8 +1223,9 @@ body.stage-locked { overflow: hidden; }
     border-radius: 0;
     max-height: 80vh;
   }
-  /* v6：窄屏回退单列布局（动画/图片在上，文本在下）；dialogue 文本宽度放开到容器宽 */
-  .stage-frame .theater:has(> .stage) {
+  /* v6：窄屏回退单列布局（动画/图片在上，文本在下）；dialogue 文本宽度放开到容器宽
+   * v7：:has(> .stage) 探测改为 Answer 声明的 theater--dual modifier class（三原则 1） */
+  .stage-frame .theater--dual {
     grid-template-columns: minmax(0, 1fr);
     column-gap: 0;
     row-gap: 24px;

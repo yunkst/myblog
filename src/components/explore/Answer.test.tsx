@@ -55,6 +55,10 @@ describe('Answer（v5 scene/body props）', () => {
   it('Context 无 config：features/questions chips 不渲染（孤儿 body 仍渲染）', () => {
     render(<Answer scene={{ id: "orphan", label: "L", demo: "d" }} body={<p>孤儿段落</p>} />)
     expect(document.querySelector('.exit-chip')).toBeNull()
+    // v7 布局显式化：无 SceneClip 的孤儿同样走 theater--solo（无 .stage → 单列）
+    const orphan = document.getElementById('orphan')!
+    expect(orphan.className).toContain('theater--solo')
+    expect(orphan.className).not.toContain('theater--dual')
   })
 })
 
@@ -135,6 +139,40 @@ describe('Answer v3 分区渲染', () => {
     expect(container.querySelector('.act-no')?.textContent).toBe('第二幕')
     // q-b 没有 features/questions → .choices 不渲染
     expect(container.querySelector('.choices')).toBeNull()
+  })
+
+  /* v7 布局显式化（三原则 1）：布局由 Answer 的 modifier class 声明——
+   * 有 .stage ⇔ theater--dual、无 .stage ⇔ theater--solo，CSS 侧删 :has() 探测。
+   * 这两条断言把「modifier ⇔ .stage 子元素存在性」严格钉死，防止二者漂移。 */
+  it('v7 布局显式化：有 SceneClip 的场景 section 含 theater--dual（且存在 .stage 子元素）', () => {
+    const cfg = makeConfig(yaml)
+    const { container } = render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={cfg}>
+          <Answer scene={cfg.scenes[0]} body={<SceneClip demo="demo-a" />} />
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
+    const theater = container.querySelector('.theater')!
+    expect(theater.className).toContain('theater--dual')
+    expect(theater.className).not.toContain('theater--solo')
+    /* modifier 声明与 DOM 事实一致：此刻必有直接 .stage 子元素（原 :has(> .stage) 等价性） */
+    expect(theater.querySelector(':scope > .stage')).not.toBeNull()
+  })
+
+  it('v7 布局显式化：无 SceneClip（孤儿）场景 section 含 theater--solo 且不含 theater--dual', () => {
+    const cfg = makeConfig(yaml)
+    const { container } = render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={cfg}>
+          <Answer scene={cfg.scenes[1]} body={<p>纯文字</p>} />
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
+    const theater = container.querySelector('.theater')!
+    expect(theater.className).toContain('theater--solo')
+    expect(theater.className).not.toContain('theater--dual')
+    expect(theater.querySelector(':scope > .stage')).toBeNull()
   })
 
   it('heading first-found：遍历遇到的第一个 heading 提取到 act-head，其余 heading 留 dialogue', () => {
