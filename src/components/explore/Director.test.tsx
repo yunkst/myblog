@@ -185,12 +185,13 @@ describe('Director', () => {
   })
 
   /* C2+I1 fix round：
-   * - 演出开始前 SSR 直出的「终态」必须先压回隐藏（gsap.set opacity 0），
+   * - 演出开始前 SSR 直出的「终态」按「揭示单元」粒度隐藏（gsap.set opacity 0），
    *   否则用户先看到 dialogue 全文 / chips opacity 1 再被打回原态（视觉跳跃）。
-   * - head / dialogue 段落 / choices chips 都应被隐藏。
-   * - 演出链路（fadeIn + 打字机 + choicesRise）随后逐个揭示到终态。
+   * - head 整块 / dialogue 文本段落 / choices chips → 隐藏；
+   *   dialogue 容器不藏（容器藏了会吞掉打字机的 reveal；真实浏览器实测）。
+   * - 打字机启动段落时 reveal（gsap.to opacity 1）+ 打字。
    */
-  it('演出开始前同步 gsap.set 隐藏 head / dialogue 段落 / choices chips（C2+I1 fix round）', () => {
+  it('演出开始前按揭示单元粒度隐藏：head/文本段落/chips → 0；容器保持 1', () => {
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>第一段</p><p>第二段</p>'
@@ -210,9 +211,11 @@ describe('Director', () => {
         <span>x</span>
       </Director>,
     )
-    // gsap.set 把目标 opacity 压成 0；useLayoutEffect 在 render 同步阶段后跑
+    // 揭示单元 → 0；容器不藏（否则吞掉打字机 reveal）
     expect(gsap.getProperty(head.current!, 'opacity')).toBe(0)
+    expect(gsap.getProperty(dlg.current!, 'opacity')).toBe(1)
     expect(gsap.getProperty(dlg.current!.querySelector('p')!, 'opacity')).toBe(0)
+    expect(gsap.getProperty(choices.current!, 'opacity')).toBe(1)
     expect(gsap.getProperty(choices.current!.querySelector('.exit-chip')!, 'opacity')).toBe(0)
   })
 

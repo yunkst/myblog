@@ -77,23 +77,34 @@ export function Director({
       return
     }
 
-    /* 演出开始前（fadeIn 调起前）把 SSR 直出的「终态」先压回隐藏——
-     * head / dialogue 段落 / choices chips 逐个交由演出链揭示。
-     * dialogue 选择器必须同时覆盖 mode 2 段落与 mode 3 纯文字幕（两者都走打字机）；
-     * 保留 img/figure 等媒体子元素的原生可见性（打字机整段跳过它们，同步 set 隐藏后由
-     * tl.play(0) 的段落时间线立即揭示）。 */
-    const hideTargets: HTMLElement[] = []
+    /* 演出开始前（fadeIn 调起前）把 SSR 直出的「终态」压回隐藏（C2+I1 fix round）。
+     * 粒度是「揭示单元」而不是容器——容器一旦 opacity 0，打字机/choicesRise 的
+     * 揭示会被一并吞掉（真实浏览器实测：打字机在打但容器不可见）：
+     * - head 整块 → fadeIn 揭示
+     * - dialogue 文本段落（p/blockquote，打字机管辖）→ 打字机启动该段时揭示
+     *   （buildTypewriterTimeline 构建时即清空 innerHTML，揭示瞬间无内容可闪）
+     * - dialogue 非文本子元素（img/figure/table/ul…打字机跳过）→ 随 head fade
+     * - choices 每枚 chip → choicesRise fromTo 揭示
+     * reduced-motion 早 return 不经过这里（直出终态）。 */
+    const hidden: HTMLElement[] = []
+    const mediaEls: HTMLElement[] = []
     const headEl = headRef.current
-    if (headEl) hideTargets.push(headEl)
+    if (headEl) hidden.push(headEl)
     const dlg = dlgRef.current
     if (dlg) {
-      hideTargets.push(...dlg.querySelectorAll<HTMLElement>(':scope > *'))
+      for (const el of Array.from(dlg.querySelectorAll<HTMLElement>(':scope > *'))) {
+        const isTextPara =
+          (el.tagName === 'P' || el.tagName === 'BLOCKQUOTE') &&
+          !el.querySelector(MEDIA_SELECTOR)
+        if (isTextPara) hidden.push(el)
+        else mediaEls.push(el)
+      }
     }
     const choicesEl = choicesRef.current
     if (choicesEl) {
-      hideTargets.push(...choicesEl.querySelectorAll<HTMLElement>('.exit-chip'))
+      hidden.push(...Array.from(choicesEl.querySelectorAll<HTMLElement>('.exit-chip')))
     }
-    if (hideTargets.length > 0) gsap.set(hideTargets, { opacity: 0 })
+    if (hidden.length > 0) gsap.set(hidden, { opacity: 0 })
 
     /* playDemo 的等待句柄：cleanup 时撤销（observer 断开 / timer 清掉） */
     const demoWait: { observer: MutationObserver | null; timer: number } = {
@@ -111,8 +122,12 @@ export function Director({
       return new Promise<void>((resolve) => {
         const run = (i: number) => {
           if (i >= paras.length) { resolve(); return }
-          const tl = buildTypewriterTimeline(paras[i])
-          if (!tl) { run(i + 1); return }
+          const p = paras[i]
+          // 段落揭示（与打字机同步：先 reveal 让浏览器有 layout，再打字）
+          const revealTween = gsap.to(p, { opacity: 1, duration: 0.25 })
+          tls.current.push(revealTween)
+          const tl = buildTypewriterTimeline(p)
+          if (!tl) { revealTween.progress(1); run(i + 1); return }
           tls.current.push(tl)
           if (i + 1 < paras.length) tl.eventCallback('onComplete', () => run(i + 1))
           else tl.eventCallback('onComplete', () => resolve())
@@ -175,8 +190,10 @@ export function Director({
     }
 
     const run = async () => {
-      // act-head 立即 fade（不阻塞后续）
+      // act-head 立即 fade（不阻塞后续）；媒体段落（img/figure/table/ul…打字机跳过）
+      // 随 head 一起揭示，避免 SSR 直出「终态」产生视觉跳跃
       const headP = fadeIn(headRef.current, 0.3)
+      const mediaP = Promise.all(mediaEls.map((el) => fadeIn(el, 0.3)))
 
       if (scene.mode === 1) {
         // mode 1：全屏 demo 先 → 缩窗 → 文字 → choices
@@ -195,16 +212,19 @@ export function Director({
           stage.classList.remove(FULLSCREEN_CLASS)
         }
         await headP
+        await mediaP
         await playTypewriterChain()
         await choicesRise(choicesRef.current)
       } else if (scene.mode === 3) {
         // mode 3：纯文字
         await headP
+        await mediaP
         await playTypewriterChain()
         await choicesRise(choicesRef.current)
       } else {
         // mode 2：文字先行（默认）
         await headP
+        await mediaP
         await playTypewriterChain()
         await playDemo()
         await choicesRise(choicesRef.current)
