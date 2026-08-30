@@ -3,6 +3,8 @@ import '@testing-library/jest-dom/vitest'
 import { describe, it, expect, vi } from 'vitest'
 import HistoryPanel from './HistoryPanel'
 
+const noop = () => {}
+
 const stack = [
   { sceneId: 'q-problem' },
   { sceneId: 'q-badge-metaphor' },
@@ -80,5 +82,19 @@ describe('HistoryPanel', () => {
     )
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(document.querySelector('.history-panel__history ol')).toBeEmptyDOMElement()
+  })
+
+  it('v5 动作镜像：◀ 返回（disabled 态）/ ⏵ 继续：<label> / ✕ 退出', () => {
+    const onBack = vi.fn(), onNext = vi.fn(), onExit = vi.fn()
+    render(
+      <HistoryPanel open onClose={noop} stack={[]} onJumpTo={noop}
+        canBack={false} onBack={onBack} nextLabel="⏵ 继续：B" onNext={onNext} onExit={onExit}>
+        <div />
+      </HistoryPanel>,
+    )
+    expect(screen.getByText('◀ 返回').closest('button')).toBeDisabled()
+    expect(screen.getByText('⏵ 继续：B')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('✕ 退出'))
+    expect(onExit).toHaveBeenCalledOnce()
   })
 })

@@ -10,6 +10,14 @@ interface Props {
   onJumpTo: (idx: number) => void
   /** 出口树 slot（由 ExploreRouter 注入主线/支线） */
   children?: ReactNode
+  /* v5 新增：动作镜像（spec §3.3） */
+  /** 栈长 > 1 时启用 ◀ 返回 */
+  canBack?: boolean
+  onBack?: () => void
+  /** 例如 "⏵ 继续：B" */
+  nextLabel?: string
+  onNext?: () => void
+  onExit?: () => void
 }
 
 /**
@@ -19,7 +27,7 @@ interface Props {
  * - 样式由 Task 6 在 `.post-wrap--stage` 作用域下补齐，本组件只出 DOM + 语义 class。
  * - 无障碍：role=dialog + aria-label；关闭用 aria-label=关闭。
  */
-export default function HistoryPanel({ open, onClose, stack, onJumpTo, children }: Props) {
+export default function HistoryPanel({ open, onClose, stack, onJumpTo, children, canBack, onBack, nextLabel, onNext, onExit }: Props) {
   if (!open) return null
   return (
     <div className="history-panel" role="dialog" aria-label="探索履历">
@@ -36,6 +44,13 @@ export default function HistoryPanel({ open, onClose, stack, onJumpTo, children 
             ×
           </button>
         </header>
+        {(canBack !== undefined || onBack || nextLabel || onNext || onExit) && (
+          <div className="history-panel__actions">
+            <button type="button" disabled={!canBack} onClick={onBack}>◀ 返回</button>
+            <button type="button" onClick={onNext}>{nextLabel}</button>
+            <button type="button" onClick={onExit}>✕ 退出</button>
+          </div>
+        )}
         {children && (
           <section className="history-panel__exits">{children}</section>
         )}

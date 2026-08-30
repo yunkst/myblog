@@ -15,7 +15,7 @@ describe('useHistoryStack', () => {
     const { result } = renderHook(() => useHistoryStack('test'))
     act(() => result.current.push('q-problem'))
     expect(result.current.stack).toEqual([{ sceneId: 'q-problem' }])
-    // 与 pop 守卫、HistoryFAB canBack 同一语义：栈长 > 1 才可退
+    // 与 pop 守卫、StageNav canBack 同一语义：栈长 > 1 才可退
     expect(result.current.canPop).toBe(false)
     act(() => result.current.push('q-second'))
     expect(result.current.canPop).toBe(true)

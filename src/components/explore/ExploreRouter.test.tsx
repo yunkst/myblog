@@ -64,6 +64,7 @@ function renderRouter() {
         <AnswerProbe id="q-a" />
         <AnswerProbe id="q-b" />
         <GoProbe target="q-b" />
+        <RtProbe />
       </ExploreRouter>
     </ExploreConfigContext.Provider>,
   )
@@ -172,10 +173,10 @@ describe('ExploreRouter', () => {
     window.getSelection = realGetSelection
   })
 
-  it('Esc 关闭履历面板；FAB 打开面板', () => {
+  it('Esc 关闭履历面板；履历按钮打开面板（底栏在 Stage 页挂 StageNav，此处走 runtime setPanelOpen 驱动）', () => {
     renderRouter()
     expect(document.querySelector('.history-panel')).toBeNull()
-    fireEvent.click(screen.getByLabelText(/打开履历面板/))
+    fireEvent.click(screen.getByTestId('rt-open-panel'))
     expect(document.querySelector('.history-panel')).toBeTruthy()
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(document.querySelector('.history-panel')).toBeNull()
@@ -196,7 +197,7 @@ describe('ExploreRouter', () => {
   it('面板点击历史项 jumpTo + 关闭面板', () => {
     renderRouter()
     fireEvent.click(screen.getByTestId('go')) // 栈 [q-a, q-b]
-    fireEvent.click(screen.getByLabelText(/打开履历面板/))
+    fireEvent.click(screen.getByTestId('rt-open-panel'))
     // 点击第 01 项（q-a）→ 截断栈到 [q-a] + 激活 q-a + 关面板
     fireEvent.click(screen.getByText('q-a'))
     expect(document.querySelector('.history-panel')).toBeNull()
@@ -206,8 +207,9 @@ describe('ExploreRouter', () => {
   })
 
   /* I2 fix round：mount → push entry → goTo(b) → goTo(c) → back() → 回到 b（不是 a）；
-   * 连续 back 三次应在 entry 停下、FAB disable（栈长 1 不可再退）。 */
-  it('集成：goTo/goTo/back → 回前一项（不是 entry）；连续 back 停在 entry 并 disable FAB', () => {
+   * 连续 back 三次应在 entry 停下、返回 disable（栈长 1 不可再退）。
+   * v5：底栏移至 StageNav（Stage 页挂载），返回驱动走 runtime back 探针按钮（canBack 语义由 StageNav 消费）。 */
+  it('集成：goTo/goTo/back → 回前一项（不是 entry）；连续 back 停在 entry 并 disable 返回', () => {
     const config3: ExploreConfig = {
       title: 't3', entry: 'q-a',
       scenes: [
@@ -225,25 +227,26 @@ describe('ExploreRouter', () => {
             <AnswerProbe id="q-c" />
             <GoProbe target="q-b" />
             <GoProbe target="q-c" />
+            <RtProbe />
           </ExploreRouter>
         </ExploreConfigContext.Provider>,
       )
     }
     window.history.replaceState(null, '', '/blog/test3/')
     sessionStorage.clear()
-    const { container } = render3()
-    // mount 后栈 [q-a]（reset），FAB disable
+    render3()
+    // mount 后栈 [q-a]（reset），canBack=false
     expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
-    const backBtn = () => screen.getByLabelText('返回上一幕')
-    expect(backBtn()).toBeDisabled()
+    const backBtn = () => screen.getByTestId('rt-back')
+    expect(screen.getByTestId('rt').dataset.canBack).toBe('false')
 
     // 手动 push 两次：q-b、q-c
     fireEvent.click(screen.getByText('go q-b'))
     fireEvent.click(screen.getByText('go q-c'))
     expect(window.location.hash).toBe('#q-c')
     expect(screen.getByTestId('scene-q-c')).toHaveAttribute('data-active')
-    // 栈 [q-a, q-b, q-c]，FAB enable
-    expect(backBtn()).not.toBeDisabled()
+    // 栈 [q-a, q-b, q-c]，canBack=true
+    expect(screen.getByTestId('rt').dataset.canBack).toBe('true')
 
     // 一次 back → 回 q-b（不是 q-a）
     fireEvent.click(backBtn())
@@ -260,15 +263,12 @@ describe('ExploreRouter', () => {
     fireEvent.click(backBtn())
     expect(window.location.hash).toBe('#q-a')
     expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
-    // FAB disable（canPop = stack.length > 1）
-    expect(backBtn()).toBeDisabled()
+    // canBack=false（canPop = stack.length > 1）
+    expect(screen.getByTestId('rt').dataset.canBack).toBe('false')
 
     // 栈确实只剩 1 项
     const stack = JSON.parse(sessionStorage.getItem('explore.history.t3')!) as { sceneId: string }[]
     expect(stack.map((s) => s.sceneId)).toEqual(['q-a'])
-
-    // 防止 ts-unused 警告（container 在断言间已隐式消费）
-    expect(container).toBeTruthy()
   })
 })
 

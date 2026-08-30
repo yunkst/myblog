@@ -7,7 +7,6 @@ import {
 import { useHistoryStack } from './useHistoryStack'
 import { readSeenScenes, writeSeenScenes } from './seenScenes'
 import HistoryPanel from './HistoryPanel'
-import HistoryFAB from './HistoryFAB'
 import { useKeyboardShortcuts } from './useKeyboardShortcuts'
 import { resolveExploreHref } from '../../lib/explore'
 import type { ExploreConfig, ExploreScene } from '../../lib/types'
@@ -28,7 +27,7 @@ function currentSceneId(config: ExploreConfig): string {
 }
 
 /** spec §3.3：点空白处调 skip——交互元素不触发。 */
-const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .chip-prefix, .history-fab, .history-panel'
+const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .chip-prefix, .stage-nav, .history-panel'
 
 /**
  * v4 探索视图路由器（plan Task 5）。
@@ -214,6 +213,20 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     ]
   }, [activeId, config])
 
+  /* v5 动作镜像（HistoryPanel props）：从 activeId 算主线下一幕的 id 与 label */
+  const nextSceneId = useMemo(() => {
+    const idx = config.scenes.findIndex((s) => s.id === activeId)
+    if (idx < 0) return null
+    const next = config.scenes[(idx + 1) % config.scenes.length]
+    return next?.id ?? null
+  }, [activeId, config])
+  const nextSceneLabel = useMemo(() => {
+    const idx = config.scenes.findIndex((s) => s.id === activeId)
+    if (idx < 0) return ''
+    const next = config.scenes[(idx + 1) % config.scenes.length]
+    return next?.label ?? ''
+  }, [activeId, config])
+
   return (
     <ExploreConfigContext.Provider value={config}>
       <ExploreRuntimeContext.Provider value={runtime}>
@@ -228,9 +241,13 @@ export function ExploreRouter({ config, children, onExit }: Props) {
           }}
         >
           {children}
-          <HistoryFAB stack={history.stack} onBack={back} onOpenPanel={() => setPanelOpen(true)} />
           <HistoryPanel open={panelOpen} onClose={() => setPanelOpen(false)}
-            stack={history.stack} onJumpTo={jumpTo}>
+            stack={history.stack} onJumpTo={jumpTo}
+            canBack={history.stack.length > 1}
+            onBack={back}
+            nextLabel={`⏵ 继续：${nextSceneLabel}`}
+            onNext={() => nextSceneId && goTo(nextSceneId)}
+            onExit={() => { setPanelOpen(false); onExitRef.current?.() }}>
             <div className="exits-tree">
               <span className="history-panel__sub">─ 主线/支线 ─</span>
               <ul className="exits-tree__list">
