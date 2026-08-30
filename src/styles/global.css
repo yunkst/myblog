@@ -1043,7 +1043,10 @@ body.stage-locked { overflow: hidden; }
   appearance: none;
   background: transparent;
   border: 0;
-  padding: 4px 8px;
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
   font: 18px var(--sans);
   color: var(--sdim);
   cursor: pointer;
@@ -1051,6 +1054,8 @@ body.stage-locked { overflow: hidden; }
   transition: color 0.15s ease;
 }
 .post-wrap--stage .history-panel__close:hover { color: var(--stext); }
+.post-wrap--stage .history-panel__close:focus-visible { outline: 2px solid var(--sacc); outline-offset: 2px; }
+.post-wrap--stage .history-fab button:focus-visible { outline: 2px solid var(--sacc); outline-offset: 2px; }
 
 .post-wrap--stage .history-panel__exits,
 .post-wrap--stage .history-panel__history {
