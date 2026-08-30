@@ -929,7 +929,13 @@ body.stage-locked { overflow: hidden; }
   padding: 32px clamp(16px, 4vw, 56px) 96px;
 }
 .stage-frame .stage-stage {
-  flex: 1; min-height: 0; overflow-y: auto;
+  flex: 1; min-height: 0;
+  /* 唯一滚动层：浏览器原生滚动条（用户可感知、可拖动）。
+   * overflow-y: scroll 强制留出滚动条槽避免内容抖动；
+   * scrollbar-gutter: stable 短幕时槽位空置但不消失。
+   * 水平方向 hidden——表格等内容超宽按舞台宽截断，不出横向滚动条。 */
+  overflow-y: scroll; overflow-x: hidden;
+  scrollbar-gutter: stable;
   display: flex; flex-direction: column; align-items: center;
   max-width: 1120px; margin: 0 auto; width: 100%;
 }
@@ -1005,6 +1011,9 @@ body.stage-locked { overflow: hidden; }
 .stage-frame .dialogue table th { background: var(--panel); color: var(--stext); }
 .stage-frame .dialogue table td,
 .stage-frame .dialogue table th { border-color: var(--sline); color: var(--stext); }
+/* 表格/媒体不撑破舞台：dialogue 内表格按容器宽自适应换行（v5 零横向滚动） */
+.stage-frame .dialogue table { display: block; max-width: 100%; overflow-x: auto; }
+.stage-frame .dialogue img { max-width: 100%; }
 /* final review m7：打字期间段落锁最小高度，防塌陷 reflow */
 .stage-frame .dialogue > p,
 .stage-frame .dialogue > blockquote { min-height: 1.9em; }
@@ -1233,3 +1242,17 @@ body.stage-locked { overflow: hidden; }
     max-height: 80vh;
   }
 }
+
+/* 舞台滚动条主题：暗底配细轨 + sacc 滑块（WebKit/Blink + Firefox） */
+.stage-frame .stage-stage {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sline) transparent;
+}
+.stage-frame .stage-stage::-webkit-scrollbar { width: 10px; }
+.stage-frame .stage-stage::-webkit-scrollbar-track { background: transparent; }
+.stage-frame .stage-stage::-webkit-scrollbar-thumb {
+  background: var(--sline);
+  border: 2px solid var(--stage-bg);
+  border-radius: 0;
+}
+.stage-frame .stage-stage::-webkit-scrollbar-thumb:hover { background: var(--sacc); }
