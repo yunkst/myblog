@@ -137,10 +137,12 @@ export function ExploreRouter({ config, children }: Props) {
     setPanelOpen(false)
   }, [history, config.entry])
 
+  /* activeIdRef 守卫替代闭包依赖：onActivate 引用稳定，
+   * 跳幕时不因 onActivate 新引用把 runtime（连带全部 Answer）拉进重渲染（T5 评审 I1） */
   const onActivate = useCallback((id: string, skip: () => void) => {
-    if (id !== activeId) return
+    if (id !== activeIdRef.current) return
     skipRef.current = skip
-  }, [activeId])
+  }, [])
 
   const runtime = useMemo<ExploreRuntime>(() => ({
     activeId,

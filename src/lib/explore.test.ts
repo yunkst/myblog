@@ -69,7 +69,7 @@ describe('parseExploreYaml v2', () => {
 })
 
 describe('parseExploreYaml v4 mode 字段', () => {
-  const yamlWithMode = (m: string) => `title: t\nentry: a\nscenes:\n  - { id: a, label: x, demo: d, mode: ${m} }\n`
+  const yamlWithMode = (m: string | number) => `title: t\nentry: a\nscenes:\n  - { id: a, label: x, demo: d, mode: ${m} }\n`
 
   it('mode 字段：合法值 1/2/3/缺省', () => {
     for (const m of [undefined, 1, 2, 3]) {
