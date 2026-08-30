@@ -19,13 +19,13 @@ interface Props {
   choicesRef: RefObject<HTMLElement | null>
   /** 全屏 mode 1 用的舞台 ref（Answer 的 .stage 容器） */
   stageRef?: RefObject<HTMLElement | null>
+  /** v7 三原则 2 全屏单点所有权：申请进入/退出全屏（Answer 持有 fullscreen
+   * state → section 落 data-fullscreen 属性）。Director 不再操纵 DOM class。 */
+  onFullscreen?: (on: boolean) => void
   children: ReactNode
   /** 挂载时调一次：把 skip API 交给父（ExploreRouter 存进 skipRef） */
   onReady?: (api: { skip(): void }) => void
 }
-
-/** mode 1 全屏 class（CSS 由 Task 6 写） */
-const FULLSCREEN_CLASS = 'stage--fullscreen'
 
 /** 同 Answer/useTypewriter：含媒体子元素的段落整段跳过打字（final review B2 同款） */
 const MEDIA_SELECTOR = 'img, svg, figure, table, ul, ol, video, canvas'
@@ -36,12 +36,12 @@ const FINISHED_SELECTOR = '[data-finished]'
 /**
  * v4 Director：mode 1/2/3 演出编排 + 点击 skip。
  *
- * - mode 1：stage 加全屏 class → demo 先（等 data-finished）→ 缩窗 tween
- *   （scale 1.4 → 1，tween 完成后移除全屏 class）→ 文字 → choices
+ * - mode 1：onFullscreen(true) → demo 先（等 data-finished）→ 缩窗 tween
+ *   （scale 1.4 → 1，tween 完成后 onFullscreen(false) 退出全屏）→ 文字 → choices
  * - mode 2：act-head fade → dialogue 打字链 → demo → choices（默认）
  * - mode 3：纯文字（refuse 幕等无 demo 场景；.stage 容器由 Answer 决定是否渲染）
- * - skip()：当前进行中的 timeline 全部 progress(1)（触发下一段接力）+ 立即移除全屏 class；
- *   用快照迭代——onComplete 接力新建的 timeline 保持正常速度播放，点击逐段推进。
+ * - skip()：当前进行中的 timeline 全部 progress(1)（触发下一段接力）+ onFullscreen(false)
+ *   申请退出全屏；用快照迭代——onComplete 接力新建的 timeline 保持正常速度播放，点击逐段推进。
  * - demo 完成等待：MutationObserver 监听 stage 容器子树里 data-finished 出现
  *   （SceneClip onComplete 时 setAttribute）；15 秒超时兜底（覆盖最长真实 demo 7.3s + 余量）。
  * - onReady 只在挂载/scene 变化时经 ref 调用——父组件传内联箭头也不会导致
@@ -55,6 +55,7 @@ export function Director({
   dlgRef,
   choicesRef,
   stageRef,
+  onFullscreen,
   children,
   onReady,
 }: Props) {
@@ -62,6 +63,10 @@ export function Director({
   // 经 ref 调用，避免 onReady 身份变化触发演出重建
   const onReadyRef = useRef(onReady)
   useEffect(() => { onReadyRef.current = onReady })
+  /* v7 三原则 2：onFullscreen 同样走 ref——Answer 传内联 setFullscreen，
+   * 身份每次渲染都变，直连会让演出在每次重渲染时重建。 */
+  const onFullscreenRef = useRef(onFullscreen)
+  useEffect(() => { onFullscreenRef.current = onFullscreen })
 
   /* useLayoutEffect（非 useEffect）：演出必须在 paint 之前启动——
    * SSR 直出「终态」HTML（dialogue 全文可见 / chips opacity 1）后，
@@ -219,7 +224,10 @@ export function Director({
       if (scene.mode === 1) {
         // mode 1：全屏 demo 先 → 缩窗 → 文字 → choices
         const stage = stageRef?.current ?? null
-        if (stage) stage.classList.add(FULLSCREEN_CLASS)
+        /* v7 三原则 2：全屏申请改走回调（Answer 落 data-fullscreen 属性），
+         * 仍是 useLayoutEffect 内同步调用——React 在 paint 前同步 flush，
+         * 首帧即全屏（layout 阶段语义不变）。 */
+        if (stage) onFullscreenRef.current?.(true)
         await playDemo()
         if (cancelled) return
         if (stage) {
@@ -231,7 +239,7 @@ export function Director({
            * 注释声称「几何中心保持连续」不成立（双列 grid 下左列中心 ≠ 视口中心）。
            *
            * 新法：全屏期间保持 fixed 不动，缩放全程锚点=视口中心（连续）；
-           * scale 缩到 1（tween 完成）后，再一次性摘 class + 清内联 transform——
+           * scale 缩到 1（tween 完成）后，再一次性回调退出全屏 + 清内联 transform——
            * 此时元素已是 1:1 尺寸，从视口切回左列是同尺寸归位，无放大/缩小跳变。 */
           const tween = gsap.fromTo(
             stage,
@@ -240,11 +248,11 @@ export function Director({
           )
           if (!cancelled) tls.current.push(tween)
           await tween.then().then(() => undefined)
-          /* tween 完成、scale=1：此刻摘 class 归位是 1:1 同尺寸切换，
+          /* tween 完成、scale=1：此刻退出全屏（回调归位）是 1:1 同尺寸切换，
            * 再清掉 GSAP 写的内联 transform（避免残留 scale/transformOrigin 影响
            * grid 布局与后续动画）。 */
           if (!cancelled) {
-            stage.classList.remove(FULLSCREEN_CLASS)
+            onFullscreenRef.current?.(false)
             gsap.set(stage, { clearProps: 'transform,transformOrigin' })
           }
         }
@@ -282,12 +290,12 @@ export function Director({
     void run()
 
     // skip：快照迭代当前 timeline 全部 progress(1)（onComplete 接力出的下一段
-    // 保持正常速播，点击逐段推进）+ 立即摘全屏 class
+    // 保持正常速播，点击逐段推进）+ 申请退出全屏
     const skip = () => {
       for (const tl of [...tls.current]) tl.progress(1)
       const stage = stageRef?.current ?? null
-      if (stage?.classList.contains(FULLSCREEN_CLASS)) {
-        stage.classList.remove(FULLSCREEN_CLASS)
+      if (stage) {
+        onFullscreenRef.current?.(false)
         gsap.set(stage, { clearProps: 'transform,transformOrigin' })
       }
     }
@@ -300,8 +308,8 @@ export function Director({
       demoWait.observer?.disconnect()
       window.clearTimeout(demoWait.timer)
       const stage = stageRef?.current ?? null
-      if (stage?.classList.contains(FULLSCREEN_CLASS)) {
-        stage.classList.remove(FULLSCREEN_CLASS)
+      if (stage) {
+        onFullscreenRef.current?.(false)
         gsap.set(stage, { clearProps: 'transform,transformOrigin' })
       }
     }

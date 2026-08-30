@@ -873,7 +873,9 @@ body.stage-locked { overflow: hidden; }
    * overflow-y: scroll 强制留出滚动条槽避免内容抖动；
    * scrollbar-gutter: stable 短幕时槽位空置但不消失。
    * 水平方向 hidden——表格等内容超宽按舞台宽截断，不出横向滚动条。
-   * v5 追加（用户裁定）：不设 max-width，内容撑满舞台可用宽度。 */
+   * v5 追加（用户裁定）：不设 max-width，内容撑满舞台可用宽度。
+   * v7 三原则 2：本元素是全屏包含块不变量契约的成员（禁止 transform，
+   * 见 .theater[data-fullscreen] > .stage 规则处注释）。 */
   overflow-y: scroll; overflow-x: hidden;
   scrollbar-gutter: stable;
   display: flex; flex-direction: column; align-items: center;
@@ -887,7 +889,9 @@ body.stage-locked { overflow: hidden; }
    * - 文本宽 max 720px（含 padding）——避免全屏阅读拉得过宽
    * 单列场景（含/不含 .stage 都成立）：align-items 居中后文本列固定宽。
    * v7 布局显式化（三原则 1）：单列/双列由 Answer 声明的 modifier class 决定
-   * （clips.length > 0 ⇔ 渲染 .stage ⇔ theater--dual），不再用 :has() 探测 DOM。 */
+   * （clips.length > 0 ⇔ 渲染 .stage ⇔ theater--dual），不再用 :has() 探测 DOM。
+   * v7 三原则 2：本元素是全屏包含块不变量契约的成员（禁止 transform，
+   * 见 .theater[data-fullscreen] > .stage 规则处注释）。 */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
@@ -918,15 +922,19 @@ body.stage-locked { overflow: hidden; }
 .stage-frame .theater.theater--dual > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
 .stage-frame .theater.theater--dual > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
 
-/* ExploreRouter 根容器（display: contents 让 children 直接参与父布局） */
+/* ExploreRouter 根容器（display: contents 让 children 直接参与父布局）。
+ * v7 三原则 2：本元素在全屏包含块不变量的祖先链上（禁止 transform，见
+ * .theater[data-fullscreen] > .stage 规则处注释）。 */
 .stage-frame .explore-router { display: contents; }
 
 @keyframes v4-scene-in {
   /* 仅 opacity 入场，不用 transform：
    * v6 review fix —— 若 from 带 translateY(8px)，动画播放期间 .theater 有 transform，
-   * 会劫持内部 .stage--fullscreen 的 position:fixed 包含块（fixed 相对最近 transform
+   * 会劫持内部全屏 .stage 的 position:fixed 包含块（fixed 相对最近 transform
    * 祖先定位）→ 全屏退化半屏（实测 887px vs 视口 1920px）。去掉后 .theater 永无
-   * transform，fullscreen 始终相对视口。入场微位移的观感由 opacity 节奏补偿。 */
+   * transform，fullscreen 始终相对视口。入场微位移的观感由 opacity 节奏补偿。
+   * v7：该约束已上升为包含块不变量契约，见 `.theater[data-fullscreen] > .stage`
+   * 规则处注释（祖先链 .theater/.stage-stage/.explore-router 禁止 transform）。 */
   from { opacity: 0; }
   to   { opacity: 1; }
 }
@@ -1045,8 +1053,19 @@ body.stage-locked { overflow: hidden; }
 /* v3 final review B1：暗色探索页内归零 v2 answer-block 左竖线样式 */
 .stage-frame .answer-block { border-left: 0; padding-left: 0; margin: 54px 0; }
 
-/* mode 1 全屏：直角 + 无投影 */
-.stage-frame .stage--fullscreen {
+/* v7 三原则 2 全屏单点所有权：mode 1 全屏改为属性驱动——Director 经 onFullscreen
+ * 回调申请，Answer 持有 state 落成 .theater 的 data-fullscreen 属性，本规则随之生效；
+ * Director 不再操纵 stage--fullscreen class。
+ * 声明照搬旧 .stage--fullscreen（fixed 全屏 + 直角 + 无投影）。
+ *
+ * ── 包含块不变量 ─────────────────────────────────────────────
+ * position: fixed 的包含块 = 最近 transform/filter/perspective/will-change 祖先。
+ * 祖先链 .theater → .stage-stage → .explore-router 禁止任何 transform 类属性——
+ * 一旦出现，本规则的全屏会退化为「相对该祖先的伪全屏」（v6 实测 887px vs 视口
+ * 1920px）。改动祖先链时必须复查：.theater 的 v4-scene-in 动画只允许 opacity；
+ * .stage-stage/.explore-router 只允许 display/flex 框架属性。
+ * ──────────────────────────────────────────────────────────── */
+.stage-frame .theater[data-fullscreen] > .stage {
   position: fixed;
   inset: 0;
   z-index: 50;
