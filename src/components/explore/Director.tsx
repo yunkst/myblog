@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react'
 import gsap from 'gsap'
 import { buildTypewriterTimeline } from './useTypewriter'
 import { getSceneClipApi } from './sceneClipRegistry'
@@ -42,7 +42,7 @@ const FINISHED_SELECTOR = '[data-finished]'
  * - skip()：当前进行中的 timeline 全部 progress(1)（触发下一段接力）+ 立即移除全屏 class；
  *   用快照迭代——onComplete 接力新建的 timeline 保持正常速度播放，点击逐段推进。
  * - demo 完成等待：MutationObserver 监听 stage 容器子树里 data-finished 出现
- *   （SceneClip onComplete 时 setAttribute）；3 秒超时兜底防死等。
+ *   （SceneClip onComplete 时 setAttribute）；15 秒超时兜底（覆盖最长真实 demo 7.3s + 余量）。
  * - onReady 只在挂载/scene 变化时经 ref 调用——父组件传内联箭头也不会导致
  *   每次重渲染都重建演出。
  * - GSAP `.then()`：animation 完成时 resolve（gsap core 自带 Promise），无需包裹。
@@ -62,16 +62,38 @@ export function Director({
   const onReadyRef = useRef(onReady)
   useEffect(() => { onReadyRef.current = onReady })
 
-  useEffect(() => {
+  /* useLayoutEffect（非 useEffect）：演出必须在 paint 之前启动——
+   * SSR 直出「终态」HTML（dialogue 全文可见 / chips opacity 1）后，
+   * useEffect 在 paint 之后才跑，用户会先看到全文再被打回原态（视觉跳跃）。
+   * hydration 后第一时间在 layout 与 paint 之间压回隐藏，消除中间帧（C2+I1 fix round）。 */
+  useLayoutEffect(() => {
     const reduced =
       typeof matchMedia !== 'undefined' &&
       matchMedia('(prefers-reduced-motion: reduce)').matches
 
     if (reduced) {
-      // 直出终态，无演出；skip 交给父一个 noop
+      // 直出终态，无演出（不做 gsap.set——保留 SSR 直出终态的语义）；skip 交给父一个 noop
       onReadyRef.current?.({ skip: () => {} })
       return
     }
+
+    /* 演出开始前（fadeIn 调起前）把 SSR 直出的「终态」先压回隐藏——
+     * head / dialogue 段落 / choices chips 逐个交由演出链揭示。
+     * dialogue 选择器必须同时覆盖 mode 2 段落与 mode 3 纯文字幕（两者都走打字机）；
+     * 保留 img/figure 等媒体子元素的原生可见性（打字机整段跳过它们，同步 set 隐藏后由
+     * tl.play(0) 的段落时间线立即揭示）。 */
+    const hideTargets: HTMLElement[] = []
+    const headEl = headRef.current
+    if (headEl) hideTargets.push(headEl)
+    const dlg = dlgRef.current
+    if (dlg) {
+      hideTargets.push(...dlg.querySelectorAll<HTMLElement>(':scope > *'))
+    }
+    const choicesEl = choicesRef.current
+    if (choicesEl) {
+      hideTargets.push(...choicesEl.querySelectorAll<HTMLElement>('.exit-chip'))
+    }
+    if (hideTargets.length > 0) gsap.set(hideTargets, { opacity: 0 })
 
     /* playDemo 的等待句柄：cleanup 时撤销（observer 断开 / timer 清掉） */
     const demoWait: { observer: MutationObserver | null; timer: number } = {
@@ -123,7 +145,8 @@ export function Director({
      * - data-finished 由 SceneClip 的 demo timeline onComplete 设置（可能在嵌套的
      *   .scene-clip 容器上 → 必须 subtree 监听）。
      * - IO 自动播放可能已让 demo 播完（data-finished 已在）→ 立即返回。
-     * - 3 秒超时兜底：极长 demo 也保证演出链不卡死。
+     * - 15 秒超时兜底：覆盖最长真实 demo（ai-digital-employee q-problem 7.3s +
+     *   余量）+ 防极端卡死；C2 fix round 前为 3s，会截断长 demo 导致打字机从中段开始。
      */
     const playDemo = (): Promise<void> => {
       const api = getSceneClipApi(scene.demo)
@@ -138,7 +161,7 @@ export function Director({
           window.clearTimeout(demoWait.timer)
           resolve()
         }
-        demoWait.timer = window.setTimeout(finish, 3000)
+        demoWait.timer = window.setTimeout(finish, 15000)
         const observer = new MutationObserver(() => {
           if (container.querySelector(FINISHED_SELECTOR)) finish()
         })

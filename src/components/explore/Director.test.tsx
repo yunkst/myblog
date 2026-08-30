@@ -183,4 +183,63 @@ describe('Director', () => {
     api.skip()
     expect(stage.current!.classList.contains('stage--fullscreen')).toBe(false)
   })
+
+  /* C2+I1 fix round：
+   * - 演出开始前 SSR 直出的「终态」必须先压回隐藏（gsap.set opacity 0），
+   *   否则用户先看到 dialogue 全文 / chips opacity 1 再被打回原态（视觉跳跃）。
+   * - head / dialogue 段落 / choices chips 都应被隐藏。
+   * - 演出链路（fadeIn + 打字机 + choicesRise）随后逐个揭示到终态。
+   */
+  it('演出开始前同步 gsap.set 隐藏 head / dialogue 段落 / choices chips（C2+I1 fix round）', () => {
+    const head = makeRef<HTMLElement>()
+    const dlg = makeRef<HTMLElement>()
+    dlg.current!.innerHTML = '<p>第一段</p><p>第二段</p>'
+    const choices = makeRef<HTMLElement>()
+    choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a><a class="exit-chip" href="#y">b</a>'
+    const stage = makeRef<HTMLElement>()
+
+    const scene: DirectorScene = { id: 'q-hide', mode: 2, demo: 'demo-not-registered' }
+    render(
+      <Director
+        scene={scene}
+        headRef={head}
+        dlgRef={dlg}
+        choicesRef={choices}
+        stageRef={stage}
+      >
+        <span>x</span>
+      </Director>,
+    )
+    // gsap.set 把目标 opacity 压成 0；useLayoutEffect 在 render 同步阶段后跑
+    expect(gsap.getProperty(head.current!, 'opacity')).toBe(0)
+    expect(gsap.getProperty(dlg.current!.querySelector('p')!, 'opacity')).toBe(0)
+    expect(gsap.getProperty(choices.current!.querySelector('.exit-chip')!, 'opacity')).toBe(0)
+  })
+
+  it('reduced-motion 不做 gsap.set：保留 SSR 直出终态（opacity 1 默认）', () => {
+    mockedReduce.value = true
+    const head = makeRef<HTMLElement>()
+    const dlg = makeRef<HTMLElement>()
+    dlg.current!.innerHTML = '<p>唯一</p>'
+    const choices = makeRef<HTMLElement>()
+    choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+    const stage = makeRef<HTMLElement>()
+
+    const scene: DirectorScene = { id: 'q-reduced', mode: 2, demo: 'demo-not-registered' }
+    render(
+      <Director
+        scene={scene}
+        headRef={head}
+        dlgRef={dlg}
+        choicesRef={choices}
+        stageRef={stage}
+      >
+        <span>x</span>
+      </Director>,
+    )
+    // reduced-motion 下不做 gsap.set：元素 style 上无 GSAP 内联痕迹（保留 SSR 直出终态）
+    expect(head.current!.style.cssText).toBe('')
+    expect(dlg.current!.querySelector('p')!.style.cssText).toBe('')
+    expect(choices.current!.querySelector<HTMLElement>('.exit-chip')!.style.cssText).toBe('')
+  })
 })
