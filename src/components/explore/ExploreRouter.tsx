@@ -5,7 +5,6 @@ import {
   type ExploreRuntime,
 } from './AnswerContext'
 import { useHistoryStack } from './useHistoryStack'
-import { readSeenScenes, writeSeenScenes } from './seenScenes'
 import HistoryPanel from './HistoryPanel'
 import { useKeyboardShortcuts } from './useKeyboardShortcuts'
 import { resolveExploreHref } from '../../lib/explore'
@@ -49,15 +48,30 @@ const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .chip-p
 export function ExploreRouter({ config, children, onExit }: Props) {
   const [activeId, setActiveId] = useState(() => currentSceneId(config))
   const [panelOpen, setPanelOpen] = useState(false)
+  /* v5 fix round：firstActivation 不再读 sessionStorage。
+   *
+   * 历史问题：useState 初始化从 sessionStorage 读 seen，导致用户在某个标签页
+   * 看过 entry 后刷新页面再也看不到 mode 1 演出（firstActivation[id]=false → Director
+   * 不挂载）。这是 v4 spec §3.3「不重播已看过」的副作用，但用户体验差且无 UI 复位。
+   *
+   * 新语义：firstActivation 只跟踪**本次组件生命周期**内的「首次激活」。
+   * - 初始：所有幕 firstActivation=true（刷新页面 = 重看所有演出）
+   * - goTo / hash change 跳到某幕后：firstActivation[id]=false（切过的不重演）
+   * - 组件 unmount（退出舞台）后：状态自然丢失，下次进再从全 true 开始
+   *
+   * 履历栈（useHistoryStack）仍走 sessionStorage —— 那是用户跨刷新保留的访问历史，
+   * 与"演出是否重播"无关。
+   *
+   * 不再需要 readSeenScenes / writeSeenScenes 这两个调用点（保留导出供未来其他用途）。 */
   const [firstActivation, setFirstActivation] = useState<Record<string, boolean>>(() => {
-    const seen = readSeenScenes(config.title)
     const init: Record<string, boolean> = {}
-    for (const s of config.scenes) init[s.id] = !seen.has(s.id)
+    for (const s of config.scenes) init[s.id] = true
     return init
   })
   const history = useHistoryStack(config.title)
   const skipRef = useRef<() => void>(() => {})
-  const seenRef = useRef<Set<string>>(readSeenScenes(config.title))
+  /** v5 fix round：本会话内已激活过的幕 id 集合（用于 firstActivation 切 false） */
+  const activatedRef = useRef<Set<string>>(new Set())
   /** Stage onExit ref（模式同 skipRef/stackRef）：useRef(onExit) + useEffect 同步最新值 */
   const onExitRef = useRef(onExit)
   useEffect(() => { onExitRef.current = onExit }, [onExit])
@@ -73,13 +87,15 @@ export function ExploreRouter({ config, children, onExit }: Props) {
 
   /* 初次挂载：无条件以 activeId 重置履历栈 + 给 main 加 data-has-router + body 加 stage-locked
    * （C1 fix round：sessionStorage 残留旧栈会让 ◀ 返回跳到上次会话的旧幕，
-   *  履历栈语义是「本次会话的点击路径」，跨会话残留必须清空） */
+   *  履历栈语义是「本次会话的点击路径」，跨会话残留必须清空）
+   *
+   * v5 fix round：firstActivation 改为本次生命周期内跟踪 → 刷新页面所有幕重演。
+   * 此 effect 仅负责履历栈重置 + DOM 标记 + 当前幕的激活标记。 */
   useEffect(() => {
     history.reset(activeId)
-    if (!seenRef.current.has(activeId)) {
-      seenRef.current.add(activeId)
-      writeSeenScenes(config.title, seenRef.current)
-    }
+    /* 标记当前 activeId 为已激活（避免 mount 完立即把 firstActivation 切 false；
+     * 让用户在 mount 后那一帧看到完整演出）——hash 监听与 goTo 路径会切。 */
+    activatedRef.current.add(activeId)
     document.querySelector('main.stage-frame')?.setAttribute('data-has-router', '')
     document.body.classList.add('stage-locked')
     return () => {
@@ -90,16 +106,15 @@ export function ExploreRouter({ config, children, onExit }: Props) {
   }, [])
 
   /* hash 监听：用户手动改 URL / 浏览器前进后退——只 setActiveId，不入履历栈
-   * （履历栈只反映用户的显式 goTo）。 */
+   * （履历栈只反映用户的显式 goTo）。
+   *
+   * v5 fix round：hash 跳转后该幕标记为已激活，不重演演出。 */
   useEffect(() => {
     const onHash = () => {
       const next = currentSceneId(config)
       setActiveId((prev) => (prev === next ? prev : next))
-      if (!seenRef.current.has(next)) {
-        seenRef.current.add(next)
-        writeSeenScenes(config.title, seenRef.current)
-        setFirstActivation((m) => (m[next] ? m : { ...m, [next]: true }))
-      }
+      activatedRef.current.add(next)
+      setFirstActivation((m) => ({ ...m, [next]: false }))
     }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
@@ -128,11 +143,14 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     window.history.pushState(null, '', `#${id}`)
     history.push(id)
     setActiveId(id)
-    if (!seenRef.current.has(id)) {
-      seenRef.current.add(id)
-      writeSeenScenes(config.title, seenRef.current)
-      setFirstActivation((m) => (m[id] ? m : { ...m, [id]: true }))
+    /* v5 fix round：主动 goTo 跳到某幕——
+     *  - 若该幕本会话**未到过**(activatedRef 没有 id) → 保留 firstActivation[id]=true（首次演出）
+     *  - 否则 → firstActivation[id]=false（回看不重演）
+     * 刷新页面 = activatedRef 是新的空 Set → 所有幕都按"首次激活"处理。 */
+    if (activatedRef.current.has(id)) {
+      setFirstActivation((m) => ({ ...m, [id]: false }))
     }
+    activatedRef.current.add(id)
     setPanelOpen(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history])

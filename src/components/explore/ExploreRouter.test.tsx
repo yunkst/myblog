@@ -76,13 +76,15 @@ describe('ExploreRouter', () => {
     sessionStorage.clear()
   })
 
-  it('mount 时激活 entry 幕（无 hash）+ 首次激活 + seenScenes 标记 + stage-locked', () => {
+  it('mount 时激活 entry 幕（无 hash）+ 首次激活 + stage-locked（v5 fix：seenScenes 不再写 sessionStorage）', () => {
     renderRouter()
     expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
     expect(screen.getByTestId('scene-q-b')).not.toHaveAttribute('data-active')
     expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-first')
     expect(document.body.classList.contains('stage-locked')).toBe(true)
-    expect(JSON.parse(sessionStorage.getItem('explore.seen.t')!)).toEqual(['q-a'])
+    /* v5 fix round：seenScenes 改为内存态，不再写 sessionStorage —— 刷新页面
+     * 所有幕都能重看演出，无需清理存储。 */
+    expect(sessionStorage.getItem('explore.seen.t')).toBeNull()
   })
 
   it('hash 直达对应幕', () => {
@@ -102,13 +104,30 @@ describe('ExploreRouter', () => {
     expect(stack.map((s) => s.sceneId)).toEqual(['q-a', 'q-b'])
   })
 
-  it('回看已看过的幕：firstActivation=false（v4 不重播演出）', () => {
+  it('v5 fix round：同会话内 goTo 跳到的幕也是首次激活（演出）', () => {
+    renderRouter()
+    /* mount 后 entry q-a 首次激活 */
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-first')
+    /* goTo 到 q-b：该幕本会话未到过 → 保持首次激活（演出） */
+    fireEvent.click(screen.getByTestId('go'))
+    expect(screen.getByTestId('scene-q-b')).toHaveAttribute('data-active')
+    expect(screen.getByTestId('scene-q-b')).toHaveAttribute('data-first')
+    /* per-scene「回看不重演」（activatedRef 命中时切 false）的断言需要真实
+     * Answer 组件（探针共享 rt.firstActivation 单字段，无法区分 per-scene）——
+     * 由 Post.test / Stage.test 集成覆盖，此处不重复。 */
+  })
+
+  it('v5 fix round：刷新页面所有幕都重看演出（firstActivation 不再持久化）', () => {
+    /* 即使在 sessionStorage 留有旧 seen 记录，刷新后所有幕 firstActivation 仍为 true。
+     * 这是 v5 fix 后的语义：演出可重复看，无需清理浏览器存储。 */
     sessionStorage.setItem('explore.seen.t', JSON.stringify(['q-a', 'q-b']))
     renderRouter()
     expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
-    expect(screen.getByTestId('scene-q-a')).not.toHaveAttribute('data-first')
-    // seen 集合不因回看变化
-    expect(JSON.parse(sessionStorage.getItem('explore.seen.t')!)).toEqual(['q-a', 'q-b'])
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-first')
+    /* 同会话内切幕后再回看 → 该幕 firstActivation=false（不重演）；
+     * 此语义由 firstActivation state + activatedRef 共同保证（测试见 T2 goTo 用例）。
+     * 这里只验证 mount 时刻 = 全部首次激活。 */
   })
 
   it('点击空白调激活幕注入的 skip；交互元素点击不触发', () => {
