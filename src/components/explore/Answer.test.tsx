@@ -339,9 +339,16 @@ describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/
     const runtime = runtimeProvider({ activeId: 'q-fs', firstActivation: true, onActivate: () => {} })
     /* jsdom 无 IntersectionObserver → 真实 SceneClip 的 useEffect 在 IO 检查处早退、
      * 不注册 API。Director.playDemo 的 waitForApi 拿不到 API 会轮询到 2s 兜底——
-     * 测试注册一个假 API + 预置 data-finished（SceneClip demo onComplete 时
-     * setAttribute 的同一属性），让 playDemo 立即返回，演出纯 GSAP 推进到缩窗完成。 */
-    const unregister = registerSceneClip('demo-fs', { play() {}, pause() {}, replay() {} })
+     * 测试注册一个假 API（v7 Task 3 promise 化：play() 返回 Promise<void>，
+     * finished()=true 表示已 finished，Director 立即跳过）+ 预置 data-finished
+     * （SceneClip demo onComplete 时 setAttribute 的同一属性），让 playDemo
+     * 立即返回，演出纯 GSAP 推进到缩窗完成。 */
+    const unregister = registerSceneClip('demo-fs', {
+      play: () => Promise.resolve(),
+      pause: () => {},
+      replay: () => {},
+      finished: () => true,
+    })
     try {
       const { container } = render(
         <ExploreRuntimeContext.Provider value={runtime}>

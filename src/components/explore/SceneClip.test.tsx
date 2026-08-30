@@ -59,6 +59,7 @@ describe('SceneClip v4 imperative API', () => {
     expect(typeof api!.play).toBe('function')
     expect(typeof api!.pause).toBe('function')
     expect(typeof api!.replay).toBe('function')
+    expect(typeof api!.finished).toBe('function')
     unmount()
     expect(getSceneClipApi('message-flood')).toBeUndefined()
   })
@@ -66,7 +67,13 @@ describe('SceneClip v4 imperative API', () => {
   it('注册的 api 方法能驱动 demo timeline（play 后进入播放或已推进）', () => {
     const { unmount } = render(<SceneClip demo="message-flood" />)
     const api = getSceneClipApi('message-flood')!
-    expect(() => { api.play(); api.pause(); api.replay() }).not.toThrow()
+    /* v7 Task 3：play() 返回 Promise<void>——fire-and-forget 也安全
+     * （Director 端 await，本测试不关心 resolve 时序，只验证不抛错） */
+    expect(() => {
+      void api.play()
+      api.pause()
+      api.replay()
+    }).not.toThrow()
     unmount()
   })
 
@@ -84,5 +91,50 @@ describe('SceneClip v4 imperative API', () => {
     expect(getSceneClipApi('message-flood')).toBeUndefined()
     unmountSecond()
     expect(getSceneClipApi('badge-metaphor')).toBeUndefined()
+  })
+
+  /* v7 Task 3（demo API promise 化）：play() 返回 Promise<void>，
+   * onComplete 时 resolve——Director 经 `await api.play()` 等 demo 完成，
+   * 不再用 MutationObserver + 15s 超时兜底。 */
+  it('play() 返回 Promise<void>（类型契约）', async () => {
+    const { unmount } = render(<SceneClip demo="message-flood" />)
+    const api = getSceneClipApi('message-flood')!
+    const p = api.play()
+    /* 返回 Promise（A.then 是函数）——await Director 端的契约依据 */
+    expect(p).toBeInstanceOf(Promise)
+    expect(typeof p.then).toBe('function')
+    /* 不消费 promise 会触发「unhandled rejection」警告——显式 noop 后 unmount，
+     * unmount 时 handle.kill 触发 onKill → resolve，promise 正常 settle */
+    p.then(() => {}, () => {})
+    unmount()
+  })
+
+  /* v7 Task 3：unmount（cleanup 兜底）后挂起的 play promise 也 resolve，
+   * 防止 Director 在快速切幕时 await 悬挂。 */
+  it('unmount（cleanup 兜底）后挂起的 play promise 也 resolve', async () => {
+    const { unmount } = render(<SceneClip demo="message-flood" />)
+    const api = getSceneClipApi('message-flood')!
+    let resolved = false
+    const p = api.play().then(() => { resolved = true })
+    // 还未自然完成
+    expect(resolved).toBe(false)
+    // unmount → handle.kill() → tl.kill() → onKill → resolve
+    unmount()
+    await p
+    expect(resolved).toBe(true)
+  })
+
+  /* v7 Task 3：已 finished 的实例 play() 直接 resolve（不重播、不挂 resolver）。 */
+  it('finished()=true 时 play() 立即 resolve，不重播 timeline', async () => {
+    const { unmount } = render(<SceneClip demo="message-flood" />)
+    const api = getSceneClipApi('message-flood')!
+    /* 直接推进 global timeline 到 1，触发 message-flood demo 的 onComplete，
+     * setFinishedAndResolve 会落 data-finished，finished() 应返回 true */
+    gsap.globalTimeline.progress(1)
+    expect(api.finished()).toBe(true)
+    let resolved = false
+    await api.play().then(() => { resolved = true })
+    expect(resolved).toBe(true)
+    unmount()
   })
 })

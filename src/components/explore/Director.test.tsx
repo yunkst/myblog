@@ -3,6 +3,7 @@ import { render } from '@testing-library/react'
 import gsap from 'gsap'
 import { Director, type DirectorScene } from './Director'
 import { buildTypewriterTimeline } from './useTypewriter'
+import { registerSceneClip } from './sceneClipRegistry'
 
 /** jsdom 无真实 layout；matchMedia mock 成 reduce 与非 reduce 两态（与 useTypewriter.test.ts 同款） */
 const mockedReduce = vi.hoisted(() => ({ value: false }))
@@ -393,6 +394,45 @@ describe('Director', () => {
        * 并通过 onComplete 接力推进,挂出新 tween */
       await vi.advanceTimersByTimeAsync(100)
       expect(gsap.globalTimeline.getChildren(true, true, true).length).toBe(afterUnmount)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  /* v7 Task 3（demo API promise 化）：注册已 finished 的假 API 时，
+   * playDemo 走 early-return 路径（不调 api.play()、不挂 promise）——
+   * 测试用 vi.fn 验证 api.play() 没被调用，演出照常推进。 */
+  it('api.finished()=true 时 playDemo 不调 api.play()（early-return 路径）', async () => {
+    vi.useFakeTimers()
+    try {
+      const head = makeRef<HTMLElement>()
+      const dlg = makeRef<HTMLElement>()
+      dlg.current!.innerHTML = '<p>唯一</p>'
+      const choices = makeRef<HTMLElement>()
+      choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+      const stage = makeRef<HTMLElement>()
+
+      const playSpy = vi.fn(() => new Promise<void>(() => { /* 永不 resolve——验证不被调用 */ }))
+      const unregister = registerSceneClip('demo-finished', {
+        play: playSpy,
+        pause: () => {},
+        replay: () => {},
+        finished: () => true,
+      })
+      try {
+        const scene: DirectorScene = { id: 'q-finished', mode: 2, demo: 'demo-finished' }
+        render(
+          <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+            <span>x</span>
+          </Director>,
+        )
+        /* rAF 轮询到 2s 兜底超时（playDemo 完成） */
+        await vi.advanceTimersByTimeAsync(2500)
+        /* 验证 api.play() 从未被调用（finished()=true 早 return） */
+        expect(playSpy).not.toHaveBeenCalled()
+      } finally {
+        unregister()
+      }
     } finally {
       vi.useRealTimers()
     }
