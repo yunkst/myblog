@@ -69,4 +69,20 @@ describe('SceneClip v4 imperative API', () => {
     expect(() => { api.play(); api.pause(); api.replay() }).not.toThrow()
     unmount()
   })
+
+  /* I2 fix round：mount → unregister → mount 第二个不同 demo → 原 demo 的 API 应被注销。
+   * 验证 SceneClip 的 unregister() 在 unmount 时确实清掉注册表项，避免旧 API 泄漏。 */
+  it('第一个 SceneClip unmount 后注册表不再保留旧 API；第二个不同 demo 注册独立项', () => {
+    const { unmount: unmountFirst } = render(<SceneClip demo="message-flood" />)
+    expect(getSceneClipApi('message-flood')).toBeDefined()
+    unmountFirst()
+    expect(getSceneClipApi('message-flood')).toBeUndefined()
+
+    // 第二个不同 demo 注册：与已注销的 message-flood 互不污染
+    const { unmount: unmountSecond } = render(<SceneClip demo="badge-metaphor" />)
+    expect(getSceneClipApi('badge-metaphor')).toBeDefined()
+    expect(getSceneClipApi('message-flood')).toBeUndefined()
+    unmountSecond()
+    expect(getSceneClipApi('badge-metaphor')).toBeUndefined()
+  })
 })

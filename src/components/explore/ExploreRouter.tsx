@@ -172,6 +172,9 @@ export function ExploreRouter({ config, children }: Props) {
         <div
           className="explore-router"
           onClick={(e) => {
+            // 文本选择守卫：拖选文字复制时 mousedown→mouseup 会触发 click，
+            // 误触 skip。getSelection 非空说明用户在做选区动作，放弃本次 skip（I3 fix round）。
+            if (typeof window !== 'undefined' && window.getSelection?.()?.toString() !== '') return
             if ((e.target as Element).closest(SKIP_IGNORE_SELECTOR)) return
             skipRef.current()
           }}

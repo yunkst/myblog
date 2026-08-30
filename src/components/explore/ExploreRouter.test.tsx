@@ -123,6 +123,41 @@ describe('ExploreRouter', () => {
     expect(skip).toHaveBeenCalledTimes(1)
   })
 
+  it('有文本选区时点击空白不触发 skip（拖选复制误触守卫，I3 fix round）', () => {
+    const skip = vi.fn()
+    function SkipProbe() {
+      const rt = useContext(ExploreRuntimeContext)
+      useEffect(() => {
+        if (rt?.activeId === 'q-a') rt.onActivate('q-a', skip)
+      })
+      return null
+    }
+    render(
+      <ExploreConfigContext.Provider value={config}>
+        <ExploreRouter config={config}>
+          <AnswerProbe id="q-a" />
+          <AnswerProbe id="q-b" />
+          <SkipProbe />
+        </ExploreRouter>
+      </ExploreConfigContext.Provider>,
+    )
+    // 模拟「拖选文字」：mock getSelection 返回非空文本
+    const realGetSelection = window.getSelection
+    const fakeSelection = { toString: () => '被选中的文字', addRange: () => {}, removeAllRanges: () => {} }
+    window.getSelection = vi.fn(() => fakeSelection as unknown as Selection)
+
+    // 有选区时点击容器 → 不触发 skip
+    fireEvent.click(document.querySelector('.explore-router')!)
+    expect(skip).not.toHaveBeenCalled()
+
+    // 清选区（mock 返回空串）→ 恢复正常 skip
+    ;(fakeSelection as { toString: () => string }).toString = () => ''
+    fireEvent.click(document.querySelector('.explore-router')!)
+    expect(skip).toHaveBeenCalledTimes(1)
+
+    window.getSelection = realGetSelection
+  })
+
   it('Esc 关闭履历面板；FAB 打开面板', () => {
     renderRouter()
     expect(document.querySelector('.history-panel')).toBeNull()
@@ -154,5 +189,71 @@ describe('ExploreRouter', () => {
     expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
     const stack = JSON.parse(sessionStorage.getItem('explore.history.t')!) as { sceneId: string }[]
     expect(stack.map((s) => s.sceneId)).toEqual(['q-a'])
+  })
+
+  /* I2 fix round：mount → push entry → goTo(b) → goTo(c) → back() → 回到 b（不是 a）；
+   * 连续 back 三次应在 entry 停下、FAB disable（栈长 1 不可再退）。 */
+  it('集成：goTo/goTo/back → 回前一项（不是 entry）；连续 back 停在 entry 并 disable FAB', () => {
+    const config3: ExploreConfig = {
+      title: 't3', entry: 'q-a',
+      scenes: [
+        { id: 'q-a', label: 'A', demo: 'da' },
+        { id: 'q-b', label: 'B', demo: 'db' },
+        { id: 'q-c', label: 'C', demo: 'dc' },
+      ],
+    }
+    function render3() {
+      return render(
+        <ExploreConfigContext.Provider value={config3}>
+          <ExploreRouter config={config3}>
+            <AnswerProbe id="q-a" />
+            <AnswerProbe id="q-b" />
+            <AnswerProbe id="q-c" />
+            <GoProbe target="q-b" />
+            <GoProbe target="q-c" />
+          </ExploreRouter>
+        </ExploreConfigContext.Provider>,
+      )
+    }
+    window.history.replaceState(null, '', '/blog/test3/')
+    sessionStorage.clear()
+    const { container } = render3()
+    // mount 后栈 [q-a]（reset），FAB disable
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+    const backBtn = () => screen.getByLabelText('返回上一幕')
+    expect(backBtn()).toBeDisabled()
+
+    // 手动 push 两次：q-b、q-c
+    fireEvent.click(screen.getByText('go q-b'))
+    fireEvent.click(screen.getByText('go q-c'))
+    expect(window.location.hash).toBe('#q-c')
+    expect(screen.getByTestId('scene-q-c')).toHaveAttribute('data-active')
+    // 栈 [q-a, q-b, q-c]，FAB enable
+    expect(backBtn()).not.toBeDisabled()
+
+    // 一次 back → 回 q-b（不是 q-a）
+    fireEvent.click(backBtn())
+    expect(window.location.hash).toBe('#q-b')
+    expect(screen.getByTestId('scene-q-b')).toHaveAttribute('data-active')
+    expect(screen.getByTestId('scene-q-a')).not.toHaveAttribute('data-active')
+
+    // 二次 back → 回 q-a
+    fireEvent.click(backBtn())
+    expect(window.location.hash).toBe('#q-a')
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+
+    // 三次 back → 栈长 1，pop 返回 undefined，hash 与激活幕不变
+    fireEvent.click(backBtn())
+    expect(window.location.hash).toBe('#q-a')
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+    // FAB disable（canPop = stack.length > 1）
+    expect(backBtn()).toBeDisabled()
+
+    // 栈确实只剩 1 项
+    const stack = JSON.parse(sessionStorage.getItem('explore.history.t3')!) as { sceneId: string }[]
+    expect(stack.map((s) => s.sceneId)).toEqual(['q-a'])
+
+    // 防止 ts-unused 警告（container 在断言间已隐式消费）
+    expect(container).toBeTruthy()
   })
 })
