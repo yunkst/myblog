@@ -1,8 +1,10 @@
 /**
  * v2 单页面方案：阅读与探索是同一页面——正文由 MDX 渲染，Answer 原位渲染为
- * 锚点块（#<id>，场景目录/出口 chips/首页按钮均指向它），场景动画经 SceneClip
- * 嵌入正文流；无独立探索路由、无 AnswerProvider 注册。
- * <main data-article-slug> 保留（SceneClip 反查当前文章依赖）。
+ * 锚点块（#<id>），场景动画经 SceneClip 嵌入正文流；<main data-article-slug> 保留
+ * （SceneClip 反查当前文章依赖）。
+ * v4（Task 5）：有 exploreConfig 时正文由 `<ExploreRouter>` 包裹——hash 路由 +
+ * 履历栈 + 单幕激活 + 点击跳过；无 explore 文章渲染路径完全不变。
+ * SceneToc 已随 v4 幕式导航退役（滚动定位语义被激活幕取代）。
  */
 import { useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
@@ -12,9 +14,9 @@ import { getPost, getAllPosts } from '../lib/content'
 import { registry } from '../components/blog-anim/registry'
 import { parseExploreYaml } from '../lib/explore'
 import type { ExploreConfig } from '../lib/types'
-import Answer, { ExploreConfigContext } from '../components/explore/Answer'
+import Answer from '../components/explore/Answer'
 import SceneClip, { setCurrentSlug } from '../components/explore/SceneClip'
-import SceneToc from '../components/explore/SceneToc'
+import { ExploreRouter } from '../components/explore/ExploreRouter'
 
 /* 构建期：所有 content/posts/<slug>/article.mdx 编译为组件映射（Vite 原生，eager） */
 const mdxModules = import.meta.glob<{ default: React.ComponentType }>(
@@ -61,7 +63,6 @@ export default function Component() {
 
   return (
     <MDXProvider components={{ ...registry, Answer, SceneClip }}>
-      <ExploreConfigContext.Provider value={exploreConfig}>
       <Head>
         <title>{post.title} · {post.domain}</title>
         <meta name="description" content={post.excerpt} />
@@ -77,16 +78,22 @@ export default function Component() {
         {exploreConfig && (
           <p className="explore-hint">本文可顺序阅读；点击各场景下方的出口按钮可跳转探索。</p>
         )}
-        <article className="post-body" id="animations">
-          {Body ? <Body /> : <p>正文缺失。</p>}
-        </article>
+        {exploreConfig ? (
+          <ExploreRouter config={exploreConfig}>
+            <article className="post-body" id="animations">
+              {Body ? <Body /> : <p>正文缺失。</p>}
+            </article>
+          </ExploreRouter>
+        ) : (
+          <article className="post-body" id="animations">
+            {Body ? <Body /> : <p>正文缺失。</p>}
+          </article>
+        )}
         <nav className="post-nav">
           {prev && <Link to={`/blog/${prev.slug}/`}>← {prev.title}</Link>}
           {next && <Link to={`/blog/${next.slug}/`}>{next.title} →</Link>}
         </nav>
-        <SceneToc config={exploreConfig} />
       </main>
-      </ExploreConfigContext.Provider>
     </MDXProvider>
   )
 }

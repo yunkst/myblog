@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import Post from './Post'
@@ -46,5 +46,23 @@ describe('<Post> v3 stage class', () => {
     expect(main).not.toBeNull()
     expect(main!.className).toContain('post-wrap')
     expect(main!.className).not.toContain('post-wrap--stage')
+  })
+})
+
+/* v4（Task 5）：有 explore 的文章 hydration 后 body 加 stage-locked（ExploreRouter 挂载标记）。
+ * jsdom 下 IntersectionObserver/matchMedia 缺失不影响 ExploreRouter 的 mount effect
+ * （它只挂 keydown/hashchange 监听 + body classList + main data-has-router）。 */
+describe('<Post> v4 explore hydration', () => {
+  beforeEach(() => { document.body.className = '' })
+  afterEach(() => { document.body.className = '' })
+
+  it('有 explore：hydration 后 body 挂 stage-locked class', () => {
+    renderAt('/blog/ai-digital-employee')
+    expect(document.body.classList.contains('stage-locked')).toBe(true)
+  })
+
+  it('无 explore：body 不挂 stage-locked', () => {
+    renderAt('/blog/shixi-open-source-study-app')
+    expect(document.body.classList.contains('stage-locked')).toBe(false)
   })
 })

@@ -1,10 +1,9 @@
-import { useContext, useEffect, useRef, type ReactNode } from 'react'
-import gsap from 'gsap'
+import { useContext, useRef, type ReactNode } from 'react'
 import SceneClip from './SceneClip'
 import ExitChips from './ExitChips'
 import { toChineseOrdinal } from '../../lib/explore'
-import { buildTypewriterTimeline } from './useTypewriter'
-import { ExploreConfigContext } from './AnswerContext'
+import { ExploreConfigContext, ExploreRuntimeContext } from './AnswerContext'
+import { Director } from './Director'
 
 /** 重新导出供测试/外部消费者沿用旧路径 import Answer, { ExploreConfigContext }。 */
 export { ExploreConfigContext }
@@ -44,127 +43,37 @@ function partition(children: ReactNode) {
  * - idx ≥ 0 才渲染 act-no（孤儿 Answer 无序号）。
  * - 无 SceneClip → 不渲染 `.stage`；其它区照常。
  *
- * 演出层（spec §4 / Task 5）：
- * - act-head / choices：IO 进入后 GSAP fromTo（SSG 直出可见 → hydration 后演出时 from 隐藏 → to 显现）；
- *   threshold 0.5，进入即 disconnect，不重播。
- * - dialogue：IO 进入（threshold 0.4）后对每段 `buildTypewriterTimeline` 链式触发：
- *   前一段 onComplete → 下一段 play。reduced-motion 直出原文。
- * - 浏览器 only（jsdom 无 IO/matchMedia → 直接 return）。
+ * v4 演出层（spec §4，Task 5）：
+ * - 渲染结构完全不动；`.theater` 追加 `data-scene-id={id}`，激活态由
+ *   ExploreRuntimeContext.activeId 决定（`data-active` 仅激活幕有）。
+ * - v3 的 IntersectionObserver 演出 useEffect 整体退役——演出统一归 Director：
+ *   仅「激活且首次看过」（firstActivation，seenScenes 判定）时包一层 `<Director>`，
+ *   headRef/dialogueRef/choicesRef/stageRef 交给它编排 mode 1/2/3；
+ *   未激活或回看（已 seen）直接渲染静态结构（SSG 直出 / 无 JS 降级同构）。
+ * - skip 回传：Director.onReady → runtime.onActivate → ExploreRouter.skipRef
+ *   （点击空白跳过用）。
  */
 export default function Answer({ id, children }: { id: string; children: ReactNode }) {
   const config = useContext(ExploreConfigContext)
+  const runtime = useContext(ExploreRuntimeContext)
   const scene = config?.scenes.find((s) => s.id === id)
   const idx = config?.scenes.findIndex((s) => s.id === id) ?? -1
   const { heading, clips, rest } = partition(children)
   const hasExits = !!scene && (!!scene.features?.length || !!scene.questions?.length)
   const hasHead = !!(heading || idx >= 0)
 
-  /* 演出层 ref */
+  /* 演出层 ref（交给 Director 编排） */
   const headRef = useRef<HTMLDivElement>(null)
   const dialogueRef = useRef<HTMLDivElement>(null)
   const choicesRef = useRef<HTMLDivElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    /* jsdom 无 IntersectionObserver；reduced-motion 也不演出 */
-    if (typeof IntersectionObserver === 'undefined') return
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduced) return
+  const active = runtime?.activeId === id
+  /* 演出条件：有路由上下文 + 本幕激活 + 首次看过（spec §3.3 seenScenes：回看不重播） */
+  const perform = !!runtime && active && runtime.firstActivation
 
-    const tls: gsap.core.Timeline[] = []
-
-    /* hydration 时已在视口内的元素直接跳过演出（终态直出）——
-     * 消除「先见原文 → fromTo 归零 → 再演出」的闪烁（final review M1）。
-     * 判定标准：元素中点在视口内即视为已入镜。 */
-    const alreadyInViewport = (el: HTMLElement) => {
-      const r = el.getBoundingClientRect()
-      return r.top < window.innerHeight * 0.7 && r.bottom > window.innerHeight * 0.3
-    }
-
-    /* act-head fade：threshold 0.5，duration 0.4 */
-    const headEl = headRef.current
-    if (headEl) {
-      if (alreadyInViewport(headEl)) {
-        /* 已入镜：不演出，保持终态 */
-      } else {
-        const ioHead = new IntersectionObserver((entries) => {
-          for (const e of entries) {
-            if (!e.isIntersecting) continue
-            ioHead.disconnect()
-            const tl = gsap.timeline()
-            tl.fromTo(headEl, { opacity: 0 }, { opacity: 1, duration: 0.4 })
-            tls.push(tl)
-          }
-        }, { threshold: 0.5 })
-        ioHead.observe(headEl)
-      }
-    }
-
-    /* choices 浮现：threshold 0.5，stagger 0.18，duration 0.4，y 8→0 */
-    const choicesEl = choicesRef.current
-    if (choicesEl) {
-      if (alreadyInViewport(choicesEl)) {
-        /* 已入镜：不演出，保持终态 */
-      } else {
-        const ioChoices = new IntersectionObserver((entries) => {
-          for (const e of entries) {
-            if (!e.isIntersecting) continue
-            ioChoices.disconnect()
-            const chips = choicesEl.querySelectorAll('.exit-chip')
-            if (chips.length === 0) return
-            const tl = gsap.timeline()
-            tl.fromTo(chips,
-              { opacity: 0, y: 8 },
-              { opacity: 1, y: 0, duration: 0.4, stagger: 0.18, ease: 'power2.out' })
-            tls.push(tl)
-          }
-        }, { threshold: 0.5 })
-        ioChoices.observe(choicesEl)
-      }
-    }
-
-    /* dialogue 打字机链式：threshold 0.4；段落选择器 :scope > p, :scope > blockquote
-     * 前一段 onComplete → 下一段 play；打字启动时 buildTypewriterTimeline 内部才清空 innerHTML（SSG 安全）。
-     * charMs 单位是毫秒（库内部换算成 GSAP 的秒语义），默认 28ms/字。
-     * 空段或 reduced-motion → buildTypewriterTimeline 返回 null，立即接力下一段。
-     * final review B2：含媒体子元素（img/svg/figure/table/ul/ol）的段落整段跳过打字
-     * （buildTypewriterTimeline 会掏空 innerHTML，媒体会消失一段时间）——随容器直出。 */
-    const MEDIA_SELECTOR = 'img, svg, figure, table, ul, ol, video, canvas'
-    const typeable = (p: HTMLElement) => !p.querySelector(MEDIA_SELECTOR)
-    const dlg = dialogueRef.current
-    if (dlg) {
-      const paras = Array.from(
-        dlg.querySelectorAll<HTMLElement>(':scope > p, :scope > blockquote'),
-      ).filter(typeable)
-      if (paras.length > 0 && !alreadyInViewport(dlg)) {
-        const ioDlg = new IntersectionObserver((entries) => {
-          for (const e of entries) {
-            if (!e.isIntersecting) continue
-            ioDlg.disconnect()
-            const chainPara = (i: number) => {
-              if (i >= paras.length) return
-              const tl = buildTypewriterTimeline(paras[i])
-              if (!tl) { chainPara(i + 1); return }
-              tls.push(tl)
-              if (i + 1 < paras.length) {
-                tl.eventCallback('onComplete', () => chainPara(i + 1))
-              }
-              tl.play(0)
-            }
-            chainPara(0)
-          }
-        }, { threshold: 0.4 })
-        ioDlg.observe(dlg)
-      }
-    }
-
-    return () => {
-      /* cleanup：所有 timeline kill */
-      for (const tl of tls) tl.kill()
-    }
-  }, [])
-
-  return (
-    <section className="theater answer-block" id={id}>
+  const body = (
+    <>
       {hasHead && (
         <div className="act-head" ref={headRef}>
           {idx >= 0 && <span className="act-no">第{toChineseOrdinal(idx + 1)}幕</span>}
@@ -173,7 +82,7 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
         </div>
       )}
       {clips.length > 0 && (
-        <div className="stage">
+        <div className="stage" ref={stageRef}>
           <span className="stage-tag">DEMO · {scene?.demo ?? '—'}</span>
           <span className="stage-ch">CH-{String(idx + 1).padStart(2, '0')}</span>
           <div className="stage-spot" />
@@ -190,6 +99,30 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
           <ExitChips group="features" exits={scene.features ?? []} config={config} />
           <ExitChips group="questions" exits={scene.questions ?? []} config={config} />
         </div>
+      )}
+    </>
+  )
+
+  return (
+    <section
+      className="theater answer-block"
+      id={id}
+      data-scene-id={id}
+      data-active={active ? '' : undefined}
+    >
+      {perform ? (
+        <Director
+          scene={{ id, mode: scene?.mode ?? 2, demo: scene?.demo ?? '' }}
+          headRef={headRef}
+          dlgRef={dialogueRef}
+          choicesRef={choicesRef}
+          stageRef={clips.length > 0 ? stageRef : undefined}
+          onReady={(api) => runtime.onActivate(id, api.skip)}
+        >
+          {body}
+        </Director>
+      ) : (
+        body
       )}
     </section>
   )
