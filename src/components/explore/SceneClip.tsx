@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type {} from 'gsap'
 import type { Scene } from './SceneController'
 import { createDemoHandle } from './SceneController'
+import { registerSceneClip } from './sceneClipRegistry'
 
 /* 与 v1 同一 glob 手法，但消费 demos 字典而非 default Scene */
 const demoModules = import.meta.glob<{ demos: Record<string, Scene> }>(
@@ -78,7 +79,15 @@ export default function SceneClip({ demo }: { demo: string }) {
     const btn = btnRef.current
     btn?.addEventListener('click', handle.replay)
 
+    // v4：把播放控制权暴露给 Director（同名覆盖旧值，注销闭包只在 cleanup 调用）
+    const unregister = registerSceneClip(demo, {
+      play: () => handle.play(),
+      pause: () => handle.pause(),
+      replay: () => handle.replay(),
+    })
+
     return () => {
+      unregister()
       observer.disconnect()
       btn?.removeEventListener('click', handle.replay)
       handle.kill()
