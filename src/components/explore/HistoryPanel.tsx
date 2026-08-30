@@ -44,13 +44,11 @@ export default function HistoryPanel({ open, onClose, stack, onJumpTo, children,
             ×
           </button>
         </header>
-        {(canBack !== undefined || onBack || nextLabel || onNext || onExit) && (
-          <div className="history-panel__actions">
-            <button type="button" disabled={!canBack} onClick={onBack}>◀ 返回</button>
-            <button type="button" onClick={onNext}>{nextLabel}</button>
-            <button type="button" onClick={onExit}>✕ 退出</button>
-          </div>
-        )}
+        <div className="history-panel__actions">
+          <button type="button" disabled={!canBack} onClick={onBack}>◀ 返回</button>
+          <button type="button" onClick={onNext}>{nextLabel}</button>
+          <button type="button" onClick={onExit}>✕ 退出</button>
+        </div>
         {children && (
           <section className="history-panel__exits">{children}</section>
         )}
