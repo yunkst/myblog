@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react'
 import gsap from 'gsap'
 import { buildTypewriterTimeline } from './useTypewriter'
-import { getSceneClipApi } from './sceneClipRegistry'
+import { getSceneClipApi, type SceneClipApi } from './sceneClipRegistry'
 
 /** Director 消费的幕契约（plan §Task 4 Interfaces）。 */
 export interface DirectorScene {
@@ -157,6 +157,9 @@ export function Director({
 
     /**
      * 触发 demo 并等它完成。
+     * - API 注册时序竞态：SceneClip 的 useEffect(passive)在 Director 的
+     *   useLayoutEffect 之后跑——mount 阶段首次调 getSceneClipApi 必然拿到 undefined。
+     *   这里先 await 一帧（rAF）让 SceneClip 注册完成；拿不到 API 兜底超时。
      * - data-finished 由 SceneClip 的 demo timeline onComplete 设置（可能在嵌套的
      *   .scene-clip 容器上 → 必须 subtree 监听）。
      * - IO 自动播放可能已让 demo 播完（data-finished 已在）→ 立即返回。
@@ -164,28 +167,38 @@ export function Director({
      *   余量）+ 防极端卡死；C2 fix round 前为 3s，会截断长 demo 导致打字机从中段开始。
      */
     const playDemo = (): Promise<void> => {
-      const api = getSceneClipApi(scene.demo)
       const container = stageRef?.current ?? null
-      if (!api || !container) return Promise.resolve()
-      api.play()
-      if (container.querySelector(FINISHED_SELECTOR)) return Promise.resolve()
-      return new Promise<void>((resolve) => {
-        const finish = () => {
-          demoWait.observer?.disconnect()
-          demoWait.observer = null
-          window.clearTimeout(demoWait.timer)
-          resolve()
-        }
-        demoWait.timer = window.setTimeout(finish, 15000)
-        const observer = new MutationObserver(() => {
-          if (container.querySelector(FINISHED_SELECTOR)) finish()
+      if (!container) return Promise.resolve()
+
+      const waitForApi = (deadline: number): Promise<SceneClipApi | null> => new Promise((resolve) => {
+        const a = getSceneClipApi(scene.demo)
+        if (a) return resolve(a)
+        if (Date.now() > deadline) return resolve(null)
+        requestAnimationFrame(() => waitForApi(deadline).then(resolve))
+      })
+
+      return waitForApi(Date.now() + 2000).then((api) => {
+        if (!api) return // SceneClip 没注册（理论上不应发生；兜底跳过）
+        api.play()
+        if (container.querySelector(FINISHED_SELECTOR)) return
+        return new Promise<void>((resolve) => {
+          const finish = () => {
+            demoWait.observer?.disconnect()
+            demoWait.observer = null
+            window.clearTimeout(demoWait.timer)
+            resolve()
+          }
+          demoWait.timer = window.setTimeout(finish, 15000)
+          const observer = new MutationObserver(() => {
+            if (container.querySelector(FINISHED_SELECTOR)) finish()
+          })
+          observer.observe(container, {
+            attributes: true,
+            attributeFilter: ['data-finished'],
+            subtree: true,
+          })
+          demoWait.observer = observer
         })
-        observer.observe(container, {
-          attributes: true,
-          attributeFilter: ['data-finished'],
-          subtree: true,
-        })
-        demoWait.observer = observer
       })
     }
 
@@ -201,15 +214,25 @@ export function Director({
         if (stage) stage.classList.add(FULLSCREEN_CLASS)
         await playDemo()
         if (stage) {
-          // 缩小过渡 0.6s，tween 完成后再摘全屏 class
+          /* v5 fix round：缩窗时序
+           *
+           * 旧版问题：tween 走完后才摘 FULLSCREEN_CLASS → 元素从 position:fixed
+           * 跳回文档流布局是0 帧突变，视觉像「闪一下又缩回原位」。
+           *
+           * 修法：tween 启动后立即摘全屏 class（元素还在 scale(1.4→1) 的 transform 中，
+           * 浏览器从 fixed 切回原位时几何中心保持连续），再用 transform-origin: center
+           * 防剧场区布局偏移导致缩窗中心看起来不对。
+           *
+           * tween 自身的 transform 在原位置继续从 1.4 缩到 1，因为元素此时已切回文档流——
+           * transform 是相对自身的，不依赖外层 fixed 定位。 */
           const tween = gsap.fromTo(
             stage,
-            { scale: 1.4 },
-            { scale: 1, duration: 0.6, ease: 'power3.inOut' },
+            { scale: 1.4, transformOrigin: 'center center' },
+            { scale: 1, transformOrigin: 'center center', duration: 0.6, ease: 'power3.inOut' },
           )
           tls.current.push(tween)
-          await tween.then().then(() => undefined)
           stage.classList.remove(FULLSCREEN_CLASS)
+          await tween.then().then(() => undefined)
         }
         await headP
         await mediaP
