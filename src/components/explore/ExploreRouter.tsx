@@ -8,13 +8,14 @@ import { useHistoryStack } from './useHistoryStack'
 import { readSeenScenes, writeSeenScenes } from './seenScenes'
 import HistoryPanel from './HistoryPanel'
 import HistoryFAB from './HistoryFAB'
+import { useKeyboardShortcuts } from './useKeyboardShortcuts'
+import { resolveExploreHref } from '../../lib/explore'
 import type { ExploreConfig, ExploreScene } from '../../lib/types'
 
 interface Props {
   config: ExploreConfig
   children: ReactNode
-  /** Stage 传入的退出回调（T2 临时接 Esc：面板开则关面板，否则调 onExit）；
-   *  T3 落 hook 后语义不变，只是搬进 hook handlers */
+  /** Stage 传入的退出回调：面板开则关面板，否则调 onExit（useKeyboardShortcuts onEsc 接管） */
   onExit?: () => void
 }
 
@@ -38,7 +39,8 @@ const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .chip-p
  * - 已看幕集合（seenScenes）：firstActivation=true 时 Director 挂演出、回看不挂；
  * - FAB + 履历面板挂载；
  * - 容器 onClick 非交互目标 → 调激活幕注入的 skip（Director.onReady 注入）；
- * - Esc 关闭履历面板（Task 2 评审遗留）。
+ * - 键盘接线（v5 Task 3，spec §3.2）：useKeyboardShortcuts——← → 切幕、↑↓ 焦点出口、
+ *   Enter 跳转、Esc 关面板或退出；面板开时非 Esc 键失效。
  *
  * 出幕主线/支线（在 HistoryPanel slot 里渲染）：yaml 顺序下一幕 = 主线，其余 features/questions = 支线。
  *
@@ -57,7 +59,7 @@ export function ExploreRouter({ config, children, onExit }: Props) {
   const history = useHistoryStack(config.title)
   const skipRef = useRef<() => void>(() => {})
   const seenRef = useRef<Set<string>>(readSeenScenes(config.title))
-  /** Stage onExit ref（模式同 onReadyRef）：useRef(onExit) + useEffect 同步最新值 */
+  /** Stage onExit ref（模式同 skipRef/stackRef）：useRef(onExit) + useEffect 同步最新值 */
   const onExitRef = useRef(onExit)
   useEffect(() => { onExitRef.current = onExit }, [onExit])
   /** 履历栈 ref（用于 jumpTo 同步取最新栈顶——见 jumpTo 实现注释） */
@@ -66,6 +68,9 @@ export function ExploreRouter({ config, children, onExit }: Props) {
   /** activeId ref（goTo 判重用——副作用不能放 setState updater，StrictMode 会 double-invoke） */
   const activeIdRef = useRef(activeId)
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
+  /** panelOpen ref（useKeyboardShortcuts onEsc 用——handlers 走 ref 不重挂，需同步取最新面板态） */
+  const panelOpenRef = useRef(panelOpen)
+  useEffect(() => { panelOpenRef.current = panelOpen }, [panelOpen])
 
   /* 初次挂载：无条件以 activeId 重置履历栈 + 给 main 加 data-has-router + body 加 stage-locked
    * （C1 fix round：sessionStorage 残留旧栈会让 ◀ 返回跳到上次会话的旧幕，
@@ -102,19 +107,21 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config])
 
-  /* v5：Esc 仍由本组件监听（确保 T2→T3 之间面板 Esc 不断线），但具体处理走 runtime.onExit
-   * ——面板开则关面板（走 onExit 内联分支），否则调 Stage onExit。
-   * T3 落 useKeyboardShortcuts 后监听整体搬到 hook handlers，语义不变。 */
-  useEffect(() => {
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') {
-        if (panelOpen) setPanelOpen(false)
-        else onExitRef.current?.()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [panelOpen])
+  /* v5 键盘接线（spec §3.2）：
+   * - ← → 主线上一/下一幕；↑↓ 焦点出口循环；Enter 跳到焦点；Esc 关面板或退出。
+   * - 面板开时非 Esc 键失效（hook enabled=false），Esc 始终活着——保证面板可关。
+   * - handlers 走 ref 同步取最新 activeId/panelOpen（hook 已用 ref.current 转发）。 */
+  const [focusedExitIdx, setFocusedExitIdx] = useState<number | null>(null)
+  /* 切幕时清焦点：避免上一幕的 idx 落到新幕出口数组中越界 */
+  useEffect(() => { setFocusedExitIdx(null) }, [activeId])
+
+  /* 当前幕出口平铺序：features → questions（与 Answer.tsx 渲染顺序一致）。
+   * 跨文章目标（to: { post, scene }）保留原形态，Enter 调 window.location.assign 整页跳。 */
+  const flatExits = useMemo(() => {
+    const idx = config.scenes.findIndex((s) => s.id === activeId)
+    const scene = idx >= 0 ? config.scenes[idx] : null
+    return [...(scene?.features ?? []), ...(scene?.questions ?? [])]
+  }, [activeId, config])
 
   const goTo = useCallback((id: string) => {
     if (activeIdRef.current === id) return
@@ -156,6 +163,29 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     skipRef.current = skip
   }, [])
 
+  /* v5 键盘接线（spec §3.2）：
+   * - ← → 主线上一/下一幕；↑↓ 焦点出口循环；Enter 跳到焦点；Esc 关面板或退出。
+   * - 面板开时非 Esc 键失效（hook enabled=false），Esc 始终活着——保证面板可关。
+   * - handlers 走 ref 同步取最新 activeId/panelOpen（hook 已用 ref.current 转发）。 */
+  useKeyboardShortcuts({
+    onBack: () => back(),
+    onNext: () => {
+      const idx = config.scenes.findIndex((s) => s.id === activeIdRef.current)
+      if (idx >= 0) goTo(config.scenes[(idx + 1) % config.scenes.length].id)
+    },
+    onArrowUp: () => setFocusedExitIdx((i) =>
+      flatExits.length === 0 ? null : ((i ?? 0) - 1 + flatExits.length) % flatExits.length),
+    onArrowDown: () => setFocusedExitIdx((i) =>
+      flatExits.length === 0 ? null : ((i ?? -1) + 1) % flatExits.length),
+    onEnter: () => {
+      if (focusedExitIdx == null || !flatExits[focusedExitIdx]) return
+      const to = flatExits[focusedExitIdx].to
+      if (typeof to === 'string') goTo(to)
+      else window.location.assign(resolveExploreHref(to, config))
+    },
+    onEsc: () => (panelOpenRef.current ? setPanelOpen(false) : onExitRef.current?.()),
+  }, !panelOpen)
+
   const runtime = useMemo<ExploreRuntime>(() => ({
     activeId,
     goTo,
@@ -165,10 +195,11 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     canBack: history.stack.length > 1,
     panelOpen,
     setPanelOpen,
-    /* T2→T3 过渡：Esc 独立 effect 已删，onExit 先内联兜底——面板开则关面板，否则走 Stage onExit；
-     * T3 落 hook 后语义不变，只是搬进 hook handlers */
-    onExit: () => { panelOpen ? setPanelOpen(false) : onExitRef.current?.() },
-  }), [activeId, goTo, onActivate, firstActivation, back, history.stack.length, panelOpen])
+    /* Esc 处理已由 useKeyboardShortcuts.onEsc 接管（T2 临时内联分支删除）；
+     * runtime.onExit 保留为 Stage 直接退出入口（面板/Esc 决策只在 hook 一处）。 */
+    onExit: () => onExitRef.current?.(),
+    focusedExitIdx,
+  }), [activeId, goTo, onActivate, firstActivation, back, history.stack.length, panelOpen, focusedExitIdx])
 
   /* 出幕主线/支线（HistoryPanel slot 渲染）：yaml 顺序下一幕 = 主线；features/questions = 支线 */
   const exitsWithMain = useMemo(() => {

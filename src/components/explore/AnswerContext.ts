@@ -28,6 +28,9 @@ export interface ExploreRuntime {
   setPanelOpen: (open: boolean) => void
   /** Stage 传入的退出回调（ref 透传） */
   onExit: () => void
+  /* v5 Task 3：当前幕出口（features→questions 平铺）焦点下标；null = 无焦点。
+   * 键盘 ↑↓ 循环切换，Enter 跳到焦点出口。ExitChips 据此给对应 chip 加 exit-chip--focused。 */
+  focusedExitIdx: number | null
 }
 
 export const ExploreRuntimeContext = createContext<ExploreRuntime | null>(null)

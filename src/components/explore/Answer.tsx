@@ -96,8 +96,9 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
       {hasExits && scene && config && (
         <div className="choices" ref={choicesRef}>
           <span className="choices-label">─ 選択肢 ─</span>
-          <ExitChips group="features" exits={scene.features ?? []} config={config} />
-          <ExitChips group="questions" exits={scene.questions ?? []} config={config} />
+          {/* v5 Task 3：baseIdx 与 runtime.focusedExitIdx 平铺序对齐——features 0 起，questions 接 features 长度 */}
+          <ExitChips group="features" baseIdx={0} exits={scene.features ?? []} config={config} />
+          <ExitChips group="questions" baseIdx={(scene.features ?? []).length} exits={scene.questions ?? []} config={config} />
         </div>
       )}
     </>

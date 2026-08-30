@@ -47,7 +47,8 @@ function GoProbe({ target }: { target: string }) {
 function RtProbe() {
   const rt = useContext(ExploreRuntimeContext)!
   return (
-    <div data-testid="rt" data-can-back={String(rt.canBack)} data-panel-open={String(rt.panelOpen)}>
+    <div data-testid="rt" data-can-back={String(rt.canBack)} data-panel-open={String(rt.panelOpen)}
+      data-focus={String(rt.focusedExitIdx ?? 'null')}>
       <button data-testid="rt-back" onClick={rt.back} />
       <button data-testid="rt-go" onClick={() => rt.goTo('q-b')} />
       <button data-testid="rt-open-panel" onClick={() => rt.setPanelOpen(true)} />
@@ -313,5 +314,69 @@ describe('ExploreRouter v5 runtime 扩展', () => {
     expect(onExit).toHaveBeenCalledOnce()
     fireEvent.click(screen.getByTestId('rt-open-panel'))
     expect(screen.getByTestId('rt').dataset.panelOpen).toBe('true')
+  })
+})
+
+describe('ExploreRouter v5 键盘', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/blog/test/')
+    sessionStorage.clear()
+  })
+
+  function renderWithKeys() {
+    return render(
+      <ExploreConfigContext.Provider value={config}>
+        <ExploreRouter config={config}>
+          <RtProbe />
+          <AnswerProbe id="q-a" />
+          <AnswerProbe id="q-b" />
+        </ExploreRouter>
+      </ExploreConfigContext.Provider>,
+    )
+  }
+
+  it('→ 跳主线下一幕；← 回退', () => {
+    renderWithKeys()
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(screen.getByTestId('scene-q-b')).toHaveAttribute('data-active')
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+  })
+
+  it('↑↓ 循环焦点出口，Enter 跳到焦点出口', () => {
+    window.history.replaceState(null, '', '/blog/test/#q-b')
+    renderWithKeys()
+    expect(screen.getByTestId('rt').dataset.focus).toBe('null')
+    fireEvent.keyDown(window, { key: 'ArrowDown' })
+    expect(screen.getByTestId('rt').dataset.focus).toBe('0')
+    fireEvent.keyDown(window, { key: 'ArrowDown' })  // 仅 1 个出口，wrap 回 0
+    expect(screen.getByTestId('rt').dataset.focus).toBe('0')
+    fireEvent.keyDown(window, { key: 'Enter' })
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+  })
+
+  it('panelOpen 时非 Esc 键失效，Esc 关面板', () => {
+    renderWithKeys()
+    fireEvent.click(screen.getByTestId('rt-open-panel'))
+    fireEvent.keyDown(window, { key: 'ArrowRight' })
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.getByTestId('rt').dataset.panelOpen).toBe('false')
+  })
+
+  it('面板关闭态 Esc 调 onExit（T2→T3 hook 接管后路径）', () => {
+    const onExit = vi.fn()
+    render(
+      <ExploreConfigContext.Provider value={config}>
+        <ExploreRouter config={config} onExit={onExit}>
+          <RtProbe />
+          <AnswerProbe id="q-a" />
+          <AnswerProbe id="q-b" />
+        </ExploreRouter>
+      </ExploreConfigContext.Provider>,
+    )
+    expect(screen.getByTestId('rt').dataset.panelOpen).toBe('false')
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onExit).toHaveBeenCalledOnce()
   })
 })
