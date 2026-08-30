@@ -1,4 +1,4 @@
-import { Fragment, useContext, useRef, type ReactNode } from 'react'
+import { Fragment, useContext, useRef, useState, type ReactNode } from 'react'
 import SceneClip from './SceneClip'
 import ExitChips from './ExitChips'
 import { toChineseOrdinal } from '../../lib/explore'
@@ -75,6 +75,10 @@ function partition(children: ReactNode) {
  * - idx ≥ 0 才渲染 act-no（孤儿 Answer 无序号）。
  * - 无 SceneClip → 不渲染 `.stage`；其它区照常。
  *
+ * v7 布局显式化（三原则 1）：单列/双列的布局决策从 CSS `:has(> .stage)` 探测
+ * 收敛为 Answer 显式声明的 modifier class——`theater--dual`（有 .stage，双列
+ * grid）/ `theater--solo`（无 .stage，单列）。CSS 侧不再用 :has() 反推 DOM。
+ *
  * v4 演出层（spec §4，Task 5）：
  * - 渲染结构完全不动；`.theater` 追加 `data-scene-id={id}`，激活态由
  *   ExploreRuntimeContext.activeId 决定（`data-active` 仅激活幕有）。
@@ -84,9 +88,13 @@ function partition(children: ReactNode) {
  *   未激活或回看（已 seen）直接渲染静态结构（SSG 直出 / 无 JS 降级同构）。
  * - skip 回传：Director.onReady → runtime.onActivate → ExploreRouter.skipRef
  *   （点击空白跳过用）。
+ *
+ * v7 三原则 2（全屏单点所有权）：Director 不再直接操纵 DOM class（旧
+ * `stage--fullscreen` classList add/remove 退役）——它经 onFullscreen 回调申请
+ * 进入/退出全屏，fullscreen state 归 Answer 单点持有，落到 section 的
+ * `data-fullscreen` 属性上；CSS（.theater[data-fullscreen] > .stage）由该属性驱动。
  */
-/**
- * v5（spec §7.4）props 改造：
+/** v5（spec §7.4）props 改造：
  * - 旧：{ id, children }（MDX 端手写 <Answer id="..."> children）。
  * - 新：{ scene, body }——SceneRoute 从 glob 命中场景组件后，把 yaml scene 对象 +
  *   <Scene/> 元素树交给 Answer。partition(body) 逻辑不变（body 元素树里
@@ -113,6 +121,16 @@ export default function Answer({ scene, body }: { scene: ExploreScene; body: Rea
   const active = runtime?.activeId === id
   /* 演出条件：有路由上下文 + 本幕激活 + 首次看过（spec §3.3 seenScenes：回看不重播） */
   const perform = !!runtime && active && runtime.firstActivation
+
+  /* v7 三原则 2 全屏单点所有权：fullscreen state 归 Answer——Director 经
+   * onFullscreen 回调申请，落成下方 section 的 data-fullscreen 属性；
+   * CSS（.theater[data-fullscreen] > .stage）只认属性，Director 不碰 DOM class。 */
+  const [fullscreen, setFullscreen] = useState(false)
+
+  /* v7 布局显式化（三原则 1）：布局由组件声明、CSS 不再 :has() 探测 DOM。
+   * clips.length > 0 时下方恰好渲染一个 .stage 子元素 → theater--dual 双列；
+   * 否则无 .stage → theater--solo 单列。 */
+  const dual = clips.length > 0
 
   const sections = (
     /* SceneDemoContext：注入本幕 scene.demo（yaml 单一真相）——幕内 SceneClip
@@ -150,10 +168,14 @@ export default function Answer({ scene, body }: { scene: ExploreScene; body: Rea
 
   return (
     <section
-      className="theater answer-block"
+      /* v7 布局显式化：dual ⇔ 有 .stage 子元素——与原 `:has(> .stage)` 判定严格等价 */
+      className={`theater answer-block ${dual ? 'theater--dual' : 'theater--solo'}`}
       id={id}
       data-scene-id={id}
       data-active={active ? '' : undefined}
+      /* v7 三原则 2：全屏模式由本属性单点声明（存在 ⇔ Director 申请了全屏），
+       * CSS 经 `.theater[data-fullscreen] > .stage` 驱动 position:fixed。 */
+      data-fullscreen={fullscreen ? '' : undefined}
     >
       {perform ? (
         <Director
@@ -162,6 +184,7 @@ export default function Answer({ scene, body }: { scene: ExploreScene; body: Rea
           dlgRef={dialogueRef}
           choicesRef={choicesRef}
           stageRef={clips.length > 0 ? stageRef : undefined}
+          onFullscreen={clips.length > 0 ? setFullscreen : undefined}
           onReady={(api) => runtime.onActivate(id, api.skip)}
         >
           {sections}

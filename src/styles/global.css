@@ -873,7 +873,9 @@ body.stage-locked { overflow: hidden; }
    * overflow-y: scroll 强制留出滚动条槽避免内容抖动；
    * scrollbar-gutter: stable 短幕时槽位空置但不消失。
    * 水平方向 hidden——表格等内容超宽按舞台宽截断，不出横向滚动条。
-   * v5 追加（用户裁定）：不设 max-width，内容撑满舞台可用宽度。 */
+   * v5 追加（用户裁定）：不设 max-width，内容撑满舞台可用宽度。
+   * v7 三原则 2：本元素是全屏包含块不变量契约的成员（禁止 transform，
+   * 见 .theater[data-fullscreen] > .stage 规则处注释）。 */
   overflow-y: scroll; overflow-x: hidden;
   scrollbar-gutter: stable;
   display: flex; flex-direction: column; align-items: center;
@@ -885,16 +887,20 @@ body.stage-locked { overflow: hidden; }
    * - 左列 .stage：动画/图片
    * - 右列 .act-head → .dialogue → .choices：叙事文本整体右移
    * - 文本宽 max 720px（含 padding）——避免全屏阅读拉得过宽
-   * 单列场景（含/不含 .stage 都成立）：align-items 居中后文本列固定宽。 */
+   * 单列场景（含/不含 .stage 都成立）：align-items 居中后文本列固定宽。
+   * v7 布局显式化（三原则 1）：单列/双列由 Answer 声明的 modifier class 决定
+   * （clips.length > 0 ⇔ 渲染 .stage ⇔ theater--dual），不再用 :has() 探测 DOM。
+   * v7 三原则 2：本元素是全屏包含块不变量契约的成员（禁止 transform，
+   * 见 .theater[data-fullscreen] > .stage 规则处注释）。 */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
   row-gap: 24px;
 }
-.stage-frame .theater:has(> .stage) {
+.stage-frame .theater--dual {
   /* 双列：动画略宽强调视觉；窄屏（<920px）回退单列见媒体查询。
-   * :has() 现代浏览器支持（firefox 121+ / safari 15.4+），Explore 场景页走
-   * vite-react-ssg 直出静态站点，可放心用。
+   * v7：modifier class 由 Answer 依据「本幕是否渲染 .stage」显式挂上
+   * （三原则 1 布局显式化），与原 `:has(> .stage)` 探测严格等价。
    * 用 grid-template-areas 显式把 stage 钉到第 1 列、文本到第 2 列——
    * 否则 act-head 在 DOM 第 1 个会占走左上角，把 stage 挤到右列。 */
   grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
@@ -906,20 +912,29 @@ body.stage-locked { overflow: hidden; }
   justify-items: stretch;
   align-items: start;
 }
-.stage-frame .theater:has(> .stage) > .stage     { grid-area: stage; width: 100%; }
-.stage-frame .theater:has(> .stage) > .act-head  { grid-area: head; }
-.stage-frame .theater:has(> .stage) > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
-.stage-frame .theater:has(> .stage) > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
+/* 六条子元素级规则用双类连写 .theater.theater--dual 而非裸 .theater--dual：
+ * 特异性 (0,4,0) 对齐原 :has(> .stage) 版（.stage-frame .theater:has(> .stage) > .x
+ * 也是 (0,4,0)）。若写裸 .theater--dual 则为 (0,3,0)，会被下方媒体查询里
+ * 源序更靠后的 .stage-frame .theater > .dialogue { max-width: none }（(0,3,0)）
+ * 翻转覆盖，窄屏断点内 grid-area/720px 约束失效。 */
+.stage-frame .theater.theater--dual > .stage     { grid-area: stage; width: 100%; }
+.stage-frame .theater.theater--dual > .act-head  { grid-area: head; }
+.stage-frame .theater.theater--dual > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
+.stage-frame .theater.theater--dual > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
 
-/* ExploreRouter 根容器（display: contents 让 children 直接参与父布局） */
+/* ExploreRouter 根容器（display: contents 让 children 直接参与父布局）。
+ * v7 三原则 2：本元素在全屏包含块不变量的祖先链上（禁止 transform，见
+ * .theater[data-fullscreen] > .stage 规则处注释）。 */
 .stage-frame .explore-router { display: contents; }
 
 @keyframes v4-scene-in {
   /* 仅 opacity 入场，不用 transform：
    * v6 review fix —— 若 from 带 translateY(8px)，动画播放期间 .theater 有 transform，
-   * 会劫持内部 .stage--fullscreen 的 position:fixed 包含块（fixed 相对最近 transform
+   * 会劫持内部全屏 .stage 的 position:fixed 包含块（fixed 相对最近 transform
    * 祖先定位）→ 全屏退化半屏（实测 887px vs 视口 1920px）。去掉后 .theater 永无
-   * transform，fullscreen 始终相对视口。入场微位移的观感由 opacity 节奏补偿。 */
+   * transform，fullscreen 始终相对视口。入场微位移的观感由 opacity 节奏补偿。
+   * v7：该约束已上升为包含块不变量契约，见 `.theater[data-fullscreen] > .stage`
+   * 规则处注释（祖先链 .theater/.stage-stage/.explore-router 禁止 transform）。 */
   from { opacity: 0; }
   to   { opacity: 1; }
 }
@@ -966,8 +981,8 @@ body.stage-locked { overflow: hidden; }
 }
 /* grid 双列时 dialogue/choices 的原有 margin-top 会叠到 row-gap 上——
  * 把上下间距让 row-gap 统一管，避免「stage 后空 24 + dialogue 前 24 = 48」双重空白。 */
-.stage-frame .theater:has(> .stage) > .dialogue { margin-top: 0; }
-.stage-frame .theater:has(> .stage) > .choices { margin-top: 28px; }
+.stage-frame .theater.theater--dual > .dialogue { margin-top: 0; }
+.stage-frame .theater.theater--dual > .choices { margin-top: 28px; }
 /* 名字牌：翠绿底黑字 + mono 字符间距 */
 .stage-frame .dlg-name {
   position: absolute; top: 0; left: 22px; transform: translateY(-50%);
@@ -1038,8 +1053,19 @@ body.stage-locked { overflow: hidden; }
 /* v3 final review B1：暗色探索页内归零 v2 answer-block 左竖线样式 */
 .stage-frame .answer-block { border-left: 0; padding-left: 0; margin: 54px 0; }
 
-/* mode 1 全屏：直角 + 无投影 */
-.stage-frame .stage--fullscreen {
+/* v7 三原则 2 全屏单点所有权：mode 1 全屏改为属性驱动——Director 经 onFullscreen
+ * 回调申请，Answer 持有 state 落成 .theater 的 data-fullscreen 属性，本规则随之生效；
+ * Director 不再操纵 stage--fullscreen class。
+ * 声明照搬旧 .stage--fullscreen（fixed 全屏 + 直角 + 无投影）。
+ *
+ * ── 包含块不变量 ─────────────────────────────────────────────
+ * position: fixed 的包含块 = 最近 transform/filter/perspective/will-change 祖先。
+ * 祖先链 .theater → .stage-stage → .explore-router 禁止任何 transform 类属性——
+ * 一旦出现，本规则的全屏会退化为「相对该祖先的伪全屏」（v6 实测 887px vs 视口
+ * 1920px）。改动祖先链时必须复查：.theater 的 v4-scene-in 动画只允许 opacity；
+ * .stage-stage/.explore-router 只允许 display/flex 框架属性。
+ * ──────────────────────────────────────────────────────────── */
+.stage-frame .theater[data-fullscreen] > .stage {
   position: fixed;
   inset: 0;
   z-index: 50;
@@ -1221,8 +1247,9 @@ body.stage-locked { overflow: hidden; }
     border-radius: 0;
     max-height: 80vh;
   }
-  /* v6：窄屏回退单列布局（动画/图片在上，文本在下）；dialogue 文本宽度放开到容器宽 */
-  .stage-frame .theater:has(> .stage) {
+  /* v6：窄屏回退单列布局（动画/图片在上，文本在下）；dialogue 文本宽度放开到容器宽
+   * v7：:has(> .stage) 探测改为 Answer 声明的 theater--dual modifier class（三原则 1） */
+  .stage-frame .theater--dual {
     grid-template-columns: minmax(0, 1fr);
     column-gap: 0;
     row-gap: 24px;

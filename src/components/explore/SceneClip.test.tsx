@@ -59,6 +59,7 @@ describe('SceneClip v4 imperative API', () => {
     expect(typeof api!.play).toBe('function')
     expect(typeof api!.pause).toBe('function')
     expect(typeof api!.replay).toBe('function')
+    expect(typeof api!.finished).toBe('function')
     unmount()
     expect(getSceneClipApi('message-flood')).toBeUndefined()
   })
@@ -66,7 +67,13 @@ describe('SceneClip v4 imperative API', () => {
   it('注册的 api 方法能驱动 demo timeline（play 后进入播放或已推进）', () => {
     const { unmount } = render(<SceneClip demo="message-flood" />)
     const api = getSceneClipApi('message-flood')!
-    expect(() => { api.play(); api.pause(); api.replay() }).not.toThrow()
+    /* v7 Task 3：play() 返回 Promise<void>——fire-and-forget 也安全
+     * （Director 端 await，本测试不关心 resolve 时序，只验证不抛错） */
+    expect(() => {
+      void api.play()
+      api.pause()
+      api.replay()
+    }).not.toThrow()
     unmount()
   })
 
@@ -84,5 +91,73 @@ describe('SceneClip v4 imperative API', () => {
     expect(getSceneClipApi('message-flood')).toBeUndefined()
     unmountSecond()
     expect(getSceneClipApi('badge-metaphor')).toBeUndefined()
+  })
+
+  /* v7 Task 3（demo API promise 化）：play() 返回 Promise<void>，
+   * onComplete 时 resolve——Director 经 `await api.play()` 等 demo 完成，
+   * 不再用 MutationObserver + 15s 超时兜底。 */
+  it('play() 返回 Promise<void>（类型契约）', async () => {
+    const { unmount } = render(<SceneClip demo="message-flood" />)
+    const api = getSceneClipApi('message-flood')!
+    const p = api.play()
+    /* 返回 Promise（A.then 是函数）——await Director 端的契约依据 */
+    expect(p).toBeInstanceOf(Promise)
+    expect(typeof p.then).toBe('function')
+    /* 不消费 promise 会触发「unhandled rejection」警告——显式 noop 后 unmount，
+     * unmount → useEffect cleanup 闭包手动 resolve（GSAP onKill 实际不触发，
+     * 与 SceneClip.tsx 内部注释「cleanup 兜底手动 resolve」对齐） */
+    p.then(() => {}, () => {})
+    unmount()
+  })
+
+  /* v7 Task 3：unmount（cleanup 兜底）后挂起的 play promise 也 resolve，
+   * 防止 Director 在快速切幕时 await 悬挂。 */
+  it('unmount（cleanup 兜底）后挂起的 play promise 也 resolve', async () => {
+    const { unmount } = render(<SceneClip demo="message-flood" />)
+    const api = getSceneClipApi('message-flood')!
+    let resolved = false
+    const p = api.play().then(() => { resolved = true })
+    // 还未自然完成
+    expect(resolved).toBe(false)
+    // unmount → useEffect cleanup 闭包 → 手动 resolve（GSAP onKill 不触发）
+    unmount()
+    await p
+    expect(resolved).toBe(true)
+  })
+
+  /* v7 Task 3：已 finished 的实例 play() 直接 resolve（不重播、不挂 resolver）。 */
+  it('finished()=true 时 play() 立即 resolve，不重播 timeline', async () => {
+    const { unmount } = render(<SceneClip demo="message-flood" />)
+    const api = getSceneClipApi('message-flood')!
+    /* 直接推进 global timeline 到 1，触发 message-flood demo 的 onComplete，
+     * setFinishedAndResolve 会落 data-finished，finished() 应返回 true */
+    gsap.globalTimeline.progress(1)
+    expect(api.finished()).toBe(true)
+    let resolved = false
+    await api.play().then(() => { resolved = true })
+    expect(resolved).toBe(true)
+    unmount()
+  })
+
+  /* v7 Task 3 review M1 fix：play() 必须先挂 resolver 再 handle.play()，
+   * 否则 reduced-motion 下 tl.pause().progress(1) 同步触发 onComplete →
+   * setFinishedAndResolve 拿到 null resolver → promise 永挂，
+   * 外部 `await api.play()` 永不返回。 */
+  it('play() 返回的 Promise 能 resolve（即使已 finished），防止 M1 同步 onComplete 竞态', async () => {
+    const { unmount } = render(<SceneClip demo="message-flood" />)
+    const api = getSceneClipApi('message-flood')!
+    /* 先把 timeline 推进到 1 触发 onComplete → setFinishedAndResolve 落 data-finished */
+    gsap.globalTimeline.progress(1)
+    expect(api.finished()).toBe(true)
+    /* 此时再调 play()——旧实现 (handle.play() 先于挂 resolver) 在某些路径下
+     * 会因同步 onComplete 拿到 null resolver；新实现 finished()=true 走早返
+     * 分支 + resolved=true 必须在 await 之后可观察（不会永挂） */
+    let resolved = false
+    const p = api.play().then(() => { resolved = true })
+    expect(p).toBeInstanceOf(Promise)
+    /* 给一个 microtask 窗口让 then 回调有机会跑 */
+    await p
+    expect(resolved).toBe(true)
+    unmount()
   })
 })

@@ -3,6 +3,7 @@ import { render } from '@testing-library/react'
 import gsap from 'gsap'
 import { Director, type DirectorScene } from './Director'
 import { buildTypewriterTimeline } from './useTypewriter'
+import { registerSceneClip } from './sceneClipRegistry'
 
 /** jsdom 无真实 layout；matchMedia mock 成 reduce 与非 reduce 两态（与 useTypewriter.test.ts 同款） */
 const mockedReduce = vi.hoisted(() => ({ value: false }))
@@ -18,6 +19,11 @@ function makeRef<T extends HTMLElement>(): React.RefObject<T> {
   const el = document.createElement('div')
   document.body.appendChild(el)
   return { current: el } as unknown as React.RefObject<T>
+}
+
+/** v7 三原则 2：onFullscreen mock（供断言 mode 1 申请全屏 / 退出全屏的时序） */
+function makeFullscreenMock() {
+  return vi.fn<(on: boolean) => void>()
 }
 
 beforeEach(() => { mockedReduce.value = false })
@@ -80,7 +86,9 @@ describe('Director', () => {
     expect(buildTypewriterTimeline(dlgEl)).toBeNull()
   })
 
-  it('mode 1：建出缩窗 timeline（scale 1.4 → 1），mode 3 不建 demo', () => {
+  /* v7 三原则 2：全屏申请改走 onFullscreen 回调（Answer 落 data-fullscreen 属性），
+   * mode 1 挂载即同步调 onFullscreen(true)。 */
+  it('mode 1：挂载即调 onFullscreen(true)，建出缩窗 timeline（scale 1.4 → 1）', () => {
     // mode 1 需要 demo API（scene.demo='message-flood' 注册过）——这里走最简：让 getSceneClipApi 返回 undefined
     // → playDemo 立即 resolve；缩窗 tween 应仍被建出。
     const head = makeRef<HTMLElement>()
@@ -89,70 +97,73 @@ describe('Director', () => {
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
+    const onFullscreen = makeFullscreenMock()
 
     const scene: DirectorScene = { id: 'q-m1', mode: 1, demo: 'demo-not-registered' }
     render(
-      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onFullscreen={onFullscreen}>
         <span>x</span>
       </Director>,
     )
-    const stageEl = stage.current!
-    // 立即挂上 stage--fullscreen
-    expect(stageEl.classList.contains('stage--fullscreen')).toBe(true)
+    // 挂载即申请全屏（layout 阶段同步——React paint 前 flush，首帧即全屏）
+    expect(onFullscreen.mock.calls).toEqual([[true]])
     // mode 1 应至少建出 timeline（缩窗 / act-head / dialogue / choices 任一进 globalTimeline）
     expect(gsap.globalTimeline.getChildren(true, true, true).length).toBeGreaterThan(0)
   })
 
-  it('mode 3 不挂 .stage--fullscreen class（直走文字演出）', () => {
+  /* v7 三原则 2：mode 3 纯文字，从不申请全屏（onFullscreen 从不调用）。 */
+  it('mode 3 不申请全屏（onFullscreen 从不调用，直走文字演出）', () => {
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
+    const onFullscreen = makeFullscreenMock()
 
     const scene: DirectorScene = { id: 'q-m3', mode: 3, demo: '' }
     render(
-      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onFullscreen={onFullscreen}>
         <span>x</span>
       </Director>,
     )
-    expect(stage.current!.classList.contains('stage--fullscreen')).toBe(false)
+    expect(onFullscreen).not.toHaveBeenCalled()
   })
 
   /* v6 review fix：mode 1 + demo 为空（纯文字全屏幕，理论上由 mode 3 承载，
    * 但防御性地保证 mode 1 不因空 demo 卡在 waitForApi 轮询）——
    * 演出应正常走缩窗，不额外等待 demo（globalTimeline 有缩窗 tween，不长期挂起）。 */
-  /* v6 review fix：缩窗时序（方案 A）——全程 fixed，缩到 1 后摘 class + 清 transform。
-   * mode 1 播放完成后：stage--fullscreen 应被移除、内联 transform 应被清空，
-   * 元素归位到文档流（无 scale 残留影响 grid 布局）。 */
-  it('mode 1 缩窗完成后摘 .stage--fullscreen class 并清内联 transform', async () => {
+  /* v6 review fix：缩窗时序（方案 A）——全程 fixed，缩到 1 后回调退出全屏 + 清 transform。
+   * v7 三原则 2：全屏状态机改走 onFullscreen 回调（真 → false 结束）。 */
+  it('mode 1 缩窗完成后调 onFullscreen(false) 并清内联 transform', async () => {
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
+    const onFullscreen = makeFullscreenMock()
     // demo 空：playDemo 立即 resolve（v6 空 demo 短路），缩窗 tween 照常建
     const scene: DirectorScene = { id: 'q-m1-shrink', mode: 1, demo: '' }
     const { unmount } = render(
-      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onFullscreen={onFullscreen}>
         <span>x</span>
       </Director>,
     )
-    const stageEl = stage.current!
     // 挂载即全屏（mode 1 语义）
-    expect(stageEl.classList.contains('stage--fullscreen')).toBe(true)
-    // 等演出推进（缩窗 tween 完成 + 摘 class + 清 transform）
+    expect(onFullscreen.mock.calls).toEqual([[true]])
+    // 等演出推进（缩窗 tween 完成 + 回调退出全屏 + 清 transform）
     await vi.waitFor(() => {
-      expect(stageEl.classList.contains('stage--fullscreen')).toBe(false)
+      expect(onFullscreen.mock.calls).toEqual([[true], [false]])
     })
     // 内联 transform 已清（clearProps 后 style.transform 应为空）
+    const stageEl = stage.current!
     expect(stageEl.style.transform).toBe('')
     expect(stageEl.style.transformOrigin).toBe('')
     unmount()
   })
 
+  /* v7 三原则 2：空 demo 短路下 onFullscreen(true) 仍照常申请（mode 1 语义不变）。 */
   it('mode 1 + 空 demo：直接缩窗，不卡 demo 等待（waitForApi 短路）', () => {
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
@@ -160,15 +171,16 @@ describe('Director', () => {
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
+    const onFullscreen = makeFullscreenMock()
 
     const scene: DirectorScene = { id: 'q-m1-empty', mode: 1, demo: '' }
     render(
-      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onFullscreen={onFullscreen}>
         <span>x</span>
       </Director>,
     )
-    // 全屏 class 照常挂（mode 1 语义）
-    expect(stage.current!.classList.contains('stage--fullscreen')).toBe(true)
+    // 挂载即申请全屏（mode 1 语义照常）
+    expect(onFullscreen.mock.calls).toEqual([[true]])
     // 演出正常推进：缩窗 tween 应被建出（playDemo 因空 demo 立即 resolve，
     // 不等 15s 超时）——全局 timeline 有子节点即证明演出没被空转卡住
     expect(gsap.globalTimeline.getChildren(true, true, true).length).toBeGreaterThan(0)
@@ -200,7 +212,7 @@ describe('Director', () => {
     const api = onReady.mock.calls[0][0] as { skip(): void }
     expect(typeof api.skip).toBe('function')
 
-    // skip 不应炸、应把全屏 class 移除（这里未挂，no-op）
+    // skip 不应炸（mode 2 未申请过全屏，onFullscreen 未提供 → no-op）
     expect(() => api.skip()).not.toThrow()
 
     // unmount 后所有 timeline 应被 kill（globalTimeline.getChildren 应减少或清空）
@@ -210,13 +222,15 @@ describe('Director', () => {
     expect(after).toBeLessThanOrEqual(before)
   })
 
-  it('skip 在全屏时移除 .stage--fullscreen class', async () => {
+  /* v7 三原则 2：skip 经 onFullscreen(false) 申请退出全屏。 */
+  it('skip 调 onFullscreen(false) 退出全屏', async () => {
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
+    const onFullscreen = makeFullscreenMock()
 
     const scene: DirectorScene = { id: 'q-skip', mode: 1, demo: 'demo-not-registered' }
     const onReady = vi.fn()
@@ -227,15 +241,73 @@ describe('Director', () => {
         dlgRef={dlg}
         choicesRef={choices}
         stageRef={stage}
+        onFullscreen={onFullscreen}
         onReady={onReady}
       >
         <span>x</span>
       </Director>,
     )
-    expect(stage.current!.classList.contains('stage--fullscreen')).toBe(true)
+    // 挂载即申请全屏
+    expect(onFullscreen.mock.calls).toEqual([[true]])
     const api = onReady.mock.calls[0][0] as { skip(): void }
     api.skip()
-    expect(stage.current!.classList.contains('stage--fullscreen')).toBe(false)
+    expect(onFullscreen.mock.calls).toEqual([[true], [false]])
+  })
+
+  /* v7 三原则 2：unmount cleanup 同样经 onFullscreen(false) 申请退出——
+   * 快速切幕时不能把 data-fullscreen 状态留在 Answer 的 section 上。 */
+  it('unmount cleanup 调 onFullscreen(false)（快速切幕不残留全屏）', () => {
+    const head = makeRef<HTMLElement>()
+    const dlg = makeRef<HTMLElement>()
+    dlg.current!.innerHTML = '<p>唯一</p>'
+    const choices = makeRef<HTMLElement>()
+    choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+    const stage = makeRef<HTMLElement>()
+    const onFullscreen = makeFullscreenMock()
+
+    const scene: DirectorScene = { id: 'q-unmount-full', mode: 1, demo: '' }
+    const { unmount } = render(
+      <Director
+        scene={scene}
+        headRef={head}
+        dlgRef={dlg}
+        choicesRef={choices}
+        stageRef={stage}
+        onFullscreen={onFullscreen}
+      >
+        <span>x</span>
+      </Director>,
+    )
+    expect(onFullscreen.mock.calls).toEqual([[true]])
+    unmount()
+    expect(onFullscreen.mock.calls).toEqual([[true], [false]])
+  })
+
+  /* v7 三原则 2：reduced-motion 早 return，从不申请全屏。 */
+  it('reduced-motion 下 onFullscreen 从不调用', () => {
+    mockedReduce.value = true
+    const head = makeRef<HTMLElement>()
+    const dlg = makeRef<HTMLElement>()
+    dlg.current!.innerHTML = '<p>唯一</p>'
+    const choices = makeRef<HTMLElement>()
+    choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+    const stage = makeRef<HTMLElement>()
+    const onFullscreen = makeFullscreenMock()
+
+    const scene: DirectorScene = { id: 'q-reduced-fs', mode: 1, demo: 'demo-not-registered' }
+    render(
+      <Director
+        scene={scene}
+        headRef={head}
+        dlgRef={dlg}
+        choicesRef={choices}
+        stageRef={stage}
+        onFullscreen={onFullscreen}
+      >
+        <span>x</span>
+      </Director>,
+    )
+    expect(onFullscreen).not.toHaveBeenCalled()
   })
 
   /* C2+I1 fix round：
@@ -322,6 +394,45 @@ describe('Director', () => {
        * 并通过 onComplete 接力推进,挂出新 tween */
       await vi.advanceTimersByTimeAsync(100)
       expect(gsap.globalTimeline.getChildren(true, true, true).length).toBe(afterUnmount)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  /* v7 Task 3（demo API promise 化）：注册已 finished 的假 API 时，
+   * playDemo 走 early-return 路径（不调 api.play()、不挂 promise）——
+   * 测试用 vi.fn 验证 api.play() 没被调用，演出照常推进。 */
+  it('api.finished()=true 时 playDemo 不调 api.play()（early-return 路径）', async () => {
+    vi.useFakeTimers()
+    try {
+      const head = makeRef<HTMLElement>()
+      const dlg = makeRef<HTMLElement>()
+      dlg.current!.innerHTML = '<p>唯一</p>'
+      const choices = makeRef<HTMLElement>()
+      choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+      const stage = makeRef<HTMLElement>()
+
+      const playSpy = vi.fn(() => new Promise<void>(() => { /* 永不 resolve——验证不被调用 */ }))
+      const unregister = registerSceneClip('demo-finished', {
+        play: playSpy,
+        pause: () => {},
+        replay: () => {},
+        finished: () => true,
+      })
+      try {
+        const scene: DirectorScene = { id: 'q-finished', mode: 2, demo: 'demo-finished' }
+        render(
+          <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+            <span>x</span>
+          </Director>,
+        )
+        /* rAF 轮询到 2s 兜底超时（playDemo 完成） */
+        await vi.advanceTimersByTimeAsync(2500)
+        /* 验证 api.play() 从未被调用（finished()=true 早 return） */
+        expect(playSpy).not.toHaveBeenCalled()
+      } finally {
+        unregister()
+      }
     } finally {
       vi.useRealTimers()
     }

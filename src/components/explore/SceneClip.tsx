@@ -80,7 +80,21 @@ export default function SceneClip({ demo }: { demo?: string }) {
     if (typeof IntersectionObserver === 'undefined') return
 
     const tl = cur.build()
-    tl.eventCallback('onComplete', () => el.setAttribute('data-finished', ''))
+    /* v7 Task 3（demo API promise 化）：用 ref 持有待 resolve 的 play promise——
+     * onComplete（自然完成）/ cleanup（卸载/切幕兜底）时 resolve；
+     * Director 经 `await api.play()` 一处接管「等 demo 完成」语义，
+     * 不再用 MutationObserver + data-finished + 15s 超时兜底。
+     * 注：GSAP 的 eventCallback('onKill', ...) 不会在 tl.kill() 时触发，
+     * 所以 cleanup 路径由 useEffect return 闭包手动 resolve（兜底）。
+     */
+    let playResolver: (() => void) | null = null
+    const setFinishedAndResolve = () => {
+      el.setAttribute('data-finished', '')
+      const r = playResolver
+      playResolver = null
+      r?.()
+    }
+    tl.eventCallback('onComplete', setFinishedAndResolve)
     const handle = createDemoHandle(tl)
     let started = false
 
@@ -99,17 +113,36 @@ export default function SceneClip({ demo }: { demo?: string }) {
     const btn = btnRef.current
     btn?.addEventListener('click', handle.replay)
 
+    /* v7 Task 3（demo API promise 化）：play() 返回 Promise<void>——
+     * 已 finished 直接 resolve；否则先挂 resolver 再触发 handle.play()
+     * （顺序关键：reduced-motion 下 progress(1) 同步触发 onComplete →
+     *  setFinishedAndResolve 必须能拿到 playResolver，所以必须先挂再 play） */
+    const play = (): Promise<void> => {
+      if (handle.finished()) return Promise.resolve()
+      return new Promise<void>((resolve) => {
+        playResolver = resolve
+        handle.play()
+      })
+    }
+
     // v4：把播放控制权暴露给 Director（同名覆盖旧值，注销闭包只在 cleanup 调用）
     const unregister = registerSceneClip(demoName, {
-      play: () => handle.play(),
+      play,
       pause: () => handle.pause(),
       replay: () => handle.replay(),
+      finished: () => handle.finished(),
     })
 
     return () => {
       unregister()
       observer.disconnect()
       btn?.removeEventListener('click', handle.replay)
+      /* v7 Task 3：cleanup 兜底——手动 resolve 挂起的 play promise
+       * （GSAP 的 eventCallback onKill 不会在 tl.kill 触发，
+       *  切幕/卸载时若 play() 还挂着，需手动 resolve 防止 Director await 悬挂） */
+      const r = playResolver
+      playResolver = null
+      r?.()
       handle.kill()
     }
   }, [scene, demoName])

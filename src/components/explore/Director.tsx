@@ -19,31 +19,29 @@ interface Props {
   choicesRef: RefObject<HTMLElement | null>
   /** 全屏 mode 1 用的舞台 ref（Answer 的 .stage 容器） */
   stageRef?: RefObject<HTMLElement | null>
+  /** v7 三原则 2 全屏单点所有权：申请进入/退出全屏（Answer 持有 fullscreen
+   * state → section 落 data-fullscreen 属性）。Director 不再操纵 DOM class。 */
+  onFullscreen?: (on: boolean) => void
   children: ReactNode
   /** 挂载时调一次：把 skip API 交给父（ExploreRouter 存进 skipRef） */
   onReady?: (api: { skip(): void }) => void
 }
 
-/** mode 1 全屏 class（CSS 由 Task 6 写） */
-const FULLSCREEN_CLASS = 'stage--fullscreen'
-
 /** 同 Answer/useTypewriter：含媒体子元素的段落整段跳过打字（final review B2 同款） */
 const MEDIA_SELECTOR = 'img, svg, figure, table, ul, ol, video, canvas'
-
-/** SceneClip v4 在 demo onComplete 时给容器设 data-finished（SceneClip.tsx:63） */
-const FINISHED_SELECTOR = '[data-finished]'
 
 /**
  * v4 Director：mode 1/2/3 演出编排 + 点击 skip。
  *
- * - mode 1：stage 加全屏 class → demo 先（等 data-finished）→ 缩窗 tween
- *   （scale 1.4 → 1，tween 完成后移除全屏 class）→ 文字 → choices
+ * - mode 1：onFullscreen(true) → demo 先（`await api.play()`）→ 缩窗 tween
+ *   （scale 1.4 → 1，tween 完成后 onFullscreen(false) 退出全屏）→ 文字 → choices
  * - mode 2：act-head fade → dialogue 打字链 → demo → choices（默认）
  * - mode 3：纯文字（refuse 幕等无 demo 场景；.stage 容器由 Answer 决定是否渲染）
- * - skip()：当前进行中的 timeline 全部 progress(1)（触发下一段接力）+ 立即移除全屏 class；
- *   用快照迭代——onComplete 接力新建的 timeline 保持正常速度播放，点击逐段推进。
- * - demo 完成等待：MutationObserver 监听 stage 容器子树里 data-finished 出现
- *   （SceneClip onComplete 时 setAttribute）；15 秒超时兜底（覆盖最长真实 demo 7.3s + 余量）。
+ * - skip()：当前进行中的 timeline 全部 progress(1)（触发下一段接力）+ onFullscreen(false)
+ *   申请退出全屏；用快照迭代——onComplete 接力新建的 timeline 保持正常速度播放，点击逐段推进。
+ * - demo 完成等待：v7 Task 3（demo API promise 化）收敛为 SceneClipApi.play() 返回
+ *   的 Promise——onComplete（自然完成）/ cleanup（卸载/切幕兜底）时 resolve；
+ *   不再用 MutationObserver + 15s 超时。
  * - onReady 只在挂载/scene 变化时经 ref 调用——父组件传内联箭头也不会导致
  *   每次重渲染都重建演出。
  * - GSAP `.then()`：animation 完成时 resolve（gsap core 自带 Promise），无需包裹。
@@ -55,6 +53,7 @@ export function Director({
   dlgRef,
   choicesRef,
   stageRef,
+  onFullscreen,
   children,
   onReady,
 }: Props) {
@@ -62,6 +61,10 @@ export function Director({
   // 经 ref 调用，避免 onReady 身份变化触发演出重建
   const onReadyRef = useRef(onReady)
   useEffect(() => { onReadyRef.current = onReady })
+  /* v7 三原则 2：onFullscreen 同样走 ref——Answer 传内联 setFullscreen，
+   * 身份每次渲染都变，直连会让演出在每次重渲染时重建。 */
+  const onFullscreenRef = useRef(onFullscreen)
+  useEffect(() => { onFullscreenRef.current = onFullscreen })
 
   /* useLayoutEffect（非 useEffect）：演出必须在 paint 之前启动——
    * SSR 直出「终态」HTML（dialogue 全文可见 / chips opacity 1）后，
@@ -104,12 +107,6 @@ export function Director({
       hidden.push(...Array.from(choicesEl.querySelectorAll<HTMLElement>('.exit-chip')))
     }
     if (hidden.length > 0) gsap.set(hidden, { opacity: 0 })
-
-    /* playDemo 的等待句柄：cleanup 时撤销（observer 断开 / timer 清掉） */
-    const demoWait: { observer: MutationObserver | null; timer: number } = {
-      observer: null,
-      timer: 0,
-    }
 
     /* v5 review fix:async run() 生命周期守卫——cleanup 后 await 链 resolve
      * 不得再推进演出/挂新 tween(快速切幕时旧链对已卸载 DOM 继续动画)。 */
@@ -160,22 +157,20 @@ export function Director({
     }
 
     /**
-     * 触发 demo 并等它完成。
-     * - API 注册时序竞态：SceneClip 的 useEffect(passive)在 Director 的
+     * 触发 demo 并等它完成（v7 Task 3 promise 化收敛）。
+     * - SceneClip 注册时序竞态：SceneClip 的 useEffect（passive）在 Director 的
      *   useLayoutEffect 之后跑——mount 阶段首次调 getSceneClipApi 必然拿到 undefined。
-     *   这里先 await 一帧（rAF）让 SceneClip 注册完成；拿不到 API 兜底超时。
-     * - data-finished 由 SceneClip 的 demo timeline onComplete 设置（可能在嵌套的
-     *   .scene-clip 容器上 → 必须 subtree 监听）。
-     * - IO 自动播放可能已让 demo 播完（data-finished 已在）→ 立即返回。
-     * - 15 秒超时兜底：覆盖最长真实 demo（ai-digital-employee q-problem 7.3s +
-     *   余量）+ 防极端卡死；C2 fix round 前为 3s，会截断长 demo 导致打字机从中段开始。
+     *   这里先 await 一帧（rAF）让 SceneClip 注册完成；2 秒兜底超时（与 SceneClip
+     *   慢注册的极端情况兼容）。
+     * - 已 finished 时不重播（data-finished 由 SceneClip 的 demo timeline onComplete
+     *   设置，IO 提前进入视口可能已让 demo 播完）。
+     * - 完成等待：`await api.play()`——onComplete / cleanup resolve，
+     *   不再用 MutationObserver + 15s 超时。
      */
     const playDemo = (): Promise<void> => {
-      const container = stageRef?.current ?? null
       /* v6 review fix：demo 名显式短路——纯文字幕（mode 3 / 无 scene.demo）
-       * 不该进 waitForApi 轮询（getSceneClipApi('') 永远 undefined）。
-       * stageRef 存在但 demo 为空同样跳过，语义一致。 */
-      if (!container || !scene.demo) return Promise.resolve()
+       * 不该进 waitForApi 轮询（getSceneClipApi('') 永远 undefined）。 */
+      if (!scene.demo) return Promise.resolve()
 
       const waitForApi = (deadline: number): Promise<SceneClipApi | null> => new Promise((resolve) => {
         const a = getSceneClipApi(scene.demo)
@@ -187,26 +182,8 @@ export function Director({
       return waitForApi(Date.now() + 2000).then((api) => {
         if (cancelled) return // cleanup 后 SceneClip 的 play() 不得再触发
         if (!api) return // SceneClip 没注册（理论上不应发生；兜底跳过）
-        api.play()
-        if (container.querySelector(FINISHED_SELECTOR)) return
-        return new Promise<void>((resolve) => {
-          const finish = () => {
-            demoWait.observer?.disconnect()
-            demoWait.observer = null
-            window.clearTimeout(demoWait.timer)
-            resolve()
-          }
-          demoWait.timer = window.setTimeout(finish, 15000)
-          const observer = new MutationObserver(() => {
-            if (container.querySelector(FINISHED_SELECTOR)) finish()
-          })
-          observer.observe(container, {
-            attributes: true,
-            attributeFilter: ['data-finished'],
-            subtree: true,
-          })
-          demoWait.observer = observer
-        })
+        if (api.finished()) return // 已 finished 直接返回，不重播
+        return api.play()
       })
     }
 
@@ -219,7 +196,10 @@ export function Director({
       if (scene.mode === 1) {
         // mode 1：全屏 demo 先 → 缩窗 → 文字 → choices
         const stage = stageRef?.current ?? null
-        if (stage) stage.classList.add(FULLSCREEN_CLASS)
+        /* v7 三原则 2：全屏申请改走回调（Answer 落 data-fullscreen 属性），
+         * 仍是 useLayoutEffect 内同步调用——React 在 paint 前同步 flush，
+         * 首帧即全屏（layout 阶段语义不变）。 */
+        if (stage) onFullscreenRef.current?.(true)
         await playDemo()
         if (cancelled) return
         if (stage) {
@@ -231,7 +211,7 @@ export function Director({
            * 注释声称「几何中心保持连续」不成立（双列 grid 下左列中心 ≠ 视口中心）。
            *
            * 新法：全屏期间保持 fixed 不动，缩放全程锚点=视口中心（连续）；
-           * scale 缩到 1（tween 完成）后，再一次性摘 class + 清内联 transform——
+           * scale 缩到 1（tween 完成）后，再一次性回调退出全屏 + 清内联 transform——
            * 此时元素已是 1:1 尺寸，从视口切回左列是同尺寸归位，无放大/缩小跳变。 */
           const tween = gsap.fromTo(
             stage,
@@ -240,11 +220,11 @@ export function Director({
           )
           if (!cancelled) tls.current.push(tween)
           await tween.then().then(() => undefined)
-          /* tween 完成、scale=1：此刻摘 class 归位是 1:1 同尺寸切换，
+          /* tween 完成、scale=1：此刻退出全屏（回调归位）是 1:1 同尺寸切换，
            * 再清掉 GSAP 写的内联 transform（避免残留 scale/transformOrigin 影响
            * grid 布局与后续动画）。 */
           if (!cancelled) {
-            stage.classList.remove(FULLSCREEN_CLASS)
+            onFullscreenRef.current?.(false)
             gsap.set(stage, { clearProps: 'transform,transformOrigin' })
           }
         }
@@ -282,12 +262,12 @@ export function Director({
     void run()
 
     // skip：快照迭代当前 timeline 全部 progress(1)（onComplete 接力出的下一段
-    // 保持正常速播，点击逐段推进）+ 立即摘全屏 class
+    // 保持正常速播，点击逐段推进）+ 申请退出全屏
     const skip = () => {
       for (const tl of [...tls.current]) tl.progress(1)
       const stage = stageRef?.current ?? null
-      if (stage?.classList.contains(FULLSCREEN_CLASS)) {
-        stage.classList.remove(FULLSCREEN_CLASS)
+      if (stage) {
+        onFullscreenRef.current?.(false)
         gsap.set(stage, { clearProps: 'transform,transformOrigin' })
       }
     }
@@ -297,11 +277,9 @@ export function Director({
       cancelled = true
       for (const tl of tls.current) tl.kill()
       tls.current = []
-      demoWait.observer?.disconnect()
-      window.clearTimeout(demoWait.timer)
       const stage = stageRef?.current ?? null
-      if (stage?.classList.contains(FULLSCREEN_CLASS)) {
-        stage.classList.remove(FULLSCREEN_CLASS)
+      if (stage) {
+        onFullscreenRef.current?.(false)
         gsap.set(stage, { clearProps: 'transform,transformOrigin' })
       }
     }
