@@ -172,7 +172,10 @@ export function Director({
      */
     const playDemo = (): Promise<void> => {
       const container = stageRef?.current ?? null
-      if (!container) return Promise.resolve()
+      /* v6 review fix：demo 名显式短路——纯文字幕（mode 3 / 无 scene.demo）
+       * 不该进 waitForApi 轮询（getSceneClipApi('') 永远 undefined）。
+       * stageRef 存在但 demo 为空同样跳过，语义一致。 */
+      if (!container || !scene.demo) return Promise.resolve()
 
       const waitForApi = (deadline: number): Promise<SceneClipApi | null> => new Promise((resolve) => {
         const a = getSceneClipApi(scene.demo)
@@ -220,25 +223,30 @@ export function Director({
         await playDemo()
         if (cancelled) return
         if (stage) {
-          /* v5 fix round：缩窗时序
+          /* v6 review fix：缩窗时序（方案 A——全程 fixed，缩完再归位）
            *
-           * 旧版问题：tween 走完后才摘 FULLSCREEN_CLASS → 元素从 position:fixed
-           * 跳回文档流布局是0 帧突变，视觉像「闪一下又缩回原位」。
+           * 旧版（v5）问题：tween 启动后立即摘 FULLSCREEN_CLASS。
+           * transform-origin: center 是相对元素盒的——摘 class 那一刻盒从
+           * 视口（fixed）切回 grid 左列，origin 中心随之瞬移，scale 锚点跳变，
+           * 注释声称「几何中心保持连续」不成立（双列 grid 下左列中心 ≠ 视口中心）。
            *
-           * 修法：tween 启动后立即摘全屏 class（元素还在 scale(1.4→1) 的 transform 中，
-           * 浏览器从 fixed 切回原位时几何中心保持连续），再用 transform-origin: center
-           * 防剧场区布局偏移导致缩窗中心看起来不对。
-           *
-           * tween 自身的 transform 在原位置继续从 1.4 缩到 1，因为元素此时已切回文档流——
-           * transform 是相对自身的，不依赖外层 fixed 定位。 */
+           * 新法：全屏期间保持 fixed 不动，缩放全程锚点=视口中心（连续）；
+           * scale 缩到 1（tween 完成）后，再一次性摘 class + 清内联 transform——
+           * 此时元素已是 1:1 尺寸，从视口切回左列是同尺寸归位，无放大/缩小跳变。 */
           const tween = gsap.fromTo(
             stage,
             { scale: 1.4, transformOrigin: 'center center' },
             { scale: 1, transformOrigin: 'center center', duration: 0.6, ease: 'power3.inOut' },
           )
           if (!cancelled) tls.current.push(tween)
-          stage.classList.remove(FULLSCREEN_CLASS)
           await tween.then().then(() => undefined)
+          /* tween 完成、scale=1：此刻摘 class 归位是 1:1 同尺寸切换，
+           * 再清掉 GSAP 写的内联 transform（避免残留 scale/transformOrigin 影响
+           * grid 布局与后续动画）。 */
+          if (!cancelled) {
+            stage.classList.remove(FULLSCREEN_CLASS)
+            gsap.set(stage, { clearProps: 'transform,transformOrigin' })
+          }
         }
         if (cancelled) return
         await headP
@@ -280,6 +288,7 @@ export function Director({
       const stage = stageRef?.current ?? null
       if (stage?.classList.contains(FULLSCREEN_CLASS)) {
         stage.classList.remove(FULLSCREEN_CLASS)
+        gsap.set(stage, { clearProps: 'transform,transformOrigin' })
       }
     }
     onReadyRef.current?.({ skip })
@@ -293,6 +302,7 @@ export function Director({
       const stage = stageRef?.current ?? null
       if (stage?.classList.contains(FULLSCREEN_CLASS)) {
         stage.classList.remove(FULLSCREEN_CLASS)
+        gsap.set(stage, { clearProps: 'transform,transformOrigin' })
       }
     }
     // refs 由 Answer 持有、身份稳定；onReady 走 ref——只随 scene 键重建演出

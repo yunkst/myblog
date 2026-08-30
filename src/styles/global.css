@@ -879,14 +879,49 @@ body.stage-locked { overflow: hidden; }
   display: flex; flex-direction: column; align-items: center;
   width: 100%;
 }
-.stage-frame .theater { width: 100%; margin: 0 auto; animation: v4-scene-in 0.35s ease both; }
+.stage-frame .theater {
+  width: 100%; margin: 0 auto; animation: v4-scene-in 0.35s ease both;
+  /* v6：场景含 .stage（动画/图片）时走 grid 双列；纯文本场景保持单列。
+   * - 左列 .stage：动画/图片
+   * - 右列 .act-head → .dialogue → .choices：叙事文本整体右移
+   * - 文本宽 max 720px（含 padding）——避免全屏阅读拉得过宽
+   * 单列场景（含/不含 .stage 都成立）：align-items 居中后文本列固定宽。 */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  row-gap: 24px;
+}
+.stage-frame .theater:has(> .stage) {
+  /* 双列：动画略宽强调视觉；窄屏（<920px）回退单列见媒体查询。
+   * :has() 现代浏览器支持（firefox 121+ / safari 15.4+），Explore 场景页走
+   * vite-react-ssg 直出静态站点，可放心用。
+   * 用 grid-template-areas 显式把 stage 钉到第 1 列、文本到第 2 列——
+   * 否则 act-head 在 DOM 第 1 个会占走左上角，把 stage 挤到右列。 */
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-areas:
+    "stage head"
+    "stage dialogue"
+    "stage choices";
+  column-gap: 28px;
+  justify-items: stretch;
+  align-items: start;
+}
+.stage-frame .theater:has(> .stage) > .stage     { grid-area: stage; width: 100%; }
+.stage-frame .theater:has(> .stage) > .act-head  { grid-area: head; }
+.stage-frame .theater:has(> .stage) > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
+.stage-frame .theater:has(> .stage) > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
 
 /* ExploreRouter 根容器（display: contents 让 children 直接参与父布局） */
 .stage-frame .explore-router { display: contents; }
 
 @keyframes v4-scene-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: none; }
+  /* 仅 opacity 入场，不用 transform：
+   * v6 review fix —— 若 from 带 translateY(8px)，动画播放期间 .theater 有 transform，
+   * 会劫持内部 .stage--fullscreen 的 position:fixed 包含块（fixed 相对最近 transform
+   * 祖先定位）→ 全屏退化半屏（实测 887px vs 视口 1920px）。去掉后 .theater 永无
+   * transform，fullscreen 始终相对视口。入场微位移的观感由 opacity 节奏补偿。 */
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* theater 面板：1px 发丝线 + 直角 */
@@ -922,13 +957,17 @@ body.stage-locked { overflow: hidden; }
 .stage-frame .stage .scene-replay { right: 14px; bottom: 14px; background: rgba(6,6,6,0.85); border-color: var(--line); color: var(--dim); z-index: 4; }
 /* 文本窗：--panel 底 + 1px --line 直角 */
 .stage-frame .dialogue {
-  position: relative; margin-top: 24px;
+  position: relative;
   border: 1px solid var(--sline);
   background: var(--panel);
   border-radius: 0;
   padding: 27px 28px 20px;
   font-size: 15px; line-height: 2.05;
 }
+/* grid 双列时 dialogue/choices 的原有 margin-top 会叠到 row-gap 上——
+ * 把上下间距让 row-gap 统一管，避免「stage 后空 24 + dialogue 前 24 = 48」双重空白。 */
+.stage-frame .theater:has(> .stage) > .dialogue { margin-top: 0; }
+.stage-frame .theater:has(> .stage) > .choices { margin-top: 28px; }
 /* 名字牌：翠绿底黑字 + mono 字符间距 */
 .stage-frame .dlg-name {
   position: absolute; top: 0; left: 22px; transform: translateY(-50%);
@@ -1182,6 +1221,14 @@ body.stage-locked { overflow: hidden; }
     border-radius: 0;
     max-height: 80vh;
   }
+  /* v6：窄屏回退单列布局（动画/图片在上，文本在下）；dialogue 文本宽度放开到容器宽 */
+  .stage-frame .theater:has(> .stage) {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+    row-gap: 24px;
+  }
+  .stage-frame .theater > .dialogue,
+  .stage-frame .theater > .choices { max-width: none; }
 }
 
 /* 舞台滚动条主题：暗底配细轨 + sacc 滑块（WebKit/Blink + Firefox） */

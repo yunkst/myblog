@@ -2,7 +2,7 @@ import { Fragment, useContext, useRef, type ReactNode } from 'react'
 import SceneClip from './SceneClip'
 import ExitChips from './ExitChips'
 import { toChineseOrdinal } from '../../lib/explore'
-import { ExploreConfigContext, ExploreRuntimeContext } from './AnswerContext'
+import { ExploreConfigContext, ExploreRuntimeContext, SceneDemoContext } from './AnswerContext'
 import { Director } from './Director'
 import type { ExploreScene } from '../../lib/types'
 
@@ -115,7 +115,9 @@ export default function Answer({ scene, body }: { scene: ExploreScene; body: Rea
   const perform = !!runtime && active && runtime.firstActivation
 
   const sections = (
-    <>
+    /* SceneDemoContext：注入本幕 scene.demo（yaml 单一真相）——幕内 SceneClip
+     * 消费它，q-*.tsx 不再写死 demo 名（v6 review 单源收敛）。 */
+    <SceneDemoContext.Provider value={scene.demo ?? null}>
       {hasHead && (
         <div className="act-head" ref={headRef}>
           {idx >= 0 && <span className="act-no">第{toChineseOrdinal(idx + 1)}幕</span>}
@@ -143,7 +145,7 @@ export default function Answer({ scene, body }: { scene: ExploreScene; body: Rea
           <ExitChips group="questions" baseIdx={(scene.features ?? []).length} exits={scene.questions ?? []} config={config} />
         </div>
       )}
-    </>
+    </SceneDemoContext.Provider>
   )
 
   return (

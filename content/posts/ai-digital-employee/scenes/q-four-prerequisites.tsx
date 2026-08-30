@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QFourPrerequisites() {
   return (
     <>
-      <SceneClip demo="four-prerequisites" />
+      <SceneClip />
       <p>这次失败让我意识到，搭建 AI 数字员工平台<strong>没有捷径</strong>。在处理好下面四个问题之前，一切接入生产系统的尝试都是危险的：</p>
       <ol>
         <li><strong>权限划分准确</strong>：不存在越权可能，最好兼容已有的权限设定，而不是另起炉灶；</li>

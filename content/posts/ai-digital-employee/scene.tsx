@@ -34,10 +34,6 @@ import {
   buildThreatModel,
   buildLimits,
   buildDevFlow,
-  buildArchitecture,
-  buildRequestFlow,
-  buildTieredFlow,
-  buildDevFlowArch,
 } from './scene-builds'
 
 export const demos: Record<string, Scene> = {
@@ -144,8 +140,17 @@ export const demos: Record<string, Scene> = {
   'dev-flow':           { name: 'dev-flow',           Stage: DevFlowStage,           build: buildDevFlow },
 
   // ─── 架构图型 4 个（从原幕拆出；mode 2 文字先行 → 容器淡入） ──
-  'architecture':  { name: 'architecture',  Stage: ArchitectureStage,  build: buildArchitecture },
-  'request-flow':  { name: 'request-flow',  Stage: RequestFlowStage,  build: buildRequestFlow },
-  'tiered-flow':   { name: 'tiered-flow',   Stage: TieredFlowStage,   build: buildTieredFlow },
-  'dev-flow-arch': { name: 'dev-flow-arch', Stage: DevFlowArchStage, build: buildDevFlowArch },
+  'architecture':  { name: 'architecture',  Stage: ArchitectureStage,  build: () => buildArchFade('[data-arch="architecture"]') },
+  'request-flow':  { name: 'request-flow',  Stage: RequestFlowStage,  build: () => buildArchFade('[data-arch="request-flow"]') },
+  'tiered-flow':   { name: 'tiered-flow',   Stage: TieredFlowStage,   build: () => buildArchFade('[data-arch="tiered-flow"]') },
+  'dev-flow-arch': { name: 'dev-flow-arch', Stage: DevFlowArchStage, build: () => buildArchFade('[data-arch="dev-flow-arch"]') },
+}
+
+/** 架构图 demo 统一演出：stage 容器淡入 + 轻微上移（mode 2 的 demo 段）。
+ * 4 个架构图 build 结构完全相同，收敛到这里——selector 为 stage 根元素选择器。 */
+function buildArchFade(rootSel: string) {
+  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
+  tl.set(rootSel, { opacity: 0, y: 16 })
+  tl.to(rootSel, { opacity: 1, y: 0, duration: 0.7 })
+  return tl
 }

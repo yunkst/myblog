@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QUnifiedIdentity() {
   return (
     <>
-      <SceneClip demo="unified-identity" />
+      <SceneClip />
       <p>权限管理这块，我用的是：</p>
       <ul>
         <li><strong>Casdoor</strong> 做单点登录</li>

@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QLimits() {
   return (
     <>
-      <SceneClip demo="limits" />
+      <SceneClip />
       <p>写技术方案只讲优点是不负责任的，这套设计有明确的边界：</p>
       <ol>
         <li><strong>撤回有边界。</strong> "可逆"指的是副作用还没扩散的情况——比如给 A 发了一张优惠券，撤回就是作废这张券。但如果用户已经把券用掉了，错误数据已经产生了新的副作用，撤回就无能为力了。这就是为什么接口分级仍然存在：副作用扩散快的接口，就该划进高风险，走管理员审批。</li>

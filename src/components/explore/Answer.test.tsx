@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import gsap from 'gsap'
 import Answer, { ExploreConfigContext } from './Answer'
-import SceneClip from './SceneClip'
+import SceneClip, { setCurrentSlug } from './SceneClip'
 import { parseExploreYaml } from '../../lib/explore'
 import type { ExploreConfig } from '../../lib/types'
 
@@ -250,7 +250,7 @@ describe('Answer v5 partition：top-level 函数组件展开，不递归深 hook
    * jsdom 没有这个 API。置 true 走 reduced-motion 早退分支（vitest.setup 同款语义）。 */
   beforeEach(() => { mockedReduce.value = true })
 
-  it('渲染含 ArchDiagram 的真实场景组件不抛错；ArchDiagram 落在 dialogue 区', async () => {
+  it('渲染含 ArchDiagram 的真实场景组件不抛错；ArchDiagram 落在 stage 区（SceneClip 内）', async () => {
     const cfg = parseExploreYaml(yamlWithArch)
     if (!cfg.ok) throw new Error(cfg.error)
     // 动态 import：scenes/q-architecture.tsx 物理上位于 content/posts/...
@@ -258,6 +258,10 @@ describe('Answer v5 partition：top-level 函数组件展开，不递归深 hook
     const { default: QArchitecture } = await import(
       '../../../content/posts/ai-digital-employee/scenes/q-architecture'
     )
+    // v6 单源：SceneClip 经 moduleForSlug(currentSlug) 反查 demos 字典——
+    // 不 setCurrentSlug 则反查不到、ArchDiagram 不渲染（与生产 SSG 直出路径不同，
+    // 测试需显式注入 slug）。
+    setCurrentSlug('ai-digital-employee')
     const { container } = render(
       <MemoryRouter>
         <ExploreConfigContext.Provider value={cfg.value}>
@@ -265,12 +269,15 @@ describe('Answer v5 partition：top-level 函数组件展开，不递归深 hook
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
+    setCurrentSlug(null)
     // dialogue 区含段落「把刚才的比喻翻译成工程语言」（来自场景组件）
     const dialogue = container.querySelector('.dialogue')
     expect(dialogue).not.toBeNull()
     expect(dialogue?.textContent).toContain('把刚才的比喻翻译成工程语言')
-    // ArchDiagram 落在 dialogue（不是 stage——不在 SceneClip 区）
-    expect(dialogue?.querySelector('.ba-arch')).not.toBeNull()
+    // 一幕一元素：ArchDiagram 由 SceneClip 内的 architecture demo 渲染，
+    // 图（.ba-arch）落在 stage-inner 里的 scene-clip 容器内，不在 dialogue
+    expect(container.querySelector('.stage-inner .ba-arch')).not.toBeNull()
+    expect(container.querySelector('.dialogue .ba-arch')).toBeNull()
     // SceneClip 仍然进 stage 区
     expect(container.querySelector('.stage-inner [data-scene-clip-demo="architecture"]')).not.toBeNull()
     // 无 hook 寄生报警：React 渲染期非法 hook 调用会抛 "Invalid hook call"，渲染能走到断言即安全

@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QTieredConfirm() {
   return (
     <>
-      <SceneClip demo="tiered-confirm" />
+      <SceneClip />
       <p>左边演示的是一次典型的「安全写」操作：运维同事在 IM 里说"给张三开通 BI 看板权限"，
 AI 识别出这不是只读操作，弹回一张确认卡——操作的完整参数、以谁的身份执行、影响哪个系统，
 全部列清楚。点下确认，动作才真正发生。全程审计日志记的是操作人本人，而不是"AI"。

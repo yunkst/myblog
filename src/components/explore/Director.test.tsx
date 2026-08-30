@@ -120,6 +120,60 @@ describe('Director', () => {
     expect(stage.current!.classList.contains('stage--fullscreen')).toBe(false)
   })
 
+  /* v6 review fix：mode 1 + demo 为空（纯文字全屏幕，理论上由 mode 3 承载，
+   * 但防御性地保证 mode 1 不因空 demo 卡在 waitForApi 轮询）——
+   * 演出应正常走缩窗，不额外等待 demo（globalTimeline 有缩窗 tween，不长期挂起）。 */
+  /* v6 review fix：缩窗时序（方案 A）——全程 fixed，缩到 1 后摘 class + 清 transform。
+   * mode 1 播放完成后：stage--fullscreen 应被移除、内联 transform 应被清空，
+   * 元素归位到文档流（无 scale 残留影响 grid 布局）。 */
+  it('mode 1 缩窗完成后摘 .stage--fullscreen class 并清内联 transform', async () => {
+    const head = makeRef<HTMLElement>()
+    const dlg = makeRef<HTMLElement>()
+    dlg.current!.innerHTML = '<p>唯一</p>'
+    const choices = makeRef<HTMLElement>()
+    choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+    const stage = makeRef<HTMLElement>()
+    // demo 空：playDemo 立即 resolve（v6 空 demo 短路），缩窗 tween 照常建
+    const scene: DirectorScene = { id: 'q-m1-shrink', mode: 1, demo: '' }
+    const { unmount } = render(
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+        <span>x</span>
+      </Director>,
+    )
+    const stageEl = stage.current!
+    // 挂载即全屏（mode 1 语义）
+    expect(stageEl.classList.contains('stage--fullscreen')).toBe(true)
+    // 等演出推进（缩窗 tween 完成 + 摘 class + 清 transform）
+    await vi.waitFor(() => {
+      expect(stageEl.classList.contains('stage--fullscreen')).toBe(false)
+    })
+    // 内联 transform 已清（clearProps 后 style.transform 应为空）
+    expect(stageEl.style.transform).toBe('')
+    expect(stageEl.style.transformOrigin).toBe('')
+    unmount()
+  })
+
+  it('mode 1 + 空 demo：直接缩窗，不卡 demo 等待（waitForApi 短路）', () => {
+    const head = makeRef<HTMLElement>()
+    const dlg = makeRef<HTMLElement>()
+    dlg.current!.innerHTML = '<p>唯一</p>'
+    const choices = makeRef<HTMLElement>()
+    choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+    const stage = makeRef<HTMLElement>()
+
+    const scene: DirectorScene = { id: 'q-m1-empty', mode: 1, demo: '' }
+    render(
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+        <span>x</span>
+      </Director>,
+    )
+    // 全屏 class 照常挂（mode 1 语义）
+    expect(stage.current!.classList.contains('stage--fullscreen')).toBe(true)
+    // 演出正常推进：缩窗 tween 应被建出（playDemo 因空 demo 立即 resolve，
+    // 不等 15s 超时）——全局 timeline 有子节点即证明演出没被空转卡住
+    expect(gsap.globalTimeline.getChildren(true, true, true).length).toBeGreaterThan(0)
+  })
+
   it('onReady 挂载时调一次：把 skip API 暴露给父；unmount 时 cleanup（tls 被 kill）', () => {
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()

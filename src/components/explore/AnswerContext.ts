@@ -6,6 +6,15 @@ import type { ExploreConfig, ExploreScene } from '../../lib/types'
  * 一并消费时把演出层 useEffect 拉到测试作用域。 */
 export const ExploreConfigContext = createContext<ExploreConfig | null>(null)
 
+/** 当前 Answer 场景的 demo 名（v6 review 单源收敛）。
+ *
+ * Answer 渲染时把自身 scene.demo（来自 yaml scenes[].demo）注入，
+ * 幕内的 SceneClip 消费它——q-*.tsx 单幕文件不再写死 `<SceneClip demo="...">`，
+ * demo 名只在 yaml 一处声明，杜绝「yaml 改了 demo、q-*.tsx 没跟改」的结构性漂移。
+ * 无 Answer 包裹（测试直渲 SceneClip + 显式 demo prop）时为 null，SceneClip 回退读 prop。
+ */
+export const SceneDemoContext = createContext<string | null>(null)
+
 /** v4（Task 5）幕式导航 Context：ExploreRouter 在 Provider 挂 activeId/goTo/onActivate，
  * Answer/ExitChips 消费——退出演出 IO useEffect、改走路由化跳转。
  *

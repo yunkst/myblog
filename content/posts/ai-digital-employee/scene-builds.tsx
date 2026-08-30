@@ -204,15 +204,6 @@ export function buildDevFlow() {
 
 /* ───────── 架构图型 4 个：容器淡入（mode 2 的 demo 段） ───────── */
 
-/** 通用：架构图 stage 容器淡入 + 轻微上移。selector 为 stage 根元素选择器。 */
-function buildArchFade(rootSel: string) {
-  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
-  tl.set(rootSel, { opacity: 0, y: 16 })
-  tl.to(rootSel, { opacity: 1, y: 0, duration: 0.7 })
-  return tl
-}
-
-export function buildArchitecture() { return buildArchFade('[data-arch="architecture"]') }
-export function buildRequestFlow() { return buildArchFade('[data-arch="request-flow"]') }
-export function buildTieredFlow() { return buildArchFade('[data-arch="tiered-flow"]') }
-export function buildDevFlowArch() { return buildArchFade('[data-arch="dev-flow-arch"]') }
+/* 架构图 demo 的 build 统一收敛到 scene.tsx 的 buildArchFade（默认淡入）。
+ * 这里不再各写一个 4 行桩函数——四者结构完全相同，属于冗余抽象。
+ * （若未来某架构图需要独立演出，再在此处导出专有 build。） */

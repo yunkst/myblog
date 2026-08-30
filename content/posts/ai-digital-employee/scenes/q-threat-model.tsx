@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QThreatModel() {
   return (
     <>
-      <SceneClip demo="threat-model" />
+      <SceneClip />
       <p>先做个消歧：这个平台不是业界常说的那种 AI Gateway——Kong、Cloudflare 那类网关管的是应用怎么调模型，方向正好相反；这个平台管的是 <strong>AI 怎么调业务后台</strong>。</p>
       <p>容易被误解的第二点：这个平台<strong>不是一个权限系统</strong>，它没有、也不试图收缩任何人的权限。传统后台全部保留，人的直连入口照旧，原有审计照旧——平台是一个纯粹的<strong>增量层</strong>，它不做任何传统后台做不到的事。</p>
       <p>想清楚这一点，很多质疑就自动消解了：</p>

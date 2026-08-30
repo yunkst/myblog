@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QTieredExecution() {
   return (
     <>
-      <SceneClip demo="tiered-execution" />
+      <SceneClip />
       <p>在平台内部，按照协议仓库里的接口分类，执行不同的约束策略：</p>
       <ul>
         <li><strong>只读接口</strong>：直接调用，不需要任何申请；</li>

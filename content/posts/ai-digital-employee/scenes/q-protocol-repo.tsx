@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QProtocolRepo() {
   return (
     <>
-      <SceneClip demo="protocol-repo" />
+      <SceneClip />
       <p>后台服务（Flask、FastAPI 都无所谓）接入一个注解包，可以给接口标注格式化的元数据，然后一行命令把全量接口信息导出，存放到一个<strong>协议仓库</strong>中。这个功能对任何框架来说实现起来都相当简单。</p>
       <p>每个接口必须声明四个属性：</p>
       <table>

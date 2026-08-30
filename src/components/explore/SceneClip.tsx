@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useContext, useEffect, useRef } from 'react'
 import type {} from 'gsap'
 import type { Scene } from './SceneController'
 import { createDemoHandle } from './SceneController'
 import { registerSceneClip } from './sceneClipRegistry'
+import { SceneDemoContext } from './AnswerContext'
 
 /* 与 v1 同一 glob 手法，但消费 demos 字典而非 default Scene */
 const demoModules = import.meta.glob<{ demos: Record<string, Scene> }>(
@@ -15,6 +16,21 @@ function moduleForSlug(slug: string | null) {
   if (!slug) return null
   const key = Object.keys(demoModules).find((k) => k.split('/').slice(-2, -1)[0] === slug)
   return key ? demoModules[key] : null
+}
+
+/**
+ * v6 review 单源收敛：demo 名解析 = prop > SceneDemoContext（Answer 注入的 yaml scenes[].demo）> 空。
+ *
+ * - prop：SceneClip 显式传入（测试直渲形态），显式最高。
+ * - SceneDemoContext：q-*.tsx 单幕文件在 Answer 内渲染时，Answer 注入
+ *   scene.demo——demo 名只在 yaml scenes[].demo 一处声明，与 demos 字典键、
+ *   q-*.tsx 文件名三者同源，杜绝「yaml 改了 demo、q-*.tsx 没跟改」的结构性漂移。
+ * - 都拿不到（SSR 无 Answer、孤儿 SceneClip）→ 空：SceneClip 降级为静态 DOM
+ *   （Stage 仍渲染，不建 timeline），不 warn（属正常态，非错误）。
+ */
+function resolveDemoName(prop: string | undefined, ctxDemo: string | null): string {
+  if (prop) return prop
+  return ctxDemo ?? ''
 }
 
 /**
@@ -35,6 +51,8 @@ export function setCurrentSlug(slug: string | null) {
  *
  * 实现要点：
  * - slug 同步反查：渲染期读模块级 currentSlug（Post.tsx 同步设置）。
+ * - demo 名解析：prop > SceneDemoContext（resolveDemoName，见上）——q-*.tsx 单幕文件
+ *   不再写死 demo 名，由 Answer 注入 yaml scenes[].demo 单一真相。
  * - Stage 必须由本组件渲染进容器：GSAP 靠选择器找 DOM。
  * - 然后 useEffect 里 build timeline + 视口观察（仅浏览器端有 IntersectionObserver）。
  * - 首次进入视口（threshold 0.3）：自动 play；播完停终态
@@ -43,13 +61,15 @@ export function setCurrentSlug(slug: string | null) {
  * - reduced-motion：play() 直达终态（createDemoHandle 内处理）
  * - demo 不存在（yaml/正文引用了未定义的键）：空容器降级，控制台 warn
  */
-export default function SceneClip({ demo }: { demo: string }) {
+export default function SceneClip({ demo }: { demo?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const ctxDemo = useContext(SceneDemoContext)
 
-  const scene = moduleForSlug(currentSlug)?.demos?.[demo] ?? null
-  if (!scene && currentSlug && typeof console !== 'undefined') {
-    console.warn(`[SceneClip] ${currentSlug} 没有 demo "${demo}"`)
+  const demoName = resolveDemoName(demo, ctxDemo)
+  const scene = moduleForSlug(currentSlug)?.demos?.[demoName] ?? null
+  if (!scene && currentSlug && demoName && typeof console !== 'undefined') {
+    console.warn(`[SceneClip] ${currentSlug} 没有 demo "${demoName}"`)
   }
 
   // Stage 挂载后 build timeline + 视口观察（仅浏览器）
@@ -80,7 +100,7 @@ export default function SceneClip({ demo }: { demo: string }) {
     btn?.addEventListener('click', handle.replay)
 
     // v4：把播放控制权暴露给 Director（同名覆盖旧值，注销闭包只在 cleanup 调用）
-    const unregister = registerSceneClip(demo, {
+    const unregister = registerSceneClip(demoName, {
       play: () => handle.play(),
       pause: () => handle.pause(),
       replay: () => handle.replay(),
@@ -92,11 +112,11 @@ export default function SceneClip({ demo }: { demo: string }) {
       btn?.removeEventListener('click', handle.replay)
       handle.kill()
     }
-  }, [demo])
+  }, [scene, demoName])
 
   const Stage = scene?.Stage
   return (
-    <div ref={ref} className="scene-clip" data-scene-clip-demo={demo} aria-label={`动画：${demo}`}>
+    <div ref={ref} className="scene-clip" data-scene-clip-demo={demoName} aria-label={`动画：${demoName}`}>
       {Stage && <Stage />}
       <button ref={btnRef} type="button" className="scene-replay" aria-label="重看">↻ 重看</button>
     </div>

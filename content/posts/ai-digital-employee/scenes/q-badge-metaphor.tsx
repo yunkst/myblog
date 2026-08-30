@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QBadgeMetaphor() {
   return (
     <>
-      <SceneClip demo="badge-metaphor" />
+      <SceneClip />
       <p>在展开技术细节之前，先打个比方——这套方案用一句话就能讲完：</p>
       <p><strong>让员工把自己的工牌借给 AI，AI 戴着这张工牌去干活。</strong></p>
       <p>公司的门禁系统早就建好了：每张工牌能刷开哪些门，是行政（RBAC）定的；谁在几点刷开了哪扇门，监控（审计）记得清清楚楚。现在 AI 来了，我们不给它配任何"万能卡"，也不为它改动任何一扇门的权限——它只是替你刷卡：</p>

@@ -4,7 +4,7 @@ import SceneClip from '../../../../src/components/explore/SceneClip'
 export default function QFuture() {
   return (
     <>
-      <SceneClip demo="dev-flow" />
+      <SceneClip />
       <p>除了管理后台和问答，这套框架还能很自然地向"开发"延伸。我的初步构思是：</p>
       <ol>
         <li><strong>方案生成 Agent（只读接口）</strong>：可以阅读源码。收到需求后，它会反向追问，直到把所有细节确认清楚，然后输出一份完整方案。因为只读，所以零风险，随便它跑。</li>

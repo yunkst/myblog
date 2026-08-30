@@ -2,11 +2,14 @@
 //
 // RED→GREEN 策略：文件集合一致性测试动态 readdirSync（真实目录真相）；
 // 渲染冒烟静态 import 15 个模块（require 在 vitest ESM 下不可用，brief 已授权改法）。
+// v6 review：demo 名单源收敛后，q-*.tsx 不再写死 <SceneClip demo="...">，
+// 本测试增强断言「SceneClip 从 yaml 派生 demo」（源里不应出现硬编码 demo prop）。
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { parseExploreYaml } from '../../../../src/lib/explore'
 import { setCurrentSlug } from '../../../../src/components/explore/SceneClip'
+import { SceneDemoContext } from '../../../../src/components/explore/AnswerContext'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, basename } from 'node:path'
 
@@ -58,11 +61,31 @@ describe('scenes/*.tsx 与 explore.yaml 对齐 + 渲染', () => {
     expect(fileIds).toEqual([...sceneIds].sort())
   })
 
-  it.each(Object.keys(MODULES))('%s 渲染出非空内容', (id) => {
+  it('q-*.tsx 不再硬编码 demo prop——demo 名由 yaml scenes[].demo 单一真相', () => {
+    for (const f of files) {
+      const src = readFileSync(join(DIR, f), 'utf-8')
+      // SceneClip 不允许带 demo="..."（单源收敛：demo 只在 explore.yaml 一处）
+      expect(src).not.toMatch(/SceneClip\s+demo=/)
+    }
+  })
+
+  it.each(Object.keys(MODULES))('%s 渲染出非空内容（SceneClip 经 SceneDemoContext 拿到 yaml demo）', (id) => {
     setCurrentSlug('ai-digital-employee')
     const Mod = MODULES[id]
-    const { container, unmount } = render(<MemoryRouter><Mod /></MemoryRouter>)
+    const yamlScene = config.value.scenes.find((s) => s.id === id)
+    // 模拟 Answer 注入：SceneClip 消费 SceneDemoContext 里的 demo 名
+    const { container, unmount } = render(
+      <MemoryRouter>
+        <SceneDemoContext.Provider value={yamlScene?.demo ?? null}>
+          <Mod />
+        </SceneDemoContext.Provider>
+      </MemoryRouter>,
+    )
     expect(container.innerHTML.length).toBeGreaterThan(0)
+    // SceneClip 渲染出对应 demo 的容器（data-scene-clip-demo 与 yaml demo 对齐）
+    if (yamlScene?.demo) {
+      expect(container.querySelector(`[data-scene-clip-demo="${yamlScene.demo}"]`)).not.toBeNull()
+    }
     unmount()
   })
 })
