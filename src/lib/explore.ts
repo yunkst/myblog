@@ -4,8 +4,8 @@
 // 用 node:fs；浏览器侧 Post.tsx 用 import.meta.glob('?raw')）。build 与浏览器跑同一份代码，
 // v1 的 explore.client.ts 双文件模式废除（spec §8.4）。
 //
-// v5：article.mdx 退出，<Answer> 不再存在。answerIds 在 ValidateCtx 中保留为接口对齐位
-// （validate 内部不再消费）；scenes 目录对齐由 T9 的 validateScenesAlignment 承担。
+// v5：article.mdx 退出，<Answer> 不再存在。ValidateCtx 仅剩 knownPosts/scenesOfPost；
+// scenes 目录对齐由 T9 的 validateScenesAlignment 承担。
 //
 // ⚠️ 安全考量：v5 article.mdx 退出后，<Answer> 不再由 MDX 编译产物提供，
 // 文本/scene 内容由 scenes/*.tsx 直接产出 ReactNode（避免 innerHTML 注入路径）。
@@ -70,9 +70,6 @@ export function parseExploreYaml(raw: string): ParseResult<ExploreConfig> {
 }
 
 export interface ValidateCtx {
-  answerIds: string[]
-  demoNames: string[]
-  sceneFileExists: boolean
   knownPosts: string[]
   /** 返回目标文章的场景 id 全集；目标文章无 explore.yaml 时返回 null */
   scenesOfPost(post: string): string[] | null
@@ -88,19 +85,8 @@ export function validateExploreConfig(
   // 规则1：entry 指向存在的场景
   if (!ids.has(config.entry)) errors.push(`[${slug}] entry="${config.entry}" 不在 scenes 里`)
 
-  // 规则2/3（Answer 存在性 / 未引用 Answer 警告）随 article.mdx 退出而失效；
-  // scenes 目录对齐由 validateScenesAlignment 承担（validate-explore.ts 调用）。
-  void ctx.answerIds
-
-  // 规则4：demo 存在
-  if (!ctx.sceneFileExists) {
-    errors.push(`[${slug}] 声明了场景但 scene.tsx 不存在`)
-  } else {
-    const demos = new Set(ctx.demoNames)
-    for (const s of config.scenes) {
-      if (!demos.has(s.demo)) errors.push(`[${slug}] 场景 ${s.id} 的 demo="${s.demo}" 不在 scene.tsx 的 demos 导出里`)
-    }
-  }
+  // 规则 2/3/4(Answer 存在性 / demo 与 scene.tsx 字典比对)随 v5 scenes/*.tsx 单幕文件
+  // 形态退役——scenes 对齐由 validateScenesAlignment 承担(validate-explore.ts 调用)。
 
   // 规则5：出口目标存在
   for (const s of config.scenes) {
@@ -137,17 +123,6 @@ export function resolveExploreHref(to: ExploreTarget, _config: ExploreConfig): s
   if (typeof to === 'string') return `#${to}`
   const sceneId = to.scene === 'entry' ? 'entry' : to.scene
   return `/blog/${to.post}/#${sceneId}`
-}
-
-/** 静态扫描 scene.tsx 的 demos 键。书写契约：键在行首缩进≥2，形如 name: { 或 'name': {。 */
-export function scanDemoNames(sceneSource: string): string[] {
-  const names = new Set<string>()
-  const re = /^\s{2,}'?([\w-]+)'?\s*:\s*\{/gm
-  let m: RegExpExecArray | null
-  while ((m = re.exec(sceneSource)) !== null) {
-    if (m[1] !== 'demos') names.add(m[1])
-  }
-  return [...names]
 }
 
 /** v3：场景幕序号中文数字（1→一 … 12→十二；>12 按 digit 组合，当前 11 场景够用） */

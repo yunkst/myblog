@@ -1,12 +1,12 @@
 - id: toughest-project
   text: 做过的最复杂的项目是哪个？
-  target: '/blog/bi-agent-7-days-saved-200k/#'
+  target: '/blog/ai-digital-employee/#q-tiered-execution'
 - id: open-source
   text: 你做过哪些开源项目？
-  target: '/blog/shixi-open-source-study-app/#'
+  target: '/blog/ai-digital-employee/#q-why-not-openclaw'
 - id: security-mindset
   text: 怎么看你把祖传账号密码干掉这件事？
-  target: '/blog/kill-the-legacy-password/#'
+  target: '/blog/ai-digital-employee/#q-threat-model'
 - id: latest-posts
   text: 你最近在写什么？
   target: '#blog'

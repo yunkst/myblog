@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  parseExploreYaml, resolveExploreHref, scanDemoNames, toChineseOrdinal,
+  parseExploreYaml, resolveExploreHref, toChineseOrdinal,
   validateScenesAlignment,
 } from './explore'
 
@@ -109,23 +109,6 @@ describe('resolveExploreHref', () => {
   it('跨文章具体场景 → /blog/<post>/#<scene-id>', () => {
     expect(config.ok && resolveExploreHref({ post: 'p2', scene: 'q-x' }, config.value))
       .toBe('/blog/p2/#q-x')
-  })
-})
-
-describe('scanDemoNames（demo 键书写契约：缩进≥2 的 name: { 形式）', () => {
-  it('扫出字面量键', () => {
-    const src = `export const demos: Record<string, Scene> = {
-  'message-flood': {
-    name: 'message-flood',
-    Stage: FloodStage,
-    build() { return gsap.timeline() },
-  },
-  badge: { name: 'badge', Stage: B, build: () => gsap.timeline() },
-}`
-    expect(scanDemoNames(src).sort()).toEqual(['badge', 'message-flood'])
-  })
-  it('无 demos 导出返回空数组', () => {
-    expect(scanDemoNames('export default {}')).toEqual([])
   })
 })
 

@@ -22,10 +22,6 @@ scenes:
 `
 
 const baseCtx: ValidateCtx = {
-  /* v5（Task 7/9）：article.mdx 已删——answerIds 不再消费；scenes 对齐由 validateScenesAlignment 负责 */
-  answerIds: [],
-  demoNames: ['demo-a', 'demo-b'],
-  sceneFileExists: true,
   knownPosts: ['self', 'other'],
   scenesOfPost: (p) => (p === 'other' ? ['q-o1'] : null),
 }
@@ -40,14 +36,6 @@ describe('validateExploreConfig v2', () => {
     c.entry = 'q-nope'
     const r = validateExploreConfig('self', c, baseCtx)
     expect(r.errors.some((e) => e.includes('entry'))).toBe(true)
-  })
-  it('规则4 demo 不存在报错', () => {
-    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, demoNames: ['demo-a'] })
-    expect(r.errors.some((e) => e.includes('demo-b'))).toBe(true)
-  })
-  it('规则4b scene.tsx 不存在报错（demo 必填的推论）', () => {
-    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, sceneFileExists: false })
-    expect(r.errors.length).toBeGreaterThan(0)
   })
   it('规则5 本地 to 指向不存在场景报错', () => {
     const y = baseYaml.replace('- { text: 去那篇, to: { post: other, scene: entry } }', '- { text: 去不存在, to: q-nope }')
@@ -66,17 +54,5 @@ describe('validateExploreConfig v2', () => {
   it('规则5d 跨文章 scene: entry 且目标无 yaml 报错', () => {
     const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, scenesOfPost: () => null })
     expect(r.errors.some((e) => e.includes('other'))).toBe(true)
-  })
-})
-
-/* v5（Task 7/9）：规则 2/3（Answer 存在性 / 未引用 Answer 警告）随 article.mdx 退出而失效；
- * scenes 目录对齐由 validateScenesAlignment 负责（见 src/lib/explore.test.ts）。 */
-describe('validateExploreConfig v5 跳过的规则', () => {
-  it('answerIds 不影响校验（规则 2/3 跳过）', () => {
-    const r = validateExploreConfig('self', makeConfig(baseYaml), {
-      ...baseCtx, answerIds: ['q-a', 'q-b', 'q-orphan', 'q-also-orphan'],
-    })
-    expect(r.errors).toEqual([])
-    expect(r.warnings).toEqual([])
   })
 })

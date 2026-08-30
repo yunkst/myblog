@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import yaml from 'js-yaml'
 import {
-  parseExploreYaml, validateExploreConfig, scanDemoNames,
+  parseExploreYaml, validateExploreConfig,
   validateScenesAlignment,
 } from '../src/lib/explore'
 import type { ExploreConfig } from '../src/lib/types'
@@ -45,8 +45,10 @@ function knownPosts(): string[] {
 function listSceneFiles(slug: string): string[] {
   const dir = path.join(POSTS, slug, 'scenes')
   if (!fs.existsSync(dir)) return []
-  // *.test.tsx 是测试工件，不是场景模块
-  return fs.readdirSync(dir).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))
+  /* *.test.tsx 与 *.test.ts 都是测试工件——与 SceneRoute.tsx 的 import.meta.glob
+   * 负向 pattern 完全对齐,避免 validate 把测试文件当场景的规则漂移。 */
+  return fs.readdirSync(dir).filter((f) => f.endsWith('.tsx')
+    && !f.endsWith('.test.tsx') && !f.endsWith('.test.ts'))
 }
 
 function main() {
@@ -86,17 +88,18 @@ function main() {
           console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml 缺 date（必须是 string 或 Date）`)
           failures++
         }
+        /* yaml 声明 slug 时必须与目录名一致——运行时以目录名为准(content.ts),
+         * 漂移会导致 SSG 路径与 scenes glob key 失配。 */
+        if (meta.slug !== undefined && String(meta.slug) !== slug) {
+          console.error(`\x1b[31m✗\x1b[0m [${slug}] meta.yaml slug="${String(meta.slug)}" 与目录名不一致(运行时以目录名为准)`)
+          failures++
+        }
       }
     }
 
     const config = loadConfig(slug)
     if (!config) continue
-    const sceneSrc = readIfExists(path.join(POSTS, slug, 'scene.tsx'))
     const r = validateExploreConfig(slug, config, {
-      /* v5 规则 2/3（Answer 存在性）已替换为 scenes 双向对齐（见下） */
-      answerIds: [],
-      demoNames: sceneSrc ? scanDemoNames(sceneSrc) : [],
-      sceneFileExists: sceneSrc !== null,
       knownPosts: posts,
       scenesOfPost: (p) => {
         const t = loadConfig(p)
@@ -111,6 +114,25 @@ function main() {
     r.errors.forEach((e) => console.error(`\x1b[31m✗\x1b[0m ${e}`))
     sceneFileErrors.forEach((e) => console.error(`\x1b[31m✗\x1b[0m ${e}`))
     warnings.push(...r.warnings)
+  }
+
+  // faqs.yaml 一致性:跨文章 target 的 slug 必须真实存在(MDX 退役删文后,这里是死链防线)
+  const faqsPath = path.join(process.cwd(), 'content', 'faqs.yaml')
+  if (fs.existsSync(faqsPath)) {
+    const faqs = yaml.load(fs.readFileSync(faqsPath, 'utf-8')) as
+      | { id?: unknown; target?: unknown }[]
+      | null
+    if (Array.isArray(faqs)) {
+      for (const f of faqs) {
+        if (typeof f?.target !== 'string') continue
+        const m = f.target.match(/^\/blog\/([^/#]+)\/#/)
+        if (!m) continue
+        if (!posts.includes(m[1])) {
+          console.error(`\x1b[31m✗\x1b[0m [faqs] ${String(f.id ?? '?')} 的 target 指向不存在的文章目录: ${m[1]}`)
+          failures++
+        }
+      }
+    }
   }
 
   console.log(`\n[validate-explore] 失败 ${failures}，警告 ${warnings.length}`)

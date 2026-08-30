@@ -15,10 +15,6 @@ const exploreYamls = import.meta.glob<string>('/content/posts/*/explore.yaml', {
 const VALID_ANIM: AnimProfile[] = ['auto', 'data-narrative', 'architecture', 'story']
 const VALID_STATUS: PostStatus[] = ['draft', 'published', 'scheduled']
 
-function slugify(title: string): string {
-  return title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-龥-]/g, '')
-}
-
 function slugOf(modulePath: string): string {
   return modulePath.split('/').slice(-2, -1)[0]
 }
