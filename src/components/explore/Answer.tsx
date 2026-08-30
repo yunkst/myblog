@@ -1,9 +1,10 @@
-import { useContext, useRef, type ReactNode } from 'react'
+import { Fragment, useContext, useRef, type ReactNode } from 'react'
 import SceneClip from './SceneClip'
 import ExitChips from './ExitChips'
 import { toChineseOrdinal } from '../../lib/explore'
 import { ExploreConfigContext, ExploreRuntimeContext } from './AnswerContext'
 import { Director } from './Director'
+import type { ExploreScene } from '../../lib/types'
 
 /** 重新导出供测试/外部消费者沿用旧路径 import Answer, { ExploreConfigContext }。 */
 export { ExploreConfigContext }
@@ -15,21 +16,47 @@ export { ExploreConfigContext }
  *
  * v3 分区（spec §2.2）：children → heading(first-found) / SceneClip / 其余
  */
+/**
+ * v5（spec §7.4）partition：body 元素树 → heading(first-found) / SceneClip / 其余。
+ *
+ * v3 的 partition 只看顶层 children（MDX 手写场景里 <Answer> 的直接子元素就是
+ * h2/SceneClip/p 等混排）。v5 SceneRoute 传 `body={<Scene />}`——**函数组件或
+ * Fragment 包裹**，顶层 type 不是 h2/SceneClip。所以需要浅递归展开：
+ * - Fragment（type === Fragment）→ 递归它的 children；
+ * - 函数组件（typeof type === 'function'）→ 调用它拿到内部元素树再递归
+ *   （场景文件都是 `export default function X() { return <>...</> }` 形态）；
+ * - DOM 元素（typeof type === 'string'）按 v3 规则分类。
+ *
+ * 不处理类组件 / memo / lazy —— v5 场景文件形态统一（T6 产物），无需覆盖。
+ */
 function partition(children: ReactNode) {
-  const arr = Array.isArray(children) ? children : [children]
   const clips: ReactNode[] = []
   const rest: ReactNode[] = []
   let heading: ReactNode | null = null
   let headingTaken = false
-  for (const child of arr) {
-    if (child == null || child === false) continue
-    const t = (child as { type?: unknown }).type
-    if (t === SceneClip) { clips.push(child); continue }
-    if (!headingTaken && typeof t === 'string' && (t === 'h2' || t === 'h3')) {
-      heading = child; headingTaken = true; continue
+
+  const walk = (nodes: ReactNode) => {
+    const arr = Array.isArray(nodes) ? nodes : [nodes]
+    for (const child of arr) {
+      if (child == null || child === false || child === true) continue
+      const el = child as { type?: unknown; props?: { children?: ReactNode } }
+      const t = el.type
+      if (t === SceneClip) { clips.push(child); continue }
+      if (t === Fragment) { walk(el.props?.children); continue }
+      if (typeof t === 'function') {
+        /* 函数组件：直接调用拿返回的元素树（SSG/render 期等价——无 hooks） */
+        const Comp = t as (props: unknown) => ReactNode
+        walk(Comp(el.props))
+        continue
+      }
+      if (!headingTaken && typeof t === 'string' && (t === 'h2' || t === 'h3')) {
+        heading = child; headingTaken = true; continue
+      }
+      rest.push(child)
     }
-    rest.push(child)
   }
+  walk(children)
+
   return { heading, clips, rest }
 }
 
@@ -53,14 +80,24 @@ function partition(children: ReactNode) {
  * - skip 回传：Director.onReady → runtime.onActivate → ExploreRouter.skipRef
  *   （点击空白跳过用）。
  */
-export default function Answer({ id, children }: { id: string; children: ReactNode }) {
+/**
+ * v5（spec §7.4）props 改造：
+ * - 旧：{ id, children }（MDX 端手写 <Answer id="..."> children）。
+ * - 新：{ scene, body }——SceneRoute 从 glob 命中场景组件后，把 yaml scene 对象 +
+ *   <Scene/> 元素树交给 Answer。partition(body) 逻辑不变（body 元素树里
+ *   child.type === SceneClip 判定——同模块实例直接 import 命中）。
+ * - heading 兜底：body 无 h2/h3 时用 <h2>{scene.label}</h2>（yaml 单一真相）。
+ * - Director 演出层（mode 判定/演出条件/skip 回传）与 v4 完全一致，未动。
+ */
+export default function Answer({ scene, body }: { scene: ExploreScene; body: ReactNode }) {
   const config = useContext(ExploreConfigContext)
   const runtime = useContext(ExploreRuntimeContext)
-  const scene = config?.scenes.find((s) => s.id === id)
+  const id = scene.id
   const idx = config?.scenes.findIndex((s) => s.id === id) ?? -1
-  const { heading, clips, rest } = partition(children)
-  const hasExits = !!scene && (!!scene.features?.length || !!scene.questions?.length)
-  const hasHead = !!(heading || idx >= 0)
+  const { heading, clips, rest } = partition(body)
+  const hasExits = !!config && (!!scene.features?.length || !!scene.questions?.length)
+  const headTitle = heading ?? <h2>{scene.label}</h2>
+  const hasHead = !!(headTitle || idx >= 0)
 
   /* 演出层 ref（交给 Director 编排） */
   const headRef = useRef<HTMLDivElement>(null)
@@ -72,18 +109,18 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
   /* 演出条件：有路由上下文 + 本幕激活 + 首次看过（spec §3.3 seenScenes：回看不重播） */
   const perform = !!runtime && active && runtime.firstActivation
 
-  const body = (
+  const sections = (
     <>
       {hasHead && (
         <div className="act-head" ref={headRef}>
           {idx >= 0 && <span className="act-no">第{toChineseOrdinal(idx + 1)}幕</span>}
-          {heading}
+          {headTitle}
           <div className="act-rule" />
         </div>
       )}
       {clips.length > 0 && (
         <div className="stage" ref={stageRef}>
-          <span className="stage-tag">DEMO · {scene?.demo ?? '—'}</span>
+          <span className="stage-tag">DEMO · {scene.demo ?? '—'}</span>
           <span className="stage-ch">CH-{String(idx + 1).padStart(2, '0')}</span>
           <div className="stage-spot" />
           <div className="stage-inner">{clips}</div>
@@ -93,7 +130,7 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
         <span className="dlg-name">解 说</span>
         {rest}
       </div>
-      {hasExits && scene && config && (
+      {hasExits && config && (
         <div className="choices" ref={choicesRef}>
           <span className="choices-label">─ 選択肢 ─</span>
           {/* v5 Task 3：baseIdx 与 runtime.focusedExitIdx 平铺序对齐——features 0 起，questions 接 features 长度 */}
@@ -113,17 +150,17 @@ export default function Answer({ id, children }: { id: string; children: ReactNo
     >
       {perform ? (
         <Director
-          scene={{ id, mode: scene?.mode ?? 2, demo: scene?.demo ?? '' }}
+          scene={{ id, mode: scene.mode ?? 2, demo: scene.demo ?? '' }}
           headRef={headRef}
           dlgRef={dialogueRef}
           choicesRef={choicesRef}
           stageRef={clips.length > 0 ? stageRef : undefined}
           onReady={(api) => runtime.onActivate(id, api.skip)}
         >
-          {body}
+          {sections}
         </Director>
       ) : (
-        body
+        sections
       )}
     </section>
   )

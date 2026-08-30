@@ -17,9 +17,19 @@ const config: ExploreConfig = {
   }, { id: 'q-b', label: 'B', demo: 'd' }],
 }
 
-describe('Answer（v2 原位渲染）', () => {
+describe('Answer（v5 scene/body props）', () => {
   it('渲染为带 id 的 theater+answer-block 双类名，子内容可见', () => {
-    render(<Answer id="q-problem"><p>正文段落</p></Answer>)
+    const cfg: ExploreConfig = {
+      title: 't', entry: 'q-problem',
+      scenes: [{ id: 'q-problem', label: '问题', demo: 'd' }],
+    }
+    render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={cfg}>
+          <Answer scene={cfg.scenes[0]} body={<p>正文段落</p>} />
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
     const block = document.getElementById('q-problem')
     expect(block).not.toBeNull()
     // 双类名约定：v3 引入 .theater，保留 .answer-block 作过渡别名
@@ -28,11 +38,11 @@ describe('Answer（v2 原位渲染）', () => {
     expect(screen.getByText('正文段落')).toBeInTheDocument()
   })
 
-  it('Context 提供 config 时，按 id 自动渲染 features + questions 两组 chips', () => {
+  it('Context 提供 config 时，按 scene 自动渲染 features + questions 两组 chips', () => {
     render(
       <MemoryRouter>
         <ExploreConfigContext.Provider value={config}>
-          <Answer id="q-a"><p>正文</p></Answer>
+          <Answer scene={config.scenes[0]} body={<p>正文</p>} />
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
@@ -42,14 +52,8 @@ describe('Answer（v2 原位渲染）', () => {
     expect(block?.querySelector('.exit-chips-features .exit-chip')?.getAttribute('href')).toBe('#q-b')
   })
 
-  it('yaml 找不到对应 id 的场景时，只渲染 children，无 chips', () => {
-    render(
-      <MemoryRouter>
-        <ExploreConfigContext.Provider value={config}>
-          <Answer id="not-a-scene"><p>孤儿段落</p></Answer>
-        </ExploreConfigContext.Provider>
-      </MemoryRouter>,
-    )
+  it('Context 无 config：features/questions chips 不渲染（孤儿 body 仍渲染）', () => {
+    render(<Answer scene={{ id: "orphan", label: "L", demo: "d" }} body={<p>孤儿段落</p>} />)
     expect(document.querySelector('.exit-chip')).toBeNull()
   })
 })
@@ -80,11 +84,11 @@ describe('Answer v3 分区渲染', () => {
     const { container } = render(
       <MemoryRouter>
         <ExploreConfigContext.Provider value={cfg}>
-          <Answer id="q-a">
+          <Answer scene={cfg.scenes[0]} body={<>
             <h2>标题</h2>
             <SceneClip demo="demo-a" />
             <p>解说段落</p>
-          </Answer>
+          </>} />
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
@@ -122,7 +126,7 @@ describe('Answer v3 分区渲染', () => {
     const { container } = render(
       <MemoryRouter>
         <ExploreConfigContext.Provider value={cfg}>
-          <Answer id="q-b"><p>纯文字</p></Answer>
+          <Answer scene={cfg.scenes[1]} body={<p>纯文字</p>} />
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
@@ -138,12 +142,12 @@ describe('Answer v3 分区渲染', () => {
     const { container } = render(
       <MemoryRouter>
         <ExploreConfigContext.Provider value={cfg}>
-          <Answer id="q-a">
+          <Answer scene={cfg.scenes[0]} body={<>
             <SceneClip demo="demo-a" />
             <p>先一段</p>
             <h3>小标题</h3>
             <h3>又一个小标题</h3>
-          </Answer>
+          </>} />
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
@@ -156,6 +160,23 @@ describe('Answer v3 分区渲染', () => {
     expect(dialogue?.querySelector('h3')?.textContent).toBe('又一个小标题')
     // stage-inner 内有 SceneClip + p 不在 stage（只摘 SceneClip）
     expect(container.querySelector('.stage-inner [data-scene-clip-demo="demo-a"]')).not.toBeNull()
+  })
+
+  it('body 无 heading 时用 yaml scene.label 兜底 h2', () => {
+    const cfg = makeConfig(yaml)
+    const { container } = render(
+      <MemoryRouter>
+        <ExploreConfigContext.Provider value={cfg}>
+          <Answer scene={cfg.scenes[0]} body={<>
+            <SceneClip demo="demo-a" />
+            <p>纯段落无标题</p>
+          </>} />
+        </ExploreConfigContext.Provider>
+      </MemoryRouter>,
+    )
+    const actHead = container.querySelector('.act-head')
+    expect(actHead).not.toBeNull()
+    expect(actHead?.querySelector('h2')?.textContent).toBe('场景A')
   })
 })
 
@@ -175,7 +196,15 @@ describe('Answer v3 演出', () => {
 
   it('打字机/reduced-motion：reduce 下不建 timeline、段落直接显示', () => {
     mockedReduce.value = true
-    render(<Answer id="q-a"><p>文本</p></Answer>)
+    const cfg: ExploreConfig = {
+      title: 't', entry: 'q-a',
+      scenes: [{ id: 'q-a', label: 'A', demo: 'd' }],
+    }
+    render(
+      <ExploreConfigContext.Provider value={cfg}>
+        <Answer scene={cfg.scenes[0]} body={<p>文本</p>} />
+      </ExploreConfigContext.Provider>,
+    )
     // buildTypewriterTimeline 返回 null → 段落未被清空，原文直出
     const p = screen.getByText('文本')
     expect(p.textContent).toBe('文本')
@@ -185,7 +214,7 @@ describe('Answer v3 演出', () => {
     render(
       <MemoryRouter>
         <ExploreConfigContext.Provider value={config}>
-          <Answer id="q-a"><p>正文</p></Answer>
+          <Answer scene={config.scenes[0]} body={<p>正文</p>} />
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
