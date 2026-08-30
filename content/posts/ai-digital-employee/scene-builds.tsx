@@ -1,7 +1,8 @@
-// scene-builds.tsx — 9 个概念型 demo 的 GSAP timeline build 函数
+// scene-builds.tsx — 9 个概念型 demo + 4 个架构图 demo 的 GSAP timeline build 函数
 //
 // 体验型 2 个 (message-flood / tiered-confirm) 留在 scene.tsx；
 // 概念型 9 个拆到这里保持 scene.tsx 单文件不超过 300 行（brief 要求）。
+// 架构图 4 个：从原幕拆出后，build 只做容器淡入以满足 mode 2 "文字先行 → demo" 的演出节拍。
 import { gsap } from 'gsap'
 
 /** 概念型模板：所有概念项 stagger 出现（initial opacity:0 y:12） */
@@ -200,3 +201,18 @@ export function buildDevFlow() {
   }
   return tl
 }
+
+/* ───────── 架构图型 4 个：容器淡入（mode 2 的 demo 段） ───────── */
+
+/** 通用：架构图 stage 容器淡入 + 轻微上移。selector 为 stage 根元素选择器。 */
+function buildArchFade(rootSel: string) {
+  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
+  tl.set(rootSel, { opacity: 0, y: 16 })
+  tl.to(rootSel, { opacity: 1, y: 0, duration: 0.7 })
+  return tl
+}
+
+export function buildArchitecture() { return buildArchFade('[data-arch="architecture"]') }
+export function buildRequestFlow() { return buildArchFade('[data-arch="request-flow"]') }
+export function buildTieredFlow() { return buildArchFade('[data-arch="tiered-flow"]') }
+export function buildDevFlowArch() { return buildArchFade('[data-arch="dev-flow-arch"]') }

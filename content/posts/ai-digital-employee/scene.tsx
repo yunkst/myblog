@@ -1,8 +1,10 @@
 // scene.tsx — ai-digital-employee 探索视图动画舞台（v2 demos 字典）
 //
-// 11 个 demo：
+// 15 个 demo：
 //   - message-flood, tiered-confirm           体验型（build 内联在本文件）
 //   - 其余 9 个                                概念型（build 在 scene-builds.tsx）
+//   - architecture, request-flow, tiered-flow, dev-flow-arch
+//                                             架构图型（build 在 scene-builds.tsx）
 import { gsap } from 'gsap'
 import type { Scene } from '../../../src/components/explore/SceneController'
 import {
@@ -11,12 +13,16 @@ import {
   OpenclawPitfallsStage,
   FourPrerequisitesStage,
   BadgeMetaphorStage,
+  ArchitectureStage,
   ProtocolRepoStage,
   UnifiedIdentityStage,
+  RequestFlowStage,
   TieredExecutionStage,
+  TieredFlowStage,
   ThreatModelStage,
   LimitsStage,
   DevFlowStage,
+  DevFlowArchStage,
 } from './scene-stages'
 import {
   buildOpenclawPitfalls,
@@ -28,6 +34,10 @@ import {
   buildThreatModel,
   buildLimits,
   buildDevFlow,
+  buildArchitecture,
+  buildRequestFlow,
+  buildTieredFlow,
+  buildDevFlowArch,
 } from './scene-builds'
 
 export const demos: Record<string, Scene> = {
@@ -37,21 +47,32 @@ export const demos: Record<string, Scene> = {
     Stage: FloodStage,
     build() {
       const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
-      const bubbles = ['#b1', '#b2', '#b3', '#b4', '#b5']
-      tl.set(bubbles, { opacity: 0, y: 14 })
+      const incoming = ['#b1', '#b2', '#b3', '#b4', '#b5']
+      const mine = ['#b-me1', '#b-me2']
+      tl.set(incoming, { opacity: 0, y: 14 })
+      tl.set(mine, { opacity: 0, y: 14 })
       tl.set(['#flood-line1', '#flood-line2'], { opacity: 0 })
 
       // 1) 消息逐条弹出，越来越快（0.9 → 0.35 间隔）
-      bubbles.forEach((b, i) => {
+      incoming.forEach((b, i) => {
         tl.to(b, { opacity: 1, y: 0, duration: 0.3 }, i === 0 ? 0.4 : '>')
-        if (i < bubbles.length - 1) tl.to({}, { duration: 0.9 - i * 0.14 })
+        if (i < incoming.length - 1) tl.to({}, { duration: 0.9 - i * 0.14 })
       })
 
-      // 2) 气泡堆整体上移溢出，窗体轻震
+      // 2) 我的第一条回复（被围困但还在硬撑）
+      tl.to('#b-me1', { opacity: 1, y: 0, duration: 0.25 }, '+=0.3')
+      // 消息不停，第 4、5 条在我回复间隙继续涌入
+      tl.to('#b4', { opacity: 1, y: 0, duration: 0.25 }, '+=0.4')
+      tl.to({}, { duration: 0.35 })
+      tl.to('#b5', { opacity: 1, y: 0, duration: 0.25 })
+      // 3) 我的第二条回复：只剩一个字——越来越忙
+      tl.to('#b-me2', { opacity: 1, y: 0, duration: 0.2 }, '+=0.3')
+
+      // 4) 气泡堆整体上移溢出，窗体轻震
       tl.to('.mock-chat-body', { y: -60, duration: 0.8 }, '+=0.2')
       tl.to('.mock-chat-pane', { x: 3, duration: 0.05, repeat: 5, yoyo: true }, '<')
 
-      // 3) 静默 + 点题
+      // 5) 静默 + 点题
       tl.to(['.mock-chat-body', '.mock-chat-head'], { opacity: 0.25, duration: 0.6 }, '+=0.4')
       tl.to('#flood-line1', { opacity: 1, duration: 0.8 }, '<+0.3')
       tl.to('#flood-line2', { opacity: 1, duration: 0.8 }, '+=0.9')
@@ -120,4 +141,10 @@ export const demos: Record<string, Scene> = {
   'threat-model':       { name: 'threat-model',       Stage: ThreatModelStage,       build: buildThreatModel },
   'limits':             { name: 'limits',             Stage: LimitsStage,            build: buildLimits },
   'dev-flow':           { name: 'dev-flow',           Stage: DevFlowStage,           build: buildDevFlow },
+
+  // ─── 架构图型 4 个（从原幕拆出；mode 2 文字先行 → 容器淡入） ──
+  'architecture':  { name: 'architecture',  Stage: ArchitectureStage,  build: buildArchitecture },
+  'request-flow':  { name: 'request-flow',  Stage: RequestFlowStage,  build: buildRequestFlow },
+  'tiered-flow':   { name: 'tiered-flow',   Stage: TieredFlowStage,   build: buildTieredFlow },
+  'dev-flow-arch': { name: 'dev-flow-arch', Stage: DevFlowArchStage, build: buildDevFlowArch },
 }

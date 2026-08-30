@@ -7,16 +7,27 @@ scenes:
     demo: message-flood
     mode: 1
     features:
-      - { text: AI 分身怎么安全上岗？, to: q-badge-metaphor }
-      - { text: 直接看确认流程, to: q-tiered-confirm }
+      - { text: ▶ 看 AI 员工实际干活, to: q-tiered-confirm }
     questions:
-      - { text: 第一次尝试为什么失败？, to: q-why-not-openclaw }
-      - { text: 这套方案的边界, to: q-limits }
-      - { text: 未来还能怎么扩展？, to: q-future }
+      - { text: 可以用 OpenClaw 吗？, to: q-why-not-openclaw }
+
+  - id: q-tiered-confirm
+    label: AI 员工实操：一段真实确认流程
+    demo: tiered-confirm
+    mode: 1
+    features:
+      - { text: 安全设计的总入口：工牌比喻, to: q-badge-metaphor }
+      - { text: 三层细节：协议仓库, to: q-protocol-repo }
+      - { text: 三层细节：统一身份, to: q-unified-identity }
+      - { text: 三层细节：分级执行, to: q-tiered-execution }
+    questions:
+      - { text: 平台约束的是 AI，还是人？, to: q-threat-model }
+      - { text: 这套方案解决不了什么？, to: q-limits }
 
   - id: q-why-not-openclaw
-    label: 第一次尝试：为什么没用 openclaw？
+    label: 可以用 OpenClaw 吗？
     demo: openclaw-pitfalls
+    mode: 3
     questions:
       - { text: 正确的前提是什么？, to: q-four-prerequisites }
 
@@ -30,11 +41,19 @@ scenes:
     label: 一句话方案：把工牌借给 AI
     demo: badge-metaphor
     features:
+      - { text: 整体架构图, to: q-architecture }
       - { text: 协议仓库, to: q-protocol-repo }
       - { text: 统一身份, to: q-unified-identity }
       - { text: 分级执行, to: q-tiered-execution }
     questions:
       - { text: 直接看分级确认流程, to: q-tiered-confirm }
+
+  - id: q-architecture
+    label: 整体架构图
+    demo: architecture
+    mode: 2
+    questions:
+      - { text: 回到工牌比喻, to: q-badge-metaphor }
 
   - id: q-protocol-repo
     label: 第一层：让接口自报家门
@@ -47,24 +66,30 @@ scenes:
     label: 第二层：AI 走人一样的权限通道
     demo: unified-identity
     questions:
+      - { text: 请求链路图, to: q-request-flow }
       - { text: 上一层：协议仓库, to: q-protocol-repo }
       - { text: 下一层：分级执行, to: q-tiered-execution }
+
+  - id: q-request-flow
+    label: 请求链路图
+    demo: request-flow
+    mode: 2
+    questions:
+      - { text: 回到统一身份, to: q-unified-identity }
 
   - id: q-tiered-execution
     label: 第三层：分级执行（总览）
     demo: tiered-execution
     questions:
+      - { text: 分级决策流程图, to: q-tiered-flow }
       - { text: 看一段真实确认流程, to: q-tiered-confirm }
 
-  - id: q-tiered-confirm
-    label: 一段确认流程
-    demo: tiered-confirm
-    mode: 1
-    features:
-      - { text: 回到问题入口, to: q-problem }
-      - { text: 看分级策略总览, to: q-tiered-execution }
+  - id: q-tiered-flow
+    label: 分级决策流程图
+    demo: tiered-flow
+    mode: 2
     questions:
-      - { text: 这套方案解决不了什么？, to: q-limits }
+      - { text: 回到分级执行, to: q-tiered-execution }
 
   - id: q-threat-model
     label: 威胁模型：平台约束的是 AI，不是人
@@ -83,4 +108,12 @@ scenes:
     label: 未来拓展：让 AI 替我接需求
     demo: dev-flow
     questions:
+      - { text: 开发流架构图, to: q-dev-flow-arch }
       - { text: 回到入口, to: q-problem }
+
+  - id: q-dev-flow-arch
+    label: 开发流架构图
+    demo: dev-flow-arch
+    mode: 2
+    questions:
+      - { text: 回到未来拓展, to: q-future }

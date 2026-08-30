@@ -1,11 +1,20 @@
 // scene-stages.tsx
 //
-// 11 个 demo 的静态 DOM Stage。GSAP 在这些 DOM 上跑时间线。
+// 15 个 demo 的静态 DOM Stage。GSAP 在这些 DOM 上跑时间线。
 // 体验型：FloodStage（群消息洪水）、ConfirmStage（一次确认流程）。
 // 概念型 9 个：openclaw-pitfalls / four-prerequisites / badge-metaphor /
 //   protocol-repo / unified-identity / tiered-execution / threat-model /
 //   limits / dev-flow。
+// 架构图型 4 个：architecture / request-flow / tiered-flow / dev-flow-arch
+//   （原幕里把图迁出后单独成幕；stage 包裹 ArchDiagram 容器，build 做淡入）。
 import { ChatPane, Bubble, Typewriter, MockCursor } from '../../../src/components/explore/mock-ui'
+import ArchDiagram from '../../../src/components/blog-anim/ArchDiagram'
+import {
+  figArchitecture,
+  figRequestFlow,
+  figTiered,
+  figDevFlow,
+} from '../../../src/components/blog-anim/diagrams/ai-digital-employee'
 
 /* ───────── 体验型 2 个 ───────── */
 
@@ -229,4 +238,22 @@ export function DevFlowStage() {
       </div>
     </div>
   )
+}
+
+/* ───────── 架构图型 4 个（一幕一图；build 只做容器淡入） ───────── */
+
+export function ArchitectureStage() {
+  return <div data-arch="architecture"><ArchDiagram {...figArchitecture} caption="三层结构：协议仓库（接口自报家门）→ 统一身份（AI 走人一样的通道）→ 分级执行（AI 发疯也有兜底）" /></div>
+}
+
+export function RequestFlowStage() {
+  return <div data-arch="request-flow"><ArchDiagram {...figRequestFlow} caption="身份透传是写死的基础设施逻辑——AI 在整个过程中没有任何选择身份的能力" /></div>
+}
+
+export function TieredFlowStage() {
+  return <div data-arch="tiered-flow"><ArchDiagram {...figTiered} caption="分级策略：只读直调 / 安全写确认 / 可逆预演+锁定 / 高风险管理员审批" /></div>
+}
+
+export function DevFlowArchStage() {
+  return <div data-arch="dev-flow-arch"><ArchDiagram {...figDevFlow} caption="需求 → 方案 Agent → 审查 → 触发 → 落地 Agent → 开发分支 → CI/CD → 测试 → 发布 → 验收" /></div>
 }

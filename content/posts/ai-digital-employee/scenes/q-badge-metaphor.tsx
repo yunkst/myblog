@@ -1,8 +1,6 @@
 import SceneClip from '../../../../src/components/explore/SceneClip'
-import ArchDiagram from '../../../../src/components/blog-anim/ArchDiagram'
-import { figArchitecture } from '../../../../src/components/blog-anim/diagrams/ai-digital-employee'
 
-/** 幕正文：q-badge-metaphor（yaml label：一句话方案：把工牌借给 AI） */
+/** 幕正文：q-badge-metaphor（yaml label：一句话方案：把工牌借给 AI）—— 一幕一动画 */
 export default function QBadgeMetaphor() {
   return (
     <>
@@ -17,10 +15,6 @@ export default function QBadgeMetaphor() {
         <li>如果它进错了房间，大多数地方还能退出来、恢复原样，这就是撤回。</li>
       </ul>
       <p>工牌自始至终是你的工牌，AI 只是替你跑腿的那双手。下面三层设计，全部是在把这个比喻变成工程现实。</p>
-      <img src="/posts/ai-digital-employee/badge-metaphor.webp"
-        alt="员工把工牌借给数字员工：她能刷的门就是你授权的门，敏感房间仍需你本人到场" />
-      <p>整体架构长这样：</p>
-      <ArchDiagram {...figArchitecture} caption="三层结构：协议仓库（接口自报家门）→ 统一身份（AI 走人一样的通道）→ 分级执行（AI 发疯也有兜底）" />
     </>
   )
 }

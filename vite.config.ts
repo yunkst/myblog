@@ -14,8 +14,23 @@ function mimeOf(file: string): string {
 }
 
 /* build 产物：dist/posts/<slug>/<file>，与文章内旧 URL /posts/<slug>/<file> 对齐。
- * v5 取消 article.mdx，但 assets/ 目录（场景图等静态文件）仍需随 build 输出。 */
-function copyPostAssetsToDist() {
+ * v5 取消 article.mdx，但 assets/ 目录（场景图等静态文件）仍需随 build 输出。
+ * 支持子目录（如 assets/avatars/），递归拷贝保持相对路径。 */
+function copyPostAssetsToDist(srcDir: string, dstDir: string) {
+  if (!fs.existsSync(srcDir)) return
+  fs.mkdirSync(dstDir, { recursive: true })
+  for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    const src = path.join(srcDir, entry.name)
+    const dst = path.join(dstDir, entry.name)
+    if (entry.isDirectory()) {
+      copyPostAssetsToDist(src, dst)
+    } else {
+      fs.copyFileSync(src, dst)
+    }
+  }
+}
+
+function copyAllPostAssetsToDist() {
   const postsRoot = path.join(process.cwd(), 'content', 'posts')
   if (!fs.existsSync(postsRoot)) return
   const posts = fs.readdirSync(postsRoot, { withFileTypes: true }).filter((d) => d.isDirectory())
@@ -23,10 +38,7 @@ function copyPostAssetsToDist() {
     const src = path.join(postsRoot, p.name, 'assets')
     const dst = path.join(process.cwd(), 'dist', 'posts', p.name)
     if (!fs.existsSync(src)) continue
-    fs.mkdirSync(dst, { recursive: true })
-    for (const file of fs.readdirSync(src)) {
-      fs.copyFileSync(path.join(src, file), path.join(dst, file))
-    }
+    copyPostAssetsToDist(src, dst)
   }
 }
 
@@ -53,7 +65,7 @@ export default defineConfig(() => ({
       },
       /* build 期：closeBundle 时把 assets 拷到 dist/posts/<slug>/ */
       closeBundle() {
-        copyPostAssetsToDist()
+        copyAllPostAssetsToDist()
       },
     },
   ],
