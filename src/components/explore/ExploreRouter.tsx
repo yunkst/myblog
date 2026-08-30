@@ -61,9 +61,11 @@ export function ExploreRouter({ config, children }: Props) {
   const activeIdRef = useRef(activeId)
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
 
-  /* 初次挂载：推 entry、给 main 加 data-has-router、body 加 stage-locked */
+  /* 初次挂载：无条件以 activeId 重置履历栈 + 给 main 加 data-has-router + body 加 stage-locked
+   * （C1 fix round：sessionStorage 残留旧栈会让 ◀ 返回跳到上次会话的旧幕，
+   *  履历栈语义是「本次会话的点击路径」，跨会话残留必须清空） */
   useEffect(() => {
-    if (history.stack.length === 0) history.push(activeId)
+    history.reset(activeId)
     if (!seenRef.current.has(activeId)) {
       seenRef.current.add(activeId)
       writeSeenScenes(config.title, seenRef.current)

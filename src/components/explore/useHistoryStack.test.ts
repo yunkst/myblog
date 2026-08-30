@@ -52,4 +52,17 @@ describe('useHistoryStack', () => {
     const { result: r2 } = renderHook(() => useHistoryStack('test'))
     expect(r2.current.stack.map((s) => s.sceneId)).toEqual(['a'])
   })
+
+  it('reset(sceneId)：清空旧栈 + 推入新项 + 同步写 sessionStorage（C1 fix round）', () => {
+    // 预置残留：模拟上次会话留下的栈
+    sessionStorage.setItem('explore.history.test', JSON.stringify([{ sceneId: 'old-stale' }]))
+    const { result } = renderHook(() => useHistoryStack('test'))
+    // 重置为本会话的当前幕 → 栈只剩 1 项（自身）、无残留
+    act(() => result.current.reset('fresh'))
+    expect(result.current.stack).toEqual([{ sceneId: 'fresh' }])
+    // 同步落 sessionStorage（即使 storage effect 还没跑，新 key 也可读出）
+    expect(JSON.parse(sessionStorage.getItem('explore.history.test')!)).toEqual([{ sceneId: 'fresh' }])
+    // canPop 仍为 false（栈长=1）
+    expect(result.current.canPop).toBe(false)
+  })
 })

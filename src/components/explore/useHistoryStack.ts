@@ -55,5 +55,18 @@ export function useHistoryStack(storageKey: string) {
     commit(idx < 0 ? [] : current.slice(0, idx + 1))
   }, [commit])
 
-  return { stack, push, pop, jumpTo, canPop: stack.length > 1 }
+  /**
+   * 清空栈 + 推入 sceneId + 同步写 sessionStorage。
+   * 用于 ExploreRouter mount effect：跨会话残留旧栈会污染 ◀ 返回语义，
+   * 必须无条件以「当前激活幕」初始化本会话栈（C1 fix round）。
+   */
+  const reset = useCallback((sceneId: string) => {
+    const next: HistoryEntry[] = [{ sceneId }]
+    commit(next)
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(KEY(storageKey), JSON.stringify(next))
+    }
+  }, [commit, storageKey])
+
+  return { stack, push, pop, jumpTo, reset, canPop: stack.length > 1 }
 }
