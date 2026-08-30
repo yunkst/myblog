@@ -5,6 +5,7 @@ scenes:
   - id: q-problem
     label: 公司的技术问题，都是谁在解决？
     demo: message-flood
+    mode: 1
     features:
       - { text: AI 分身怎么安全上岗？, to: q-badge-metaphor }
       - { text: 直接看确认流程, to: q-tiered-confirm }
@@ -58,6 +59,7 @@ scenes:
   - id: q-tiered-confirm
     label: 一段确认流程
     demo: tiered-confirm
+    mode: 1
     features:
       - { text: 回到问题入口, to: q-problem }
       - { text: 看分级策略总览, to: q-tiered-execution }

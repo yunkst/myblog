@@ -42,6 +42,9 @@ export function parseExploreYaml(raw: string): ParseResult<ExploreConfig> {
     if (typeof s.demo !== 'string' || !s.demo.trim()) {
       return { ok: false, error: `${where}.demo 必填——无 demo 的场景禁止存在（spec §5.3 placeholder 废除）` }
     }
+    if (s.mode !== undefined && ![1, 2, 3].includes(s.mode)) {
+      return { ok: false, error: `${where}.mode 必须是 1/2/3 或缺省；收到 ${JSON.stringify(s.mode)}` }
+    }
     for (const key of ['features', 'questions'] as const) {
       const list = s[key]
       if (list === undefined) continue

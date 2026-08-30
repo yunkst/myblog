@@ -5,6 +5,7 @@ scenes:
   - id: q-search-pipeline
     label: 一条 badcase 报告的旅程
     demo: badcase-journey
+    mode: 1
     features:
       - { text: ALL IN AI 总体设计, to: { post: ai-digital-employee, scene: q-badge-metaphor } }
     questions:

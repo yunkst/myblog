@@ -59,6 +59,8 @@ export interface ExploreScene {
   demo: string
   features?: ExploreExit[]
   questions?: ExploreExit[]
+  /** 1: 全屏动画先行；2: 文字先行（默认）；3: 纯文字 */
+  mode?: 1 | 2 | 3
 }
 
 export interface ExploreConfig {

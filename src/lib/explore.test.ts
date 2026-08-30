@@ -68,6 +68,32 @@ describe('parseExploreYaml v2', () => {
   })
 })
 
+describe('parseExploreYaml v4 mode 字段', () => {
+  const yamlWithMode = (m: string) => `title: t\nentry: a\nscenes:\n  - { id: a, label: x, demo: d, mode: ${m} }\n`
+
+  it('mode 字段：合法值 1/2/3/缺省', () => {
+    for (const m of [undefined, 1, 2, 3]) {
+      const raw = 'title: t\nentry: a\nscenes:\n'
+        + '  - { id: a, label: x, demo: d }\n'                       // 缺省 ok
+        + (m === undefined ? '' : `  - { id: b, label: y, demo: d, mode: ${m} }\n`)
+      const r = parseExploreYaml(raw)
+      expect(r.ok).toBe(true)
+      if (r.ok) {
+        expect(r.value.scenes[0].mode).toBeUndefined()
+        if (m !== undefined) expect(r.value.scenes[1].mode).toBe(m)
+      }
+    }
+  })
+
+  it('mode 字段：非法值（4 / "1" / null）报错', () => {
+    for (const m of [4, '"1"', 'null']) {
+      const r = parseExploreYaml(yamlWithMode(m))
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.error).toContain('mode')
+    }
+  })
+})
+
 describe('resolveExploreHref', () => {
   const config = parseExploreYaml(good)
   it('本地目标 → #id', () => {
