@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react'
 import type {} from 'gsap'
+import { prefersReducedMotion } from '../../lib/motion'
 
 export interface Scene {
   name: string                       // 与 yaml scenes[].demo 对齐
@@ -17,9 +18,8 @@ export interface DemoHandle {
 }
 
 export function createDemoHandle(tl: gsap.core.Timeline): DemoHandle {
-  const reduced = () => typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  /* v5 review fix:reduced 检测收敛到 lib/motion(prefersReducedMotion 内含 SSR 守卫) */
+  const reduced = () => prefersReducedMotion()
 
   return {
     play() {

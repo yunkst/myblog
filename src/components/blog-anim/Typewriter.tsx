@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { prefersReducedMotion } from '../../lib/motion'
 
 interface Props {
   text: string
@@ -12,7 +13,7 @@ export default function Typewriter({ text, speed = 55 }: Props) {
   useEffect(() => {
     if (started.current) return
     started.current = true
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduced = prefersReducedMotion()
     if (reduced) { setOut(text); return }
     let i = 0
     const timer = setInterval(() => {

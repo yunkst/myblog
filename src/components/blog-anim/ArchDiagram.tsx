@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { prefersReducedMotion } from '../../lib/motion'
 
 export interface ArchNode {
   id: string; x: number; y: number; w: number; h: number
@@ -80,7 +81,7 @@ export function ArchDiagram({ nodes, edges, bounds = [], caption }: Props) {
     const svg = svgRef.current
     const wrap = wrapRef.current
     if (!svg || !wrap) return
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduced = prefersReducedMotion()
     const ns = Array.from(svg.querySelectorAll<SVGGElement>('.ag-node'))
     const es = Array.from(svg.querySelectorAll<SVGPathElement>('.ag-edge'))
     const boundsEls = Array.from(svg.querySelectorAll<SVGElement>('.ag-bound, .ag-bound-label'))

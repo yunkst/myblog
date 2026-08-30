@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { gsap } from 'gsap'
+import { prefersReducedMotion } from '../../lib/motion'
 
 interface Props {
   from: number
@@ -17,7 +18,7 @@ export default function Counter({ from, to, suffix = '', label, duration = 1.4 }
   useEffect(() => {
     if (started.current) return
     started.current = true
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduced = prefersReducedMotion()
     if (reduced) { setValue(to); return }
     const obj = { n: from }
     const tween = gsap.to(obj, {

@@ -1,4 +1,5 @@
 import gsap from 'gsap'
+import { prefersReducedMotion } from '../../lib/motion'
 
 /**
  * v3 打字机（spec §4.3）：对已渲染 DOM 的文本做 GSAP 逐字揭示。
@@ -17,9 +18,7 @@ export function buildTypewriterTimeline(
   el: HTMLElement,
   opts: { charMs?: number } = {},
 ): gsap.core.Timeline | null {
-  const reduced =
-    typeof matchMedia !== 'undefined' &&
-    matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduced = prefersReducedMotion()
   if (reduced) return null
 
   const original = el.innerHTML

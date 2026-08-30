@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, type ReactNode, type RefObject } fr
 import gsap from 'gsap'
 import { buildTypewriterTimeline } from './useTypewriter'
 import { getSceneClipApi, type SceneClipApi } from './sceneClipRegistry'
+import { prefersReducedMotion } from '../../lib/motion'
 
 /** Director 消费的幕契约（plan §Task 4 Interfaces）。 */
 export interface DirectorScene {
@@ -67,9 +68,7 @@ export function Director({
    * useEffect 在 paint 之后才跑，用户会先看到全文再被打回原态（视觉跳跃）。
    * hydration 后第一时间在 layout 与 paint 之间压回隐藏，消除中间帧（C2+I1 fix round）。 */
   useLayoutEffect(() => {
-    const reduced =
-      typeof matchMedia !== 'undefined' &&
-      matchMedia('(prefers-reduced-motion: reduce)').matches
+    const reduced = prefersReducedMotion()
 
     if (reduced) {
       // 直出终态，无演出（不做 gsap.set——保留 SSR 直出终态的语义）；skip 交给父一个 noop
