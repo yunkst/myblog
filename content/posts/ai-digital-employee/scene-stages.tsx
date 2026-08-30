@@ -22,11 +22,27 @@ export function FloodStage() {
   return (
     <div className="flood-stage">
       <ChatPane title="公司群">
-        <Bubble id="b1" side="left">软件崩了，快来</Bubble>
-        <Bubble id="b2" side="left">后台怎么配置？</Bubble>
-        <Bubble id="b3" side="left">这个需求帮我做下</Bubble>
-        <Bubble id="b4" side="left">又挂了？？</Bubble>
-        <Bubble id="b5" side="left">在吗？在吗？在吗？</Bubble>
+        <Bubble id="b1" side="left" avatar="/posts/ai-digital-employee/avatars/avi-a.webp" name="小周">
+          这个账号怎么开通啊？
+        </Bubble>
+        <Bubble id="b2" side="left" avatar="/posts/ai-digital-employee/avatars/avi-b.webp" name="小吴">
+          后台怎么配置？
+        </Bubble>
+        <Bubble id="b3" side="left" avatar="/posts/ai-digital-employee/avatars/avi-c.webp" name="李姐">
+          这个需求帮我做下
+        </Bubble>
+        <Bubble id="b4" side="left" avatar="/posts/ai-digital-employee/avatars/avi-d.webp" name="小郑">
+          上次那个数据再发我一遍
+        </Bubble>
+        <Bubble id="b5" side="left" avatar="/posts/ai-digital-employee/avatars/avi-e.webp" name="小王">
+          活动文案改一下
+        </Bubble>
+        <Bubble id="b-me1" side="right" avatar="/posts/ai-digital-employee/avatars/avi-me.webp" name="我">
+          在的，等我看看
+        </Bubble>
+        <Bubble id="b-me2" side="right" avatar="/posts/ai-digital-employee/avatars/avi-me.webp" name="我">
+          在
+        </Bubble>
       </ChatPane>
       <p id="flood-line1" className="flood-line">公司的技术人员，只有我一个。</p>
       <p id="flood-line2" className="flood-line">能不能做一个 AI 数字分身，替我处理这些？</p>

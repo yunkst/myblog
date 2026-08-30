@@ -53,10 +53,11 @@ export const demos: Record<string, Scene> = {
       tl.set(mine, { opacity: 0, y: 14 })
       tl.set(['#flood-line1', '#flood-line2'], { opacity: 0 })
 
-      // 1) 消息逐条弹出，越来越快（0.9 → 0.35 间隔）
-      incoming.forEach((b, i) => {
+      // 1) 前 3 条消息逐条弹出（越来越快），第 4、5 条留到"我"回复间隙再涌入
+      const firstWave = ['#b1', '#b2', '#b3']
+      firstWave.forEach((b, i) => {
         tl.to(b, { opacity: 1, y: 0, duration: 0.3 }, i === 0 ? 0.4 : '>')
-        if (i < incoming.length - 1) tl.to({}, { duration: 0.9 - i * 0.14 })
+        if (i < firstWave.length - 1) tl.to({}, { duration: 0.9 - i * 0.14 })
       })
 
       // 2) 我的第一条回复（被围困但还在硬撑）
