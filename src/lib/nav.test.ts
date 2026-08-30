@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveTarget, isSamePage } from './nav'
+import { resolveTarget, isSamePage, blogPostPath } from './nav'
 
 describe('nav', () => {
   it('同页锚点规范化为当前路径', () => {
@@ -12,5 +12,11 @@ describe('nav', () => {
   it('isSamePage 判定', () => {
     expect(isSamePage('#contact', '/')).toBe(true)
     expect(isSamePage('/blog/demo-animations#animations', '/')).toBe(false)
+  })
+})
+
+describe('blogPostPath', () => {
+  it('产出统一尾斜杠路径', () => {
+    expect(blogPostPath('ai-digital-employee')).toBe('/blog/ai-digital-employee/')
   })
 })

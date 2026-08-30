@@ -14,6 +14,7 @@
 
 import yaml from 'js-yaml'
 import type { ExploreConfig, ExploreTarget } from './types'
+import { blogPostPath } from './nav'
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string }
 
@@ -122,7 +123,7 @@ export function resolveExploreHref(to: ExploreTarget, _config: ExploreConfig): s
   // _config 保留为接口对齐位（Task 5 ExitChips 调用形态所需），当前实现不消费
   if (typeof to === 'string') return `#${to}`
   const sceneId = to.scene === 'entry' ? 'entry' : to.scene
-  return `/blog/${to.post}/#${sceneId}`
+  return `${blogPostPath(to.post)}#${sceneId}`
 }
 
 /** v3：场景幕序号中文数字（1→一 … 12→十二；>12 按 digit 组合，当前 11 场景够用） */

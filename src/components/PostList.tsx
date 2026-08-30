@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { getAllPosts } from '../lib/content'
+import { blogPostPath } from '../lib/nav'
 
 export default function PostList() {
   const posts = getAllPosts()
@@ -8,8 +9,8 @@ export default function PostList() {
       <div className="sec-head"><span className="sec-title"><b>博客</b> · 时间倒序</span><span className="sec-rule" /></div>
       {posts.map((p) => {
         const target = p.exploreEntry
-          ? { pathname: `/blog/${p.slug}/`, hash: `#${p.exploreEntry.id}` }
-          : `/blog/${p.slug}/`
+          ? { pathname: blogPostPath(p.slug), hash: `#${p.exploreEntry.id}` }
+          : blogPostPath(p.slug)
         return (
           <Link key={p.slug} to={target} className="post-card">
             <div className="post-meta">

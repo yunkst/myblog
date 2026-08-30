@@ -12,6 +12,7 @@ import { useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { Head } from 'vite-react-ssg'
 import { getPost, getAllPosts } from '../lib/content'
+import { blogPostPath } from '../lib/nav'
 import Stage from './Stage'
 
 export default function Component() {
@@ -55,5 +56,5 @@ export default function Component() {
 export const entry = 'src/pages/Post.tsx'
 
 export function getStaticPaths() {
-  return getAllPosts().map((p) => `/blog/${p.slug}`)
+  return getAllPosts().map((p) => blogPostPath(p.slug))
 }

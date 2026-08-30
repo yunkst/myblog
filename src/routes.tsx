@@ -2,6 +2,7 @@ import React from 'react'
 import type { ComponentType } from 'react'
 import type { RouteRecord } from 'vite-react-ssg'
 import { getAllPosts, getAllDomains } from './lib/content'
+import { blogPostPath } from './lib/nav'
 
 /* React.lazy 返回 LazyExoticComponent，RouteRecord.Component 期望 Promise<{default: ComponentType}>；
  * 保留这种包装方式——SSG 阶段能正确产出每个路由的静态 HTML。 */
@@ -18,7 +19,7 @@ export const routes: RouteRecord[] = [
       {
         path: 'blog/:slug',
         Component: lazyRoute(() => import('./pages/Post')),
-        getStaticPaths: () => getAllPosts().map((p) => `/blog/${p.slug}/`),
+        getStaticPaths: () => getAllPosts().map((p) => blogPostPath(p.slug)),
       },
       {
         path: 'domain/:slug',
