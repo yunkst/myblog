@@ -2,7 +2,7 @@
 
 **作者**: yedazhi（与 AI 助手协作）
 **最后更新**: 2026-08-30
-**状态**: 已确认设计；待实施
+**状态**: 已确认设计 + 已实施（2026-08-30，6 任务 SDD 完成 + final review clean）
 **前置**: [v3 spec](./2026-08-29-explore-view-design-v3.md)（CRT 剧场视觉 + IO 错峰演出，本 spec 改**导航形态与编排**）
 **关联**: [v2 spec](./2026-08-29-explore-view-design-v2.md)（Scene 协议 / yaml schema 大部分继承）
 
