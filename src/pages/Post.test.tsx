@@ -4,11 +4,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import Post from './Post'
 
 /**
- * Post 页入口链接的条件渲染 smoke：
- * - v2 已废除独立 /explore 路由与「走进探索视图 →」入口链接，
+ * Post 页探索分支的 smoke：
+ * - v2 已废除独立 /explore 路由与「走进探索视图 →」入口链接；
  *   原「有 yaml 渲染入口链接」的断言随之删除（Task 5 会接管入口逻辑）。
- * - 无 explore.yaml 的文章不渲染入口链接（避免落到探索回退页，UX 死链）。
- * - 用真实的 content.ts（SSG 侧数据层）。
+ * - v5（Task 7）：MDX 管线退役——article.mdx 已删除；Post 对有 explore.yaml 的文章
+ *   渲染 <main className="stage-frame" data-article-slug=...> 占位（T8 接入 SceneRoute）。
+ * - v5 后唯一保留下来的文章 ai-digital-employee 总是带 explore.yaml，所以
+ *   「无 yaml」分支不再可达，相关断言删除；用「不存在的 slug」保持 404 smoke。
  * - <Head> 内部走 react-helmet-async（需要 HelmetProvider），直接 mock 掉。
  */
 vi.mock('vite-react-ssg', () => ({ Head: () => null }))
@@ -23,29 +25,18 @@ function renderAt(path: string) {
   )
 }
 
-describe('<Post> explore entry link', () => {
-  it('无 explore.yaml 的文章：不渲染入口链接（避免落到探索回退页）', () => {
-    const { container } = renderAt('/blog/shixi-open-source-study-app')
-    expect(container.querySelector('a.explore-entry-link')).toBeNull()
-    expect(container.textContent).not.toContain('走进探索视图')
-  })
-})
-
-describe('<Post> v3 stage class', () => {
-  it('有 explore.yaml 的文章：main 有 post-wrap--stage 类', () => {
+describe('<Post> v5 stage-frame（article.mdx 退出后的 Stage 占位）', () => {
+  it('有 explore.yaml 的文章：渲染 <main className="stage-frame">', () => {
     const { container } = renderAt('/blog/ai-digital-employee')
-    const main = container.querySelector('main')
-    expect(main).not.toBeNull()
-    expect(main!.className).toContain('post-wrap')
-    expect(main!.className).toContain('post-wrap--stage')
+    const stage = container.querySelector('main.stage-frame')
+    expect(stage).not.toBeNull()
+    expect(stage!.getAttribute('data-article-slug')).toBe('ai-digital-employee')
   })
 
-  it('无 explore.yaml 的文章：main 无 post-wrap--stage 类', () => {
-    const { container } = renderAt('/blog/shixi-open-source-study-app')
-    const main = container.querySelector('main')
-    expect(main).not.toBeNull()
-    expect(main!.className).toContain('post-wrap')
-    expect(main!.className).not.toContain('post-wrap--stage')
+  it('不存在的 slug：渲染文章不存在提示', () => {
+    const { container } = renderAt('/blog/never-published')
+    expect(container.querySelector('main.stage-frame')).toBeNull()
+    expect(container.textContent).toContain('文章不存在')
   })
 })
 
@@ -61,8 +52,10 @@ describe('<Post> v4 explore hydration', () => {
     expect(document.body.classList.contains('stage-locked')).toBe(true)
   })
 
-  it('无 explore：body 不挂 stage-locked', () => {
-    renderAt('/blog/shixi-open-source-study-app')
-    expect(document.body.classList.contains('stage-locked')).toBe(false)
+  it('有 explore：hydration 后 stage-frame main 挂 data-has-router', () => {
+    renderAt('/blog/ai-digital-employee')
+    const stage = document.querySelector('main.stage-frame')
+    expect(stage).not.toBeNull()
+    expect(stage!.hasAttribute('data-has-router')).toBe(true)
   })
 })

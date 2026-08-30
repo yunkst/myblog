@@ -1,13 +1,16 @@
 // src/lib/explore.ts
 //
-// v2：纯函数模块。yaml/mdx/scene 源码由调用方读入（构建侧 scripts/validate-explore.ts
+// v2：纯函数模块。yaml/scene 源码由调用方读入（构建侧 scripts/validate-explore.ts
 // 用 node:fs；浏览器侧 Post.tsx 用 import.meta.glob('?raw')）。build 与浏览器跑同一份代码，
 // v1 的 explore.client.ts 双文件模式废除（spec §8.4）。
 //
-// ⚠️ 安全考量：探索视图把 article.mdx 的 <Answer> 内容以 innerHTML 形式注入
-// （Answer.tsx 的 dangerouslySetInnerHTML）。这些 HTML 来自作者本人编写的 MDX，
-// 构建期静态内容，可信；XSS 风险可接受。**但如果未来 MDX 内容来源被撑开
-// （评论、用户投稿等 UGC），必须重新评估并引入消毒层。**
+// v5：article.mdx 退出，<Answer> 不再存在。answerIds 在 ValidateCtx 中保留为接口对齐位
+// （validate 内部不再消费），待 T9 替换为 scenes 目录对齐规则。
+//
+// ⚠️ 安全考量：v5 article.mdx 退出后，<Answer> 不再由 MDX 编译产物提供，
+// 文本/scene 内容由 scenes/*.tsx 直接产出 ReactNode（避免 innerHTML 注入路径）。
+// Answer.tsx 与 SceneRoute 间的 dangerouslySetInnerHTML 路径已删除；XSS 风险随
+// 数据来源约束自动收敛，未来若引入 UGC 仍需重新评估。
 
 import yaml from 'js-yaml'
 import type { ExploreConfig, ExploreTarget } from './types'
@@ -85,17 +88,9 @@ export function validateExploreConfig(
   // 规则1：entry 指向存在的场景
   if (!ids.has(config.entry)) errors.push(`[${slug}] entry="${config.entry}" 不在 scenes 里`)
 
-  // 规则2：每个场景有 <Answer>
-  for (const s of config.scenes) {
-    if (!ctx.answerIds.includes(s.id)) {
-      errors.push(`[${slug}] 场景 ${s.id} 未在 article.mdx 找到 <Answer id="${s.id}">`)
-    }
-  }
-
-  // 规则3：未被场景引用的 Answer → 警告
-  for (const a of ctx.answerIds) {
-    if (!ids.has(a)) warnings.push(`[${slug}] ${a} 未被任何场景引用（场景目录/首页入口用不上）`)
-  }
+  // 规则2/3（Answer 存在性 / 未引用 Answer 警告）T7 暂跳过——article.mdx 已删除，
+  // <Answer> 不再存在；T9 换成 scenes 对齐规则（读 scenes/ 目录）。
+  void ctx.answerIds
 
   // 规则4：demo 存在
   if (!ctx.sceneFileExists) {
@@ -153,14 +148,6 @@ export function scanDemoNames(sceneSource: string): string[] {
     if (m[1] !== 'demos') names.add(m[1])
   }
   return [...names]
-}
-
-export function getRawAnswerIds(mdxRaw: string): string[] {
-  const ids: string[] = []
-  const re = /<Answer\s+[^>]*\bid="([^"]+)"/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(mdxRaw)) !== null) if (validId(m[1])) ids.push(m[1])
-  return Array.from(new Set(ids))
 }
 
 export function slugifyHeading(text: string): string {

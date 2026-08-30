@@ -1,28 +1,16 @@
 /**
- * v2 单页面方案：阅读与探索是同一页面——正文由 MDX 渲染，Answer 原位渲染为
- * 锚点块（#<id>），场景动画经 SceneClip 嵌入正文流；<main data-article-slug> 保留
- * （SceneClip 反查当前文章依赖）。
- * v4（Task 5）：有 exploreConfig 时正文由 `<ExploreRouter>` 包裹——hash 路由 +
- * 履历栈 + 单幕激活 + 点击跳过；无 explore 文章渲染路径完全不变。
- * SceneToc 已随 v4 幕式导航退役（滚动定位语义被激活幕取代）。
+ * v5（Task 7）：MDX 管线退役——
+ * - 不再有 mdxModules glob；正文渲染依赖 explore → Stage 占位（main.stage-frame），
+ *   T8 将用 SceneRoute 接管该 main 的内容；
+ * - 非 explore 分支（无 yaml）走「敬请期待」占位页（article.mdx 已删除）。
  */
 import { useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Head } from 'vite-react-ssg'
-import { MDXProvider } from '@mdx-js/react'
 import { getPost, getAllPosts } from '../lib/content'
-import { registry } from '../components/blog-anim/registry'
 import { parseExploreYaml } from '../lib/explore'
 import type { ExploreConfig } from '../lib/types'
-import Answer from '../components/explore/Answer'
-import SceneClip, { setCurrentSlug } from '../components/explore/SceneClip'
 import { ExploreRouter } from '../components/explore/ExploreRouter'
-
-/* 构建期：所有 content/posts/<slug>/article.mdx 编译为组件映射（Vite 原生，eager） */
-const mdxModules = import.meta.glob<{ default: React.ComponentType }>(
-  '/content/posts/*/article.mdx',
-  { eager: true },
-)
 
 /* 探索 yaml 原文（与 content.client 同款 ?raw glob）；SSG 与浏览器同源，无 hydration 差异 */
 const exploreYamls = import.meta.glob<string>('/content/posts/*/explore.yaml', {
@@ -45,29 +33,42 @@ export default function Component() {
     return <main className="post-wrap"><p>文章不存在。</p></main>
   }
 
-  /* 同步设置当前文章 slug——SceneClip 在 SSG/hydration 的渲染期读取它来解析
-   * demos 字典。放在 return 之前保证 SSR 与客户端同一顺序执行，Stage 渲染
-   * 一致，避免 React hydration mismatch（closest() 在 SSG 无 DOM 不可用）。 */
-  setCurrentSlug(post.slug)
-
   const idx = list.findIndex((p) => p.slug === post.slug)
   const prev = idx > 0 ? list[idx - 1] : undefined
   const next = idx < list.length - 1 ? list[idx + 1] : undefined
 
-  const key = Object.keys(mdxModules).find((k) => {
-    const parts = k.split('/')
-    const dir = parts[parts.length - 2]
-    return dir === post.slug
-  })
-  const Body = key ? mdxModules[key].default : null
+  /* 探索分支：占位 <main className="stage-frame" data-article-slug=...>
+   * ——T8 把 SceneRoute 接进这个 main；ExploreRouter 在 mount effect 中查询
+   * `main.stage-frame, main.post-wrap--stage` 挂 data-has-router + body.stage-locked。 */
+  if (exploreConfig) {
+    return (
+      <>
+        <Head>
+          <title>{post.title} · {post.domain}</title>
+          <meta name="description" content={post.excerpt} />
+        </Head>
+        <ExploreRouter config={exploreConfig}>
+          <main className="stage-frame" data-article-slug={post.slug}>
+            <p style={{ color: '#888' }}>舞台在 T8 接线</p>
+          </main>
+        </ExploreRouter>
+        {/* 上下篇导航放 ExploreRouter 之外——避免 ExploreRouter 的全屏 div 覆盖 */}
+        <nav className="post-nav">
+          {prev && <Link to={`/blog/${prev.slug}/`}>← {prev.title}</Link>}
+          {next && <Link to={`/blog/${next.slug}/`}>{next.title} →</Link>}
+        </nav>
+      </>
+    )
+  }
 
+  /* 非探索分支（article.mdx 已废除，无 yaml 时正文走「敬请期待」占位） */
   return (
-    <MDXProvider components={{ ...registry, Answer, SceneClip }}>
+    <>
       <Head>
         <title>{post.title} · {post.domain}</title>
         <meta name="description" content={post.excerpt} />
       </Head>
-      <main className={exploreConfig ? 'post-wrap post-wrap--stage' : 'post-wrap'} data-article-slug={post.slug}>
+      <main className="post-wrap" data-article-slug={post.slug}>
         <div className="post-meta">
           <Link to={`/domain/${encodeURIComponent(post.domain)}/`} className="tag">{post.domain}</Link>
           <time>{post.date}</time>
@@ -75,26 +76,15 @@ export default function Component() {
         </div>
         <h1>{post.title}</h1>
         <p className="post-excerpt">{post.excerpt}</p>
-        {exploreConfig && (
-          <p className="explore-hint">本文可顺序阅读；点击各场景下方的出口按钮可跳转探索。</p>
-        )}
-        {exploreConfig ? (
-          <ExploreRouter config={exploreConfig}>
-            <article className="post-body" id="animations">
-              {Body ? <Body /> : <p>正文缺失。</p>}
-            </article>
-          </ExploreRouter>
-        ) : (
-          <article className="post-body" id="animations">
-            {Body ? <Body /> : <p>正文缺失。</p>}
-          </article>
-        )}
+        <article className="post-body" id="animations">
+          <p style={{ color: '#888' }}>该文章正文正在迁移到场景单元，敬请期待。</p>
+        </article>
         <nav className="post-nav">
           {prev && <Link to={`/blog/${prev.slug}/`}>← {prev.title}</Link>}
           {next && <Link to={`/blog/${next.slug}/`}>{next.title} →</Link>}
         </nav>
       </main>
-    </MDXProvider>
+    </>
   )
 }
 

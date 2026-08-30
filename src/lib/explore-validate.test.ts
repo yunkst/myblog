@@ -22,7 +22,8 @@ scenes:
 `
 
 const baseCtx: ValidateCtx = {
-  answerIds: ['q-a', 'q-b'],
+  /* v5（Task 7）：article.mdx 已删——answerIds 不再消费；T9 替换为 scenes 对齐规则 */
+  answerIds: [],
   demoNames: ['demo-a', 'demo-b'],
   sceneFileExists: true,
   knownPosts: ['self', 'other'],
@@ -36,19 +37,9 @@ describe('validateExploreConfig v2', () => {
   })
   it('规则1 entry 不在 scenes 报错', () => {
     const c = makeConfig(baseYaml)
-    const r = validateExploreConfig('self', c, { ...baseCtx, answerIds: ['q-a', 'q-b'] })
     c.entry = 'q-nope'
-    const r2 = validateExploreConfig('self', c, baseCtx)
-    expect(r2.errors.some((e) => e.includes('entry'))).toBe(true)
-    void r
-  })
-  it('规则2 场景缺 Answer 报错', () => {
-    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, answerIds: ['q-a'] })
-    expect(r.errors.some((e) => e.includes('q-b') && e.includes('Answer'))).toBe(true)
-  })
-  it('规则3 未被场景引用的 Answer 警告', () => {
-    const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, answerIds: ['q-a', 'q-b', 'q-extra'] })
-    expect(r.warnings.some((w) => w.includes('q-extra'))).toBe(true)
+    const r = validateExploreConfig('self', c, baseCtx)
+    expect(r.errors.some((e) => e.includes('entry'))).toBe(true)
   })
   it('规则4 demo 不存在报错', () => {
     const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, demoNames: ['demo-a'] })
@@ -75,5 +66,17 @@ describe('validateExploreConfig v2', () => {
   it('规则5d 跨文章 scene: entry 且目标无 yaml 报错', () => {
     const r = validateExploreConfig('self', makeConfig(baseYaml), { ...baseCtx, scenesOfPost: () => null })
     expect(r.errors.some((e) => e.includes('other'))).toBe(true)
+  })
+})
+
+/* v5（Task 7）：规则 2/3（Answer 存在性 / 未引用 Answer 警告）暂跳过——
+ * article.mdx 退出，<Answer> 不再存在；T9 替换为 scenes 目录对齐规则。 */
+describe('validateExploreConfig v5 跳过的规则', () => {
+  it('answerIds 不影响校验（规则 2/3 跳过）', () => {
+    const r = validateExploreConfig('self', makeConfig(baseYaml), {
+      ...baseCtx, answerIds: ['q-a', 'q-b', 'q-orphan', 'q-also-orphan'],
+    })
+    expect(r.errors).toEqual([])
+    expect(r.warnings).toEqual([])
   })
 })

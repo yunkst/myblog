@@ -1,8 +1,8 @@
-// scripts/validate-explore.ts（v2）
+// scripts/validate-explore.ts（v5 Task 7：article.mdx 退出）
 import fs from 'node:fs'
 import path from 'node:path'
 import {
-  parseExploreYaml, validateExploreConfig, scanDemoNames, getRawAnswerIds,
+  parseExploreYaml, validateExploreConfig, scanDemoNames,
 } from '../src/lib/explore'
 import type { ExploreConfig } from '../src/lib/types'
 
@@ -38,10 +38,10 @@ function main() {
   for (const slug of posts) {
     const config = loadConfig(slug)
     if (!config) continue
-    const article = readIfExists(path.join(POSTS, slug, 'article.mdx')) ?? ''
     const sceneSrc = readIfExists(path.join(POSTS, slug, 'scene.tsx'))
     const r = validateExploreConfig(slug, config, {
-      answerIds: getRawAnswerIds(article),
+      /* v5 规则 2/3（Answer 存在性）已跳过——article.mdx 不存在；T9 用 scenes 对齐规则替换 */
+      answerIds: [],
       demoNames: sceneSrc ? scanDemoNames(sceneSrc) : [],
       sceneFileExists: sceneSrc !== null,
       knownPosts: posts,
