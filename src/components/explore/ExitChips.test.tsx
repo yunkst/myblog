@@ -14,6 +14,12 @@ const runtime: ExploreRuntime = {
   goTo: vi.fn(),
   onActivate: vi.fn(),
   firstActivation: true,
+  /* v5 runtime 新增字段（ExitChips 不消费，补 no-op 满足接口） */
+  back: vi.fn(),
+  canBack: false,
+  panelOpen: false,
+  setPanelOpen: vi.fn(),
+  onExit: vi.fn(),
 }
 
 describe('ExitChips', () => {

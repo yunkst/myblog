@@ -19,6 +19,15 @@ export interface ExploreRuntime {
   onActivate: (id: string, skip: () => void) => void
   /** 本幕（activeId）是否首次激活——false = 回看，Answer 不挂 Director */
   firstActivation: boolean
+  /* v5 新增 */
+  /** 栈≤1 no-op；否则 pop + pushState + 切激活 */
+  back: () => void
+  /** stack.length > 1 */
+  canBack: boolean
+  panelOpen: boolean
+  setPanelOpen: (open: boolean) => void
+  /** Stage 传入的退出回调（ref 透传） */
+  onExit: () => void
 }
 
 export const ExploreRuntimeContext = createContext<ExploreRuntime | null>(null)

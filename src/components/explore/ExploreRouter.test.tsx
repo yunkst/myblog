@@ -43,6 +43,19 @@ function GoProbe({ target }: { target: string }) {
   )
 }
 
+/** v5：runtime 全字段暴露，供断言与触发。 */
+function RtProbe() {
+  const rt = useContext(ExploreRuntimeContext)!
+  return (
+    <div data-testid="rt" data-can-back={String(rt.canBack)} data-panel-open={String(rt.panelOpen)}>
+      <button data-testid="rt-back" onClick={rt.back} />
+      <button data-testid="rt-go" onClick={() => rt.goTo('q-b')} />
+      <button data-testid="rt-open-panel" onClick={() => rt.setPanelOpen(true)} />
+      <button data-testid="rt-exit" onClick={rt.onExit} />
+    </div>
+  )
+}
+
 function renderRouter() {
   return render(
     <ExploreConfigContext.Provider value={config}>
@@ -255,5 +268,50 @@ describe('ExploreRouter', () => {
 
     // 防止 ts-unused 警告（container 在断言间已隐式消费）
     expect(container).toBeTruthy()
+  })
+})
+
+describe('ExploreRouter v5 runtime 扩展', () => {
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/blog/test/')
+    sessionStorage.clear()
+  })
+
+  function renderWithRt() {
+    return render(
+      <ExploreConfigContext.Provider value={config}>
+        <ExploreRouter config={config}>
+          <RtProbe />
+          <AnswerProbe id="q-a" />
+          <AnswerProbe id="q-b" />
+        </ExploreRouter>
+      </ExploreConfigContext.Provider>,
+    )
+  }
+
+  it('canBack=false 时 back() no-op；goTo 后 canBack=true，back() 回前一幕', () => {
+    const { getByTestId } = renderWithRt()
+    expect(getByTestId('rt').dataset.canBack).toBe('false')
+    fireEvent.click(getByTestId('rt-back'))
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+    fireEvent.click(getByTestId('rt-go'))
+    expect(getByTestId('rt').dataset.canBack).toBe('true')
+    fireEvent.click(getByTestId('rt-back'))
+    expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
+  })
+
+  it('onExit prop 透传 + setPanelOpen 状态', () => {
+    const onExit = vi.fn()
+    render(
+      <ExploreConfigContext.Provider value={config}>
+        <ExploreRouter config={config} onExit={onExit}>
+          <RtProbe />
+        </ExploreRouter>
+      </ExploreConfigContext.Provider>,
+    )
+    fireEvent.click(screen.getByTestId('rt-exit'))
+    expect(onExit).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByTestId('rt-open-panel'))
+    expect(screen.getByTestId('rt').dataset.panelOpen).toBe('true')
   })
 })

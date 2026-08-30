@@ -13,6 +13,9 @@ import type { ExploreConfig, ExploreScene } from '../../lib/types'
 interface Props {
   config: ExploreConfig
   children: ReactNode
+  /** Stage 传入的退出回调（T2 临时接 Esc：面板开则关面板，否则调 onExit）；
+   *  T3 落 hook 后语义不变，只是搬进 hook handlers */
+  onExit?: () => void
 }
 
 /** 从 URL hash 解析当前幕（无效 hash 回落 entry）。SSR/无 window 安全。 */
@@ -42,7 +45,7 @@ const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .chip-p
  * Provider 嵌套：ExploreConfigContext 包外、ExploreRuntimeContext 包内——
  * Answer 既能读 exploreConfig 也能读 runtime。
  */
-export function ExploreRouter({ config, children }: Props) {
+export function ExploreRouter({ config, children, onExit }: Props) {
   const [activeId, setActiveId] = useState(() => currentSceneId(config))
   const [panelOpen, setPanelOpen] = useState(false)
   const [firstActivation, setFirstActivation] = useState<Record<string, boolean>>(() => {
@@ -54,6 +57,9 @@ export function ExploreRouter({ config, children }: Props) {
   const history = useHistoryStack(config.title)
   const skipRef = useRef<() => void>(() => {})
   const seenRef = useRef<Set<string>>(readSeenScenes(config.title))
+  /** Stage onExit ref（模式同 onReadyRef）：useRef(onExit) + useEffect 同步最新值 */
+  const onExitRef = useRef(onExit)
+  useEffect(() => { onExitRef.current = onExit }, [onExit])
   /** 履历栈 ref（用于 jumpTo 同步取最新栈顶——见 jumpTo 实现注释） */
   const stackRef = useRef(history.stack)
   useEffect(() => { stackRef.current = history.stack }, [history.stack])
@@ -70,11 +76,11 @@ export function ExploreRouter({ config, children }: Props) {
       seenRef.current.add(activeId)
       writeSeenScenes(config.title, seenRef.current)
     }
-    document.querySelector('main.post-wrap--stage')?.setAttribute('data-has-router', '')
+    document.querySelector('main.stage-frame, main.post-wrap--stage')?.setAttribute('data-has-router', '')
     document.body.classList.add('stage-locked')
     return () => {
       document.body.classList.remove('stage-locked')
-      document.querySelector('main.post-wrap--stage')?.removeAttribute('data-has-router')
+      document.querySelector('main.stage-frame, main.post-wrap--stage')?.removeAttribute('data-has-router')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -96,11 +102,15 @@ export function ExploreRouter({ config, children }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config])
 
-  /* Esc 关闭面板（Task 2 carry） */
+  /* v5：Esc 仍由本组件监听（确保 T2→T3 之间面板 Esc 不断线），但具体处理走 runtime.onExit
+   * ——面板开则关面板（走 onExit 内联分支），否则调 Stage onExit。
+   * T3 落 useKeyboardShortcuts 后监听整体搬到 hook handlers，语义不变。 */
   useEffect(() => {
-    if (!panelOpen) return
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === 'Escape') setPanelOpen(false)
+      if (ev.key === 'Escape') {
+        if (panelOpen) setPanelOpen(false)
+        else onExitRef.current?.()
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -151,7 +161,14 @@ export function ExploreRouter({ config, children }: Props) {
     goTo,
     onActivate,
     firstActivation: !!firstActivation[activeId],
-  }), [activeId, goTo, onActivate, firstActivation])
+    back,
+    canBack: history.stack.length > 1,
+    panelOpen,
+    setPanelOpen,
+    /* T2→T3 过渡：Esc 独立 effect 已删，onExit 先内联兜底——面板开则关面板，否则走 Stage onExit；
+     * T3 落 hook 后语义不变，只是搬进 hook handlers */
+    onExit: () => { panelOpen ? setPanelOpen(false) : onExitRef.current?.() },
+  }), [activeId, goTo, onActivate, firstActivation, back, history.stack.length, panelOpen])
 
   /* 出幕主线/支线（HistoryPanel slot 渲染）：yaml 顺序下一幕 = 主线；features/questions = 支线 */
   const exitsWithMain = useMemo(() => {
