@@ -245,4 +245,31 @@ describe('Director', () => {
     expect(dlg.current!.querySelector('p')!.style.cssText).toBe('')
     expect(choices.current!.querySelector<HTMLElement>('.exit-chip')!.style.cssText).toBe('')
   })
+
+  it('review fix:unmount 后 async run 不再推进演出链(无新 tween 挂到 globalTimeline)', async () => {
+    vi.useFakeTimers()
+    try {
+      const head = makeRef<HTMLElement>()
+      const dlg = makeRef<HTMLElement>()
+      dlg.current!.innerHTML = '<p>第一段</p><p>第二段</p>'
+      const choices = makeRef<HTMLElement>()
+      choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+      const stage = makeRef<HTMLElement>()
+
+      const scene: DirectorScene = { id: 'q-cancel', mode: 2, demo: 'demo-not-registered' }
+      const { unmount } = render(
+        <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
+          <span>x</span>
+        </Director>,
+      )
+      unmount()
+      const afterUnmount = gsap.globalTimeline.getChildren(true, true, true).length
+      /* 放飞微任务——若无 cancelled 守卫,run() 的 await 链继续 resolve
+       * 并通过 onComplete 接力推进,挂出新 tween */
+      await vi.advanceTimersByTimeAsync(100)
+      expect(gsap.globalTimeline.getChildren(true, true, true).length).toBe(afterUnmount)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

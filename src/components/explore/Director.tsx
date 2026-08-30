@@ -112,6 +112,10 @@ export function Director({
       timer: 0,
     }
 
+    /* v5 review fix:async run() 生命周期守卫——cleanup 后 await 链 resolve
+     * 不得再推进演出/挂新 tween(快速切幕时旧链对已卸载 DOM 继续动画)。 */
+    let cancelled = false
+
     const playTypewriterChain = (): Promise<void> => {
       const dlg = dlgRef.current
       if (!dlg) return Promise.resolve()
@@ -121,14 +125,15 @@ export function Director({
       if (paras.length === 0) return Promise.resolve()
       return new Promise<void>((resolve) => {
         const run = (i: number) => {
+          if (cancelled) { resolve(); return }
           if (i >= paras.length) { resolve(); return }
           const p = paras[i]
           // 段落揭示（与打字机同步：先 reveal 让浏览器有 layout，再打字）
           const revealTween = gsap.to(p, { opacity: 1, duration: 0.25 })
-          tls.current.push(revealTween)
+          if (!cancelled) tls.current.push(revealTween)
           const tl = buildTypewriterTimeline(p)
           if (!tl) { revealTween.progress(1); run(i + 1); return }
-          tls.current.push(tl)
+          if (!cancelled) tls.current.push(tl)
           if (i + 1 < paras.length) tl.eventCallback('onComplete', () => run(i + 1))
           else tl.eventCallback('onComplete', () => resolve())
           tl.play(0)
@@ -140,7 +145,7 @@ export function Director({
     const fadeIn = (el: HTMLElement | null, dur = 0.4): Promise<void> => {
       if (!el) return Promise.resolve()
       const tween = gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: dur })
-      tls.current.push(tween)
+      if (!cancelled) tls.current.push(tween)
       return tween.then().then(() => undefined)
     }
 
@@ -151,7 +156,7 @@ export function Director({
       const tween = gsap.fromTo(chips,
         { opacity: 0, y: 8 },
         { opacity: 1, y: 0, duration: 0.4, stagger: 0.18, ease: 'power2.out' })
-      tls.current.push(tween)
+      if (!cancelled) tls.current.push(tween)
       return tween.then().then(() => undefined)
     }
 
@@ -178,6 +183,7 @@ export function Director({
       })
 
       return waitForApi(Date.now() + 2000).then((api) => {
+        if (cancelled) return // cleanup 后 SceneClip 的 play() 不得再触发
         if (!api) return // SceneClip 没注册（理论上不应发生；兜底跳过）
         api.play()
         if (container.querySelector(FINISHED_SELECTOR)) return
@@ -213,6 +219,7 @@ export function Director({
         const stage = stageRef?.current ?? null
         if (stage) stage.classList.add(FULLSCREEN_CLASS)
         await playDemo()
+        if (cancelled) return
         if (stage) {
           /* v5 fix round：缩窗时序
            *
@@ -230,26 +237,37 @@ export function Director({
             { scale: 1.4, transformOrigin: 'center center' },
             { scale: 1, transformOrigin: 'center center', duration: 0.6, ease: 'power3.inOut' },
           )
-          tls.current.push(tween)
+          if (!cancelled) tls.current.push(tween)
           stage.classList.remove(FULLSCREEN_CLASS)
           await tween.then().then(() => undefined)
         }
+        if (cancelled) return
         await headP
+        if (cancelled) return
         await mediaP
+        if (cancelled) return
         await playTypewriterChain()
+        if (cancelled) return
         await choicesRise(choicesRef.current)
       } else if (scene.mode === 3) {
         // mode 3：纯文字
         await headP
+        if (cancelled) return
         await mediaP
+        if (cancelled) return
         await playTypewriterChain()
+        if (cancelled) return
         await choicesRise(choicesRef.current)
       } else {
         // mode 2：文字先行（默认）
         await headP
+        if (cancelled) return
         await mediaP
+        if (cancelled) return
         await playTypewriterChain()
+        if (cancelled) return
         await playDemo()
+        if (cancelled) return
         await choicesRise(choicesRef.current)
       }
     }
@@ -268,6 +286,7 @@ export function Director({
     onReadyRef.current?.({ skip })
 
     return () => {
+      cancelled = true
       for (const tl of tls.current) tl.kill()
       tls.current = []
       demoWait.observer?.disconnect()
