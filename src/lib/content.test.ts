@@ -1,40 +1,28 @@
 import { describe, it, expect } from 'vitest'
-import { getAllPosts, getPost, getPostsByDomain, getAllDomains, getFAQs, getSite, getWips } from './content'
+import { getAllPosts, getPost, getAllDomains } from './content'
 
-describe('content layer', () => {
-  const posts = getAllPosts()
-  const firstSlug = posts[0]?.slug
-
-  it('解析占位文章并只返回 published', () => {
-    expect(posts.length).toBeGreaterThanOrEqual(1)
-    expect(posts.every((p) => p.status === 'published')).toBe(true)
-    expect(typeof firstSlug).toBe('string')
+describe('content：meta.yaml 数据层（v5）', () => {
+  it('读出 ai-digital-employee 的元数据', () => {
+    const posts = getAllPosts()
+    expect(posts).toHaveLength(1)
+    const p = posts[0]
+    expect(p.slug).toBe('ai-digital-employee')
+    expect(p.title).toContain('AI 接进生产系统')
+    expect(p.domain).toBe('AI 与工程')
+    expect(p.date).toBe('2026-08-29')
+    expect(p.status).toBe('published')
+    expect(p.hasExplore).toBe(true)
+    expect(p.exploreEntry?.id).toBe('q-problem')
   })
 
-  it('getPost 按 slug 命中', () => {
-    expect(getPost(firstSlug!)?.title).toBeTruthy()
+  it('getPost / getAllDomains 工作', () => {
+    expect(getPost('ai-digital-employee')?.slug).toBe('ai-digital-employee')
+    expect(getPost('nope')).toBeUndefined()
+    expect(getAllDomains()[0].slug).toBe('AI 与工程')
   })
 
-  it('领域聚合', () => {
-    const domains = getAllDomains()
-    expect(domains.length).toBeGreaterThan(0)
-    if (firstSlug) {
-      const d = domains.find((x) => x.slug === posts[0]!.domain)
-      expect(d).toBeTruthy()
-    }
-  })
-
-  it('缺 domain 的文章回退 general（仅验证不抛错）', () => {
-    expect(() => getPostsByDomain('general')).not.toThrow()
-  })
-
-  it('读 site.yaml', () => {
-    const site = getSite()
-    expect(site.site.name).toBeTruthy()
-  })
-
-  it('wip 与 faq 目录为空时不抛错', () => {
-    expect(Array.isArray(getWips())).toBe(true)
-    expect(Array.isArray(getFAQs())).toBe(true)
+  it('Post 无 body 字段（MDX 退出）', () => {
+    const p = getPost('ai-digital-employee')!
+    expect('body' in p).toBe(false)
   })
 })

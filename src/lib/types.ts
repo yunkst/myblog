@@ -9,7 +9,6 @@ export interface Post {
   anim_profile: AnimProfile
   status: PostStatus
   excerpt: string
-  body: string
   fileName: string
   hasExplore: boolean   // 文章目录下存在 explore.yaml 时为 true
   exploreEntry?: { id: string; label: string }  // 场景入口（yaml entry 场景的 label）；无 explore.yaml 时缺省

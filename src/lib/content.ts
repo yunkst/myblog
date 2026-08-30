@@ -1,79 +1,62 @@
-import fs from 'node:fs'
-import path from 'node:path'
-import matter from 'gray-matter'
 import yaml from 'js-yaml'
 import type { Post, Domain, Wip, Faq, SiteConfig, AnimProfile, PostStatus } from './types'
+import faqsYamlRaw from '/content/faqs.yaml?raw'
+import siteYamlRaw from '/content/site.yaml?raw'
 
-const CONTENT_DIR = path.join(process.cwd(), 'content')
-const POSTS_DIR = path.join(CONTENT_DIR, 'posts')
-const WIP_DIR = path.join(CONTENT_DIR, 'wip')
+/* v5：数据层单一化（SSG 与浏览器同源）。meta.yaml = 文章元数据；
+ * article.mdx/gray-matter 已废除（spec §5）。 */
+const metaYamls = import.meta.glob<string>('/content/posts/*/meta.yaml', {
+  query: '?raw', import: 'default', eager: true,
+})
+const exploreYamls = import.meta.glob<string>('/content/posts/*/explore.yaml', {
+  query: '?raw', import: 'default', eager: true,
+})
 
 const VALID_ANIM: AnimProfile[] = ['auto', 'data-narrative', 'architecture', 'story']
 const VALID_STATUS: PostStatus[] = ['draft', 'published', 'scheduled']
-
-function today(): string {
-  // 构建期固定日期，避免每天重新生成
-  return process.env.BUILD_DATE || new Date().toISOString().slice(0, 10)
-}
 
 function slugify(title: string): string {
   return title.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w一-龥-]/g, '')
 }
 
-function readPostFile(slug: string): { file: string; raw: string } | null {
-  const file = path.join(POSTS_DIR, slug, 'article.mdx')
-  if (!fs.existsSync(file)) return null
-  return { file, raw: fs.readFileSync(file, 'utf-8') }
+function slugOf(modulePath: string): string {
+  return modulePath.split('/').slice(-2, -1)[0]
+}
+
+function exploreEntryOf(slug: string): Post['exploreEntry'] {
+  const key = Object.keys(exploreYamls).find((k) => slugOf(k) === slug)
+  if (!key) return undefined
+  try {
+    const parsed = yaml.load(exploreYamls[key]) as any
+    const entry = parsed?.scenes?.find((s: any) => s.id === parsed?.entry)
+    if (parsed?.entry && entry?.label) return { id: String(parsed.entry), label: String(entry.label) }
+  } catch { /* yaml 坏不阻塞列表；validate:explore 报 */ }
+  return undefined
 }
 
 export function getAllPosts(): Post[] {
-  if (!fs.existsSync(POSTS_DIR)) return []
-  const slugs = fs.readdirSync(POSTS_DIR, { withFileTypes: true })
-    .filter((d) => d.isDirectory())
-    .map((d) => d.name)
   const posts: Post[] = []
-  for (const slug of slugs) {
-    const r = readPostFile(slug)
-    if (!r) continue
-    const { data, content } = matter(r.raw)
-    if (!data.title || !data.date) {
-      console.warn(`[content] 跳过 ${slug}: 缺 title 或 date`)
-      continue
-    }
-    const normSlug = (data.slug as string) || slugify(String(data.title))
-    const domain = (data.domain as string) || 'general'
+  for (const [modulePath, raw] of Object.entries(metaYamls)) {
+    let data: any
+    try { data = yaml.load(raw) } catch { console.warn(`[content] ${modulePath} yaml 解析失败`); continue }
+    if (!data?.title || !data?.date) { console.warn(`[content] ${modulePath} 缺 title/date`); continue }
+    const slug = slugOf(modulePath)
     const anim = (data.anim_profile as AnimProfile) || 'auto'
     const status = (data.status as PostStatus) || 'published'
-    if (!VALID_ANIM.includes(anim)) console.warn(`[content] ${slug}: anim_profile=${anim} 非法，回退 auto`)
-    if (!VALID_STATUS.includes(status)) console.warn(`[content] ${slug}: status=${status} 非法，回退 published`)
-    const exploreFile = path.join(POSTS_DIR, slug, 'explore.yaml')
-    let exploreEntry: Post['exploreEntry']
-    if (fs.existsSync(exploreFile)) {
-      try {
-        const parsed = yaml.load(fs.readFileSync(exploreFile, 'utf-8')) as any
-        if (parsed?.entry && parsed?.scenes) {
-          const entry = parsed.scenes.find((s: any) => s.id === parsed.entry)
-          if (entry?.label) exploreEntry = { id: String(parsed.entry), label: String(entry.label) }
-        }
-      } catch { /* yaml 坏不阻塞文章列表；validate:explore 会报 */ }
-    }
+    const date = data.date instanceof Date
+      ? data.date.toISOString().slice(0, 10)
+      : String(data.date).slice(0, 10)
     posts.push({
-      slug: normSlug,
+      slug: (data.slug as string) || slugify(String(data.title)) || slug,
       title: String(data.title),
-      domain,
-      // gray-matter 把 yaml `date: 2026-08-29` 解析为 Date 对象（UTC 午夜），
-      // 直接 String() 得到 "Sat Aug 29 2026..."，slice(0,10) 就丢年份。
-      // 必须先转 ISO 再截。
-      date: data.date instanceof Date
-        ? data.date.toISOString().slice(0, 10)
-        : String(data.date).slice(0, 10),
+      domain: (data.domain as string) || 'general',
+      date,
       anim_profile: VALID_ANIM.includes(anim) ? anim : 'auto',
       status: VALID_STATUS.includes(status) ? status : 'published',
       excerpt: String(data.excerpt || ''),
-      body: content,
-      fileName: normSlug, // 目录名即 slug；Post.tsx 用它映射 mdxModules
-      hasExplore: fs.existsSync(exploreFile),
-      exploreEntry,
+      fileName: slug,
+      hasExplore: Object.keys(exploreYamls).some((k) => slugOf(k) === slug),
+      exploreEntry: exploreEntryOf(slug),
     })
   }
   return posts.filter((p) => p.status === 'published').sort((a, b) => (a.date < b.date ? 1 : -1))
@@ -102,34 +85,15 @@ export function getAllDomains(): Domain[] {
 }
 
 export function getWips(): Wip[] {
-  if (!fs.existsSync(WIP_DIR)) return []
-  const files = fs.readdirSync(WIP_DIR).filter((f) => f.endsWith('.mdx') || f.endsWith('.md'))
-  const wips: Wip[] = []
-  for (const file of files) {
-    const raw = fs.readFileSync(path.join(WIP_DIR, file), 'utf-8')
-    const { data, content } = matter(raw)
-    wips.push({
-      slug: String(data.slug || file.replace(/\.(mdx|md)$/, '')),
-      title: String(data.title || '未命名'),
-      status: String(data.status || 'in-progress'),
-      progress: Number(data.progress ?? 0),
-      thoughts: content.trim(),
-    })
-  }
-  return wips
+  // content/wip/ 目录当前不存在；客户端无 fs，等价于 SSG 版 fs.existsSync(WIP_DIR) 为 false 的行为。
+  return []
 }
 
 export function getFAQs(): Faq[] {
-  const file = path.join(CONTENT_DIR, 'faqs.yaml')
-  if (!fs.existsSync(file)) return []
-  const parsed = yaml.load(fs.readFileSync(file, 'utf-8')) as Faq[] | null
+  const parsed = yaml.load(faqsYamlRaw) as Faq[] | null
   return Array.isArray(parsed) ? parsed : []
 }
 
 export function getSite(): SiteConfig {
-  const file = path.join(CONTENT_DIR, 'site.yaml')
-  const parsed = yaml.load(fs.readFileSync(file, 'utf-8')) as SiteConfig
-  return parsed
+  return yaml.load(siteYamlRaw) as SiteConfig
 }
-
-void today
