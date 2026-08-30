@@ -114,12 +114,15 @@ export default function SceneClip({ demo }: { demo?: string }) {
     btn?.addEventListener('click', handle.replay)
 
     /* v7 Task 3（demo API promise 化）：play() 返回 Promise<void>——
-     * 已 finished 直接 resolve；否则挂 resolver 再触发 handle.play()
-     * （reduced-motion 下内部 progress(1) 触发 onComplete → 自然 resolve） */
+     * 已 finished 直接 resolve；否则先挂 resolver 再触发 handle.play()
+     * （顺序关键：reduced-motion 下 progress(1) 同步触发 onComplete →
+     *  setFinishedAndResolve 必须能拿到 playResolver，所以必须先挂再 play） */
     const play = (): Promise<void> => {
       if (handle.finished()) return Promise.resolve()
-      handle.play()
-      return new Promise<void>((resolve) => { playResolver = resolve })
+      return new Promise<void>((resolve) => {
+        playResolver = resolve
+        handle.play()
+      })
     }
 
     // v4：把播放控制权暴露给 Director（同名覆盖旧值，注销闭包只在 cleanup 调用）

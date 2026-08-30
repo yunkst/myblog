@@ -104,7 +104,8 @@ describe('SceneClip v4 imperative API', () => {
     expect(p).toBeInstanceOf(Promise)
     expect(typeof p.then).toBe('function')
     /* 不消费 promise 会触发「unhandled rejection」警告——显式 noop 后 unmount，
-     * unmount 时 handle.kill 触发 onKill → resolve，promise 正常 settle */
+     * unmount → useEffect cleanup 闭包手动 resolve（GSAP onKill 实际不触发，
+     * 与 SceneClip.tsx 内部注释「cleanup 兜底手动 resolve」对齐） */
     p.then(() => {}, () => {})
     unmount()
   })
@@ -118,7 +119,7 @@ describe('SceneClip v4 imperative API', () => {
     const p = api.play().then(() => { resolved = true })
     // 还未自然完成
     expect(resolved).toBe(false)
-    // unmount → handle.kill() → tl.kill() → onKill → resolve
+    // unmount → useEffect cleanup 闭包 → 手动 resolve（GSAP onKill 不触发）
     unmount()
     await p
     expect(resolved).toBe(true)
@@ -134,6 +135,28 @@ describe('SceneClip v4 imperative API', () => {
     expect(api.finished()).toBe(true)
     let resolved = false
     await api.play().then(() => { resolved = true })
+    expect(resolved).toBe(true)
+    unmount()
+  })
+
+  /* v7 Task 3 review M1 fix：play() 必须先挂 resolver 再 handle.play()，
+   * 否则 reduced-motion 下 tl.pause().progress(1) 同步触发 onComplete →
+   * setFinishedAndResolve 拿到 null resolver → promise 永挂，
+   * 外部 `await api.play()` 永不返回。 */
+  it('play() 返回的 Promise 能 resolve（即使已 finished），防止 M1 同步 onComplete 竞态', async () => {
+    const { unmount } = render(<SceneClip demo="message-flood" />)
+    const api = getSceneClipApi('message-flood')!
+    /* 先把 timeline 推进到 1 触发 onComplete → setFinishedAndResolve 落 data-finished */
+    gsap.globalTimeline.progress(1)
+    expect(api.finished()).toBe(true)
+    /* 此时再调 play()——旧实现 (handle.play() 先于挂 resolver) 在某些路径下
+     * 会因同步 onComplete 拿到 null resolver；新实现 finished()=true 走早返
+     * 分支 + resolved=true 必须在 await 之后可观察（不会永挂） */
+    let resolved = false
+    const p = api.play().then(() => { resolved = true })
+    expect(p).toBeInstanceOf(Promise)
+    /* 给一个 microtask 窗口让 then 回调有机会跑 */
+    await p
     expect(resolved).toBe(true)
     unmount()
   })
