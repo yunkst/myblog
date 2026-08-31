@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef } from 'react'
+import { useContext, useLayoutEffect, useRef } from 'react'
 import type {} from 'gsap'
 import type { Scene } from './SceneController'
 import { createDemoHandle } from './SceneController'
@@ -72,8 +72,11 @@ export default function SceneClip({ demo }: { demo?: string }) {
     console.warn(`[SceneClip] ${currentSlug} 没有 demo "${demoName}"`)
   }
 
-  // Stage 挂载后 build timeline + 视口观察（仅浏览器）
-  useEffect(() => {
+  // Stage 挂载后 build timeline + 视口观察（仅浏览器）。
+  // useLayoutEffect（非 useEffect）：build() 里的 tl.set 初始隐藏必须在 paint 前生效——
+  // SSR 直出的 Stage 是「全部可见」态，passive effect 会让首帧全亮再闪回隐藏（C2+I1
+  // 同款问题，Director 文字层已修，demo 层对齐同一手法）。
+  useLayoutEffect(() => {
     const cur = scene
     const el = ref.current
     if (!cur || !el) return
@@ -121,6 +124,7 @@ export default function SceneClip({ demo }: { demo?: string }) {
       if (handle.finished()) return Promise.resolve()
       return new Promise<void>((resolve) => {
         playResolver = resolve
+        started = true
         handle.play()
       })
     }
@@ -131,6 +135,10 @@ export default function SceneClip({ demo }: { demo?: string }) {
       pause: () => handle.pause(),
       replay: () => handle.replay(),
       finished: () => handle.finished(),
+      /* skip 语义配套：started 区分「未开始/播放中」，finish 直达终态（progress(1)
+       * 同步触发 onComplete → setFinishedAndResolve，挂起的 play() promise 随之 resolve） */
+      started: () => started,
+      finish: () => handle.finish(),
     })
 
     return () => {

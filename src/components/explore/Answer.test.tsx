@@ -270,14 +270,13 @@ describe('Answer v3 演出', () => {
   })
 })
 
-/* v7 三原则 2（全屏单点所有权）：Director 经 onFullscreen 回调申请全屏，
- * Answer 单点持有 fullscreen state 落成 section 的 data-fullscreen 属性——
- * CSS（.theater[data-fullscreen] > .stage）只认属性，Director 不碰 DOM class。
- * 演出条件（runtime Provider + 首次激活 + 本幕激活）下：
- * - mode 1 挂载即同步申请 onFullscreen(true) → useLayoutEffect → paint 前属性出现；
- * - 缩窗完成后申请 onFullscreen(false) → 属性消失（vi.waitFor 等演出走完）。
- * SceneClip 无全局注册（jsdom IO 缺失）→ playDemo 走空 demo 短路，演出纯 GSAP 推进。 */
-describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/消失', () => {
+/* 全屏契约（2026-08-31 版）：v7 的 data-fullscreen 属性驱动路径已退役——
+ * Director 从不触发 onFullscreen(true)，整条链路（Answer fullscreen state →
+ * section data-fullscreen 属性 → CSS .theater[data-fullscreen] > .stage）是死代码，
+ * 已随本轮修复删除。mode 1 全屏由 Director 手工实现（body 根 .mode1-overlay +
+ * clip 临时 position:fixed，播完缩窗还原）。以下把「任何场景形态下 section 都不带
+ * data-fullscreen」钉死，防止死路径复活；顺带验证 mode 1 时 overlay 真的出现/消失。 */
+describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径 2026-08-31 退役）', () => {
   const yamlMode1 = [
     'title: t',
     'entry: q-fs',
@@ -318,9 +317,13 @@ describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/
   }
 
   beforeEach(() => { mockedReduce.value = false })
-  afterEach(() => { gsap.globalTimeline.clear() })
+  afterEach(() => {
+    gsap.globalTimeline.clear()
+    // mode 1 的 overlay 是 append 到 body 的非 React 托管节点，逐个清
+    document.querySelectorAll('.mode1-overlay').forEach((el) => el.remove())
+  })
 
-  it('mode 1 首次激活：useLayoutEffect 内 data-fullscreen 即出现在 section（paint 前）', () => {
+  it('mode 1 首次激活：无 data-fullscreen；手工全屏 overlay 出现在 body 根', () => {
     const cfg = makeConfig(yamlMode1)
     const runtime = runtimeProvider({ activeId: 'q-fs', firstActivation: true, onActivate: () => {} })
     render(
@@ -331,18 +334,23 @@ describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/
       </ExploreRuntimeContext.Provider>,
     )
     const theater = document.querySelector('.theater')!
-    expect(theater.getAttribute('data-fullscreen')).toBe('')
+    expect(theater.hasAttribute('data-fullscreen')).toBe(false)
+    // 手工全屏生效：overlay 挂在 body 根（非 section 内）
+    const overlay = document.querySelector('.mode1-overlay')
+    expect(overlay).not.toBeNull()
+    expect(overlay!.parentElement).toBe(document.body)
+    // reparent 契约（治入场黑屏）：clip 脱离 .stage-inner stacking context，移到 body 根
+    const clip = document.querySelector('.scene-clip')!
+    expect(clip.parentElement).toBe(document.body)
+    expect(theater.querySelector('.scene-clip')).toBeNull()
   })
 
-  it('缩窗完成后 data-fullscreen 消失（vi.waitFor 等演出走完）', async () => {
+  it('mode 1 演出完成后：仍无 data-fullscreen，overlay 已移除', async () => {
     const cfg = makeConfig(yamlMode1)
     const runtime = runtimeProvider({ activeId: 'q-fs', firstActivation: true, onActivate: () => {} })
-    /* jsdom 无 IntersectionObserver → 真实 SceneClip 的 useEffect 在 IO 检查处早退、
-     * 不注册 API。Director.playDemo 的 waitForApi 拿不到 API 会轮询到 2s 兜底——
-     * 测试注册一个假 API（v7 Task 3 promise 化：play() 返回 Promise<void>，
-     * finished()=true 表示已 finished，Director 立即跳过）+ 预置 data-finished
-     * （SceneClip demo onComplete 时 setAttribute 的同一属性），让 playDemo
-     * 立即返回，演出纯 GSAP 推进到缩窗完成。 */
+    /* jsdom 无 IntersectionObserver → 真实 SceneClip 的 useLayoutEffect 在 IO 检查处
+     * 早退、不注册 API。注册一个假 API（finished()=true，Director 立即跳过 play），
+     * 让演出纯 GSAP 推进到缩窗完成。 */
     const unregister = registerSceneClip('demo-fs', {
       play: () => Promise.resolve(),
       pause: () => {},
@@ -350,7 +358,7 @@ describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/
       finished: () => true,
     })
     try {
-      const { container } = render(
+      render(
         <ExploreRuntimeContext.Provider value={runtime}>
           <ExploreConfigContext.Provider value={cfg}>
             <Answer scene={cfg.scenes[0]} body={<SceneClip demo="demo-fs" />} />
@@ -358,18 +366,19 @@ describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/
         </ExploreRuntimeContext.Provider>,
       )
       const theater = document.querySelector('.theater')!
-      // 先确认全屏属性确实出现过（mode 1 语义），再等它消失
-      expect(theater.getAttribute('data-fullscreen')).toBe('')
-      container.querySelector('.scene-clip')?.setAttribute('data-finished', '')
+      expect(theater.hasAttribute('data-fullscreen')).toBe(false)
+      // overlay 出现过（mode 1 语义），缩窗完成后被移除
+      expect(document.querySelector('.mode1-overlay')).not.toBeNull()
       await vi.waitFor(() => {
-        expect(theater.getAttribute('data-fullscreen')).toBeNull()
+        expect(document.querySelector('.mode1-overlay')).toBeNull()
       }, { timeout: 3000 })
+      expect(theater.hasAttribute('data-fullscreen')).toBe(false)
     } finally {
       unregister()
     }
   })
 
-  it('纯文字幕（无 SceneClip）：data-fullscreen 始终不存在（onFullscreen 不传）', () => {
+  it('纯文字幕（无 SceneClip）：无 data-fullscreen、无 overlay', () => {
     const cfg = makeConfig(yamlMode1)
     const runtime = runtimeProvider({ activeId: 'q-fs-b', firstActivation: true, onActivate: () => {} })
     render(
@@ -381,9 +390,10 @@ describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/
     )
     const theater = document.querySelector('.theater')!
     expect(theater.hasAttribute('data-fullscreen')).toBe(false)
+    expect(document.querySelector('.mode1-overlay')).toBeNull()
   })
 
-  it('回看（firstActivation=false）：不挂 Director，data-fullscreen 不存在', () => {
+  it('回看（firstActivation=false）：不挂 Director，无 data-fullscreen、无 overlay', () => {
     const cfg = makeConfig(yamlMode1)
     const runtime = runtimeProvider({ activeId: 'q-fs', firstActivation: false, onActivate: () => {} })
     render(
@@ -395,9 +405,10 @@ describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/
     )
     const theater = document.querySelector('.theater')!
     expect(theater.hasAttribute('data-fullscreen')).toBe(false)
+    expect(document.querySelector('.mode1-overlay')).toBeNull()
   })
 
-  it('无路由 runtime（SSG 直出/测试孤儿形态）：data-fullscreen 不存在', () => {
+  it('无路由 runtime（SSG 直出/测试孤儿形态）：无 data-fullscreen、无 overlay', () => {
     const cfg = makeConfig(yamlMode1)
     render(
       <MemoryRouter>
@@ -408,6 +419,7 @@ describe('Answer v7 全屏所有权：data-fullscreen 随 Director 回调出现/
     )
     const theater = document.querySelector('.theater')!
     expect(theater.hasAttribute('data-fullscreen')).toBe(false)
+    expect(document.querySelector('.mode1-overlay')).toBeNull()
   })
 })
 

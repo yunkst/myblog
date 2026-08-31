@@ -21,13 +21,32 @@ function makeRef<T extends HTMLElement>(): React.RefObject<T> {
   return { current: el } as unknown as React.RefObject<T>
 }
 
-/** v7 三原则 2：onFullscreen mock（供断言 mode 1 申请全屏 / 退出全屏的时序） */
-function makeFullscreenMock() {
-  return vi.fn<(on: boolean) => void>()
+/** mode 1 手工全屏（2026-08-31 版契约）测试夹具：Director 用
+ * document.querySelector('.scene-clip') 找 demo 根节点。jsdom 无 layout，
+ * getBoundingClientRect 全 0 会让 scale = vw/0 = Infinity——mock 非零尺寸。
+ * clip 放在包裹容器里（模拟 .stage-inner 槽位）：reparent 契约是
+ * 「全屏期 clip.parentElement === document.body，收尾后插回原容器」。 */
+function makeClip(): { wrap: HTMLElement; clip: HTMLElement } {
+  const wrap = document.createElement('div')
+  wrap.className = 'test-clip-wrap'
+  const el = document.createElement('div')
+  el.className = 'scene-clip'
+  el.getBoundingClientRect = () => ({
+    width: 400, height: 300, left: 100, top: 100,
+    right: 500, bottom: 400, x: 100, y: 100,
+    toJSON: () => ({}),
+  }) as DOMRect
+  wrap.appendChild(el)
+  document.body.appendChild(wrap)
+  return { wrap, clip: el }
 }
 
 beforeEach(() => { mockedReduce.value = false })
-afterEach(() => { gsap.globalTimeline.clear() })
+afterEach(() => {
+  gsap.globalTimeline.clear()
+  // mode 1 的 overlay / 占位 / 假 clip 都是 append 到 DOM 的非 React 托管节点，逐个清
+  document.querySelectorAll('.scene-clip, .mode1-overlay, .mode1-placeholder, .test-clip-wrap').forEach((el) => el.remove())
+})
 
 describe('Director', () => {
   it('mode 2 默认：建出多个 timeline（act-head / dialogue / choices / demo），不挂 reduced-motion', () => {
@@ -86,104 +105,92 @@ describe('Director', () => {
     expect(buildTypewriterTimeline(dlgEl)).toBeNull()
   })
 
-  /* v7 三原则 2：全屏申请改走 onFullscreen 回调（Answer 落 data-fullscreen 属性），
-   * mode 1 挂载即同步调 onFullscreen(true)。 */
-  it('mode 1：挂载即调 onFullscreen(true)，建出缩窗 timeline（scale 1.4 → 1）', () => {
-    // mode 1 需要 demo API（scene.demo='message-flood' 注册过）——这里走最简：让 getSceneClipApi 返回 undefined
-    // → playDemo 立即 resolve；缩窗 tween 应仍被建出。
+  /* mode 1 手工全屏（2026-08-31 版契约，取代已退役的 onFullscreen/data-fullscreen
+   * 属性驱动路径）：Director 直接操作 DOM——挂载即把 .mode1-overlay append 到 body、
+   * clip 转 position:fixed；不经过 Answer 持状态。 */
+  it('mode 1：挂载即建 overlay + clip reparent 到 body 根转 fixed，并建出演示 timeline（空 demo 短路不卡等待）', () => {
+    const { wrap, clip } = makeClip()
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
-    const onFullscreen = makeFullscreenMock()
 
-    const scene: DirectorScene = { id: 'q-m1', mode: 1, demo: 'demo-not-registered' }
+    // demo 空：playDemo 立即 resolve（v6 空 demo 短路），全屏/缩窗照常建
+    const scene: DirectorScene = { id: 'q-m1', mode: 1, demo: '' }
     render(
-      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onFullscreen={onFullscreen}>
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
         <span>x</span>
       </Director>,
     )
-    // 挂载即申请全屏（layout 阶段同步——React paint 前 flush，首帧即全屏）
-    expect(onFullscreen.mock.calls).toEqual([[true]])
-    // mode 1 应至少建出 timeline（缩窗 / act-head / dialogue / choices 任一进 globalTimeline）
+    // 挂载即全屏（layout 阶段同步——React paint 前 flush，首帧即全屏）
+    expect(document.querySelector('.mode1-overlay')).not.toBeNull()
+    expect(clip.style.position).toBe('fixed')
+    // reparent 契约：clip 移到 body 根（脱离 stage-inner stacking context，治入场黑屏），
+    // 原槽位由占位元素撑住；挂 scene-clip--fs 镜像 class（归属变化护栏——
+    // reparent 后 .stage-frame .stage 规则链失效，镜像 grid 内布局防内容跳变）
+    expect(clip.parentElement).toBe(document.body)
+    expect(clip.classList.contains('scene-clip--fs')).toBe(true)
+    expect(wrap.querySelector('.mode1-placeholder')).not.toBeNull()
+    // mode 1 应至少建出 timeline（入场 / 缩窗 / act-head / dialogue / choices 任一进 globalTimeline）
     expect(gsap.globalTimeline.getChildren(true, true, true).length).toBeGreaterThan(0)
   })
 
-  /* v7 三原则 2：mode 3 纯文字，从不申请全屏（onFullscreen 从不调用）。 */
-  it('mode 3 不申请全屏（onFullscreen 从不调用，直走文字演出）', () => {
+  /* mode 3 纯文字：从不进全屏分支（不建 overlay、不碰 clip）。 */
+  it('mode 3 不建 overlay（直走文字演出，clip 样式/位置不动）', () => {
+    const { wrap, clip } = makeClip()
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
-    const onFullscreen = makeFullscreenMock()
 
     const scene: DirectorScene = { id: 'q-m3', mode: 3, demo: '' }
     render(
-      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onFullscreen={onFullscreen}>
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
         <span>x</span>
       </Director>,
     )
-    expect(onFullscreen).not.toHaveBeenCalled()
+    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(clip.style.position).toBe('')
+    expect(clip.parentElement).toBe(wrap)
   })
 
-  /* v6 review fix：mode 1 + demo 为空（纯文字全屏幕，理论上由 mode 3 承载，
-   * 但防御性地保证 mode 1 不因空 demo 卡在 waitForApi 轮询）——
-   * 演出应正常走缩窗，不额外等待 demo（globalTimeline 有缩窗 tween，不长期挂起）。 */
-  /* v6 review fix：缩窗时序（方案 A）——全程 fixed，缩到 1 后回调退出全屏 + 清 transform。
-   * v7 三原则 2：全屏状态机改走 onFullscreen 回调（真 → false 结束）。 */
-  it('mode 1 缩窗完成后调 onFullscreen(false) 并清内联 transform', async () => {
+  /* P0 回归（2026-08 实锤 bug：shrink.eventCallback('onComplete') 覆盖 vars onComplete →
+   * 样式还原永不执行 → clip 永久残留 fixed 盖住标题）+ 架构回归（原地 fixed 被 overlay
+   * 盖住 → 入场黑屏；终点 x:0,y:0 → 闪现）：
+   * 缩窗 onComplete 必须一处收尾——clip inline style 还原 + 插回原容器 + 占位/overlay 移除。 */
+  it('mode 1 缩窗完成后：clip 还原并插回原容器 + 占位/overlay 移除', async () => {
+    const { wrap, clip } = makeClip()
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
-    const onFullscreen = makeFullscreenMock()
-    // demo 空：playDemo 立即 resolve（v6 空 demo 短路），缩窗 tween 照常建
+
     const scene: DirectorScene = { id: 'q-m1-shrink', mode: 1, demo: '' }
-    const { unmount } = render(
-      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onFullscreen={onFullscreen}>
+    render(
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
         <span>x</span>
       </Director>,
     )
     // 挂载即全屏（mode 1 语义）
-    expect(onFullscreen.mock.calls).toEqual([[true]])
-    // 等演出推进（缩窗 tween 完成 + 回调退出全屏 + 清 transform）
+    expect(document.querySelector('.mode1-overlay')).not.toBeNull()
+    expect(clip.style.position).toBe('fixed')
+    expect(clip.parentElement).toBe(document.body)
+    // 等缩窗(0.6s) 走完：overlay/占位移除 + clip 还原并插回原容器 + 摘镜像 class
     await vi.waitFor(() => {
-      expect(onFullscreen.mock.calls).toEqual([[true], [false]])
-    })
-    // 内联 transform 已清（clearProps 后 style.transform 应为空）
-    const stageEl = stage.current!
-    expect(stageEl.style.transform).toBe('')
-    expect(stageEl.style.transformOrigin).toBe('')
-    unmount()
-  })
-
-  /* v7 三原则 2：空 demo 短路下 onFullscreen(true) 仍照常申请（mode 1 语义不变）。 */
-  it('mode 1 + 空 demo：直接缩窗，不卡 demo 等待（waitForApi 短路）', () => {
-    const head = makeRef<HTMLElement>()
-    const dlg = makeRef<HTMLElement>()
-    dlg.current!.innerHTML = '<p>唯一</p>'
-    const choices = makeRef<HTMLElement>()
-    choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
-    const stage = makeRef<HTMLElement>()
-    const onFullscreen = makeFullscreenMock()
-
-    const scene: DirectorScene = { id: 'q-m1-empty', mode: 1, demo: '' }
-    render(
-      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onFullscreen={onFullscreen}>
-        <span>x</span>
-      </Director>,
-    )
-    // 挂载即申请全屏（mode 1 语义照常）
-    expect(onFullscreen.mock.calls).toEqual([[true]])
-    // 演出正常推进：缩窗 tween 应被建出（playDemo 因空 demo 立即 resolve，
-    // 不等 15s 超时）——全局 timeline 有子节点即证明演出没被空转卡住
-    expect(gsap.globalTimeline.getChildren(true, true, true).length).toBeGreaterThan(0)
+      expect(document.querySelector('.mode1-overlay')).toBeNull()
+      expect(document.querySelector('.mode1-placeholder')).toBeNull()
+      expect(clip.style.position).toBe('')
+      expect(clip.style.transform).toBe('')
+      expect(clip.style.zIndex).toBe('')
+      expect(clip.classList.contains('scene-clip--fs')).toBe(false)
+      expect(clip.parentElement).toBe(wrap)
+    }, { timeout: 3000 })
   })
 
   it('onReady 挂载时调一次：把 skip API 暴露给父；unmount 时 cleanup（tls 被 kill）', () => {
@@ -212,7 +219,7 @@ describe('Director', () => {
     const api = onReady.mock.calls[0][0] as { skip(): void }
     expect(typeof api.skip).toBe('function')
 
-    // skip 不应炸（mode 2 未申请过全屏，onFullscreen 未提供 → no-op）
+    // skip 不应炸（mode 2 + 空 demo：tls 快照推进 + demo 名空短路）
     expect(() => api.skip()).not.toThrow()
 
     // unmount 后所有 timeline 应被 kill（globalTimeline.getChildren 应减少或清空）
@@ -222,92 +229,148 @@ describe('Director', () => {
     expect(after).toBeLessThanOrEqual(before)
   })
 
-  /* v7 三原则 2：skip 经 onFullscreen(false) 申请退出全屏。 */
-  it('skip 调 onFullscreen(false) 退出全屏', async () => {
+  /* P0 修复（2026-08-31）：skip 只推进 Director 自己的 tls 时，SceneClip 持有的
+   * demo 时间线无法跳过（8.6s 全屏 demo 点空白没反应）。现契约：skip 经 registry
+   * 取 api，「已开始且未播完」才 finish()。 */
+  it('skip：播放中（started=true 且未 finished）的 demo 调 finish()', () => {
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
-    const onFullscreen = makeFullscreenMock()
 
-    const scene: DirectorScene = { id: 'q-skip', mode: 1, demo: 'demo-not-registered' }
-    const onReady = vi.fn()
-    render(
-      <Director
-        scene={scene}
-        headRef={head}
-        dlgRef={dlg}
-        choicesRef={choices}
-        stageRef={stage}
-        onFullscreen={onFullscreen}
-        onReady={onReady}
-      >
-        <span>x</span>
-      </Director>,
-    )
-    // 挂载即申请全屏
-    expect(onFullscreen.mock.calls).toEqual([[true]])
-    const api = onReady.mock.calls[0][0] as { skip(): void }
-    api.skip()
-    expect(onFullscreen.mock.calls).toEqual([[true], [false]])
+    const finishSpy = vi.fn()
+    const unregister = registerSceneClip('demo-playing', {
+      play: () => new Promise<void>(() => { /* 永不 resolve——模拟 8.6s demo 播放中 */ }),
+      pause: () => {},
+      replay: () => {},
+      finished: () => false,
+      started: () => true,
+      finish: finishSpy,
+    })
+    try {
+      const scene: DirectorScene = { id: 'q-skip', mode: 2, demo: 'demo-playing' }
+      const onReady = vi.fn()
+      render(
+        <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onReady={onReady}>
+          <span>x</span>
+        </Director>,
+      )
+      const api = onReady.mock.calls[0][0] as { skip(): void }
+      api.skip()
+      expect(finishSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      unregister()
+    }
   })
 
-  /* v7 三原则 2：unmount cleanup 同样经 onFullscreen(false) 申请退出——
-   * 快速切幕时不能把 data-fullscreen 状态留在 Answer 的 section 上。 */
-  it('unmount cleanup 调 onFullscreen(false)（快速切幕不残留全屏）', () => {
+  /* skip 是逐段推进语义：未开始的 demo 不动（mode 2 打字机阶段点 skip，
+   * 不该把还没轮到的 demo 直接跳没）；无 started 的旧契约 api 同样不动。 */
+  it('skip：未开始的 demo（started()=false 或无 started）不调 finish', () => {
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
-    const onFullscreen = makeFullscreenMock()
 
-    const scene: DirectorScene = { id: 'q-unmount-full', mode: 1, demo: '' }
+    const finishNotStarted = vi.fn()
+    const finishLegacy = vi.fn()
+    const un1 = registerSceneClip('demo-not-started', {
+      play: () => Promise.resolve(),
+      pause: () => {},
+      replay: () => {},
+      finished: () => false,
+      started: () => false,
+      finish: finishNotStarted,
+    })
+    const un2 = registerSceneClip('demo-legacy', {
+      play: () => Promise.resolve(),
+      pause: () => {},
+      replay: () => {},
+      finished: () => false,
+      finish: finishLegacy,
+    })
+    try {
+      const scene: DirectorScene = { id: 'q-skip-ns', mode: 2, demo: 'demo-not-started' }
+      const onReady = vi.fn()
+      const { unmount } = render(
+        <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onReady={onReady}>
+          <span>x</span>
+        </Director>,
+      )
+      const api = onReady.mock.calls[0][0] as { skip(): void }
+      api.skip()
+      expect(finishNotStarted).not.toHaveBeenCalled()
+      unmount()
+
+      const scene2: DirectorScene = { id: 'q-skip-legacy', mode: 2, demo: 'demo-legacy' }
+      const onReady2 = vi.fn()
+      render(
+        <Director scene={scene2} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage} onReady={onReady2}>
+          <span>x</span>
+        </Director>,
+      )
+      const api2 = onReady2.mock.calls[0][0] as { skip(): void }
+      api2.skip()
+      expect(finishLegacy).not.toHaveBeenCalled()
+    } finally {
+      un1()
+      un2()
+    }
+  })
+
+  /* 中途 unmount（快速切幕）：tl.kill() 不触发 tween onComplete/clearProps——
+   * overlay（append 到 body 的非 React 托管节点）与 clip 的 fixed inline style
+   * 必须由 cleanup 手工收尾，不能残留。 */
+  it('mode 1 中途 unmount：cleanup 手工收尾——overlay/占位移除 + clip 还原并插回原容器', () => {
+    const { wrap, clip } = makeClip()
+    const head = makeRef<HTMLElement>()
+    const dlg = makeRef<HTMLElement>()
+    dlg.current!.innerHTML = '<p>唯一</p>'
+    const choices = makeRef<HTMLElement>()
+    choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
+    const stage = makeRef<HTMLElement>()
+
+    // demo 未注册：playDemo 走 waitForApi 轮询（演出停在全屏播放阶段）
+    const scene: DirectorScene = { id: 'q-unmount-full', mode: 1, demo: 'demo-not-registered' }
     const { unmount } = render(
-      <Director
-        scene={scene}
-        headRef={head}
-        dlgRef={dlg}
-        choicesRef={choices}
-        stageRef={stage}
-        onFullscreen={onFullscreen}
-      >
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
         <span>x</span>
       </Director>,
     )
-    expect(onFullscreen.mock.calls).toEqual([[true]])
+    expect(document.querySelector('.mode1-overlay')).not.toBeNull()
+    expect(clip.style.position).toBe('fixed')
+    expect(clip.parentElement).toBe(document.body)
     unmount()
-    expect(onFullscreen.mock.calls).toEqual([[true], [false]])
+    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(document.querySelector('.mode1-placeholder')).toBeNull()
+    expect(clip.style.position).toBe('')
+    expect(clip.classList.contains('scene-clip--fs')).toBe(false)
+    expect(clip.parentElement).toBe(wrap)
   })
 
-  /* v7 三原则 2：reduced-motion 早 return，从不申请全屏。 */
-  it('reduced-motion 下 onFullscreen 从不调用', () => {
+  /* reduced-motion 早 return：从不进全屏分支（不建 overlay、clip 样式/位置不动）。 */
+  it('reduced-motion 下不建 overlay（clip 样式/位置不动）', () => {
     mockedReduce.value = true
+    const { wrap, clip } = makeClip()
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
     const stage = makeRef<HTMLElement>()
-    const onFullscreen = makeFullscreenMock()
 
     const scene: DirectorScene = { id: 'q-reduced-fs', mode: 1, demo: 'demo-not-registered' }
     render(
-      <Director
-        scene={scene}
-        headRef={head}
-        dlgRef={dlg}
-        choicesRef={choices}
-        stageRef={stage}
-        onFullscreen={onFullscreen}
-      >
+      <Director scene={scene} headRef={head} dlgRef={dlg} choicesRef={choices} stageRef={stage}>
         <span>x</span>
       </Director>,
     )
-    expect(onFullscreen).not.toHaveBeenCalled()
+    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(clip.style.position).toBe('')
+    expect(clip.parentElement).toBe(wrap)
   })
 
   /* C2+I1 fix round：

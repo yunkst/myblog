@@ -43,33 +43,37 @@ export const demos: Record<string, Scene> = {
     Stage: FloodStage,
     build() {
       const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
-      const incoming = ['#b1', '#b2', '#b3', '#b4', '#b5']
-      const mine = ['#b-me1', '#b-me2']
-      tl.set(incoming, { opacity: 0, y: 14 })
-      tl.set(mine, { opacity: 0, y: 14 })
+      // DOM 顺序 = 消息到达顺序；opacity 预留槽位（高度在 mount 时已稳定，
+      // mode 1 全屏的 scale 按 mount 时的完整高度量，不会随播放溢出）
+      const all = ['#b1', '#b2', '#b3', '#b-me1', '#b4', '#b5', '#b6', '#b-me2']
+      tl.set(all, { opacity: 0, y: 12 })
       tl.set(['#flood-line1', '#flood-line2'], { opacity: 0 })
 
-      // 1) 前 3 条消息逐条弹出（越来越快），第 4、5 条留到"我"回复间隙再涌入
-      const firstWave = ['#b1', '#b2', '#b3']
-      firstWave.forEach((b, i) => {
-        tl.to(b, { opacity: 1, y: 0, duration: 0.3 }, i === 0 ? 0.4 : '>')
-        if (i < firstWave.length - 1) tl.to({}, { duration: 0.9 - i * 0.14 })
-      })
+      const arrive = (id: string, at: number | string) => {
+        tl.to(id, { opacity: 1, y: 0, duration: 0.28 }, at)
+      }
+
+      // 1) 前三条自然间隔到达（0.8 / 0.6s——真实群聊的呼吸感）
+      arrive('#b1', 0.4)
+      arrive('#b2', '+=0.8')
+      arrive('#b3', '+=0.6')
 
       // 2) 我的第一条回复（被围困但还在硬撑）
-      tl.to('#b-me1', { opacity: 1, y: 0, duration: 0.25 }, '+=0.3')
-      // 消息不停，第 4、5 条在我回复间隙继续涌入
-      tl.to('#b4', { opacity: 1, y: 0, duration: 0.25 }, '+=0.4')
-      tl.to({}, { duration: 0.35 })
-      tl.to('#b5', { opacity: 1, y: 0, duration: 0.25 })
-      // 3) 我的第二条回复：只剩一个字——越来越忙
-      tl.to('#b-me2', { opacity: 1, y: 0, duration: 0.2 }, '+=0.3')
+      arrive('#b-me1', '+=0.9')
 
-      // 4) 气泡堆整体上移溢出，窗体轻震
-      tl.to('.mock-chat-body', { y: -60, duration: 0.8 }, '+=0.2')
+      // 3) 我回复的间隙，消息加速涌入（0.35 / 0.3 / 0.25s——失控感）
+      arrive('#b4', '+=0.35')
+      arrive('#b5', '+=0.3')
+      arrive('#b6', '+=0.25')
+
+      // 4) 我的第二条回复：只剩一个字——越来越忙
+      arrive('#b-me2', '+=0.5')
+
+      // 5) 气泡堆整体上移溢出，窗体轻震
+      tl.to('.mock-chat-body', { y: -70, duration: 0.8 }, '+=0.3')
       tl.to('.mock-chat-pane', { x: 3, duration: 0.05, repeat: 5, yoyo: true }, '<')
 
-      // 5) 静默 + 点题
+      // 6) 静默 + 点题
       tl.to(['.mock-chat-body', '.mock-chat-head'], { opacity: 0.25, duration: 0.6 }, '+=0.4')
       tl.to('#flood-line1', { opacity: 1, duration: 0.8 }, '<+0.3')
       tl.to('#flood-line2', { opacity: 1, duration: 0.8 }, '+=0.9')
@@ -90,7 +94,7 @@ export const demos: Record<string, Scene> = {
       tl.set('#tc-cursor', { x: 300, y: 200, opacity: 0 })
 
       // 1) 打字机输入
-      const inputText = '请给张三开通 BI 看板权限'
+      const inputText = '把《AI 数字员工实践》定时到明早 9 点发布'
       for (let i = 1; i <= inputText.length; i++) {
         tl.call(() => {
           const el = document.getElementById('tc-input')
@@ -109,16 +113,38 @@ export const demos: Record<string, Scene> = {
       tl.to('#tc-card', { opacity: 1, scale: 1, duration: 0.4 })
 
       // 4) 模拟鼠标移到确认键 + 点击
-      //    ConfirmStage 布局实测推算（ChatPane 420 宽，body padding 14，flex gap 10）：
-      //    tc-user(37px) → thinking(37) → ask(37) → card 顶部 y=141；
-      //    card 宽 300、padding 12/14、head 18 + row 18+6 + btn(32+10)，card 高 108；
-      //    按钮 margin-left:auto → 右缘 x=286、宽约 66 → 中心 (253, 221)（内容盒），
-      //    加 body padding 偏移 → padding-box 坐标 (267, 235)。
-      //    cursor 是 10x12 右向三角，tip 对准按钮中心 → 终点 (257, 229)。
+      //    终点运行时实测（2026-08-31 修复，取代写死的魔法坐标 (257,229)）：
+      //    量 #tc-btn 中心相对 .mock-chat-body padding-box 的偏移，再减去
+      //    光标 CSS 布局偏移（top/left:14px）和 SVG 箭头尖端在光标盒内的位置
+      //    （尖端在 (2,1)，见 MockCursor）。
+      //    getBoundingClientRect 会带上 mode 1 全屏时祖先的 scale，需除回去——
+      //    GSAP x/y 是元素本地坐标系的 transform，不受祖先 scale 影响。
+      const cursorTarget = (): { x: number; y: number } => {
+        const btn = document.getElementById('tc-btn')
+        const body = btn?.closest('.mock-chat-body')
+        const b = btn?.getBoundingClientRect()
+        const p = body?.getBoundingClientRect()
+        if (!btn || !body || !b || !p || b.width === 0) return { x: 250, y: 220 } // 兜底：粗估值
+        const scale = body.offsetWidth > 0 ? p.width / body.offsetWidth : 1
+        return {
+          x: (b.left - p.left + b.width / 2) / scale - 14 - 2,
+          y: (b.top - p.top + b.height / 2) / scale - 14 - 1,
+        }
+      }
       tl.to('#tc-cursor', { opacity: 1, duration: 0.2 })
-      tl.to('#tc-cursor', { x: 257, y: 229, duration: 0.8, ease: 'power1.inOut' })
+      tl.to('#tc-cursor', {
+        x: () => cursorTarget().x,
+        y: () => cursorTarget().y,
+        duration: 0.8,
+        ease: 'power1.inOut',
+      })
       tl.to('#tc-btn', { scale: 0.92, duration: 0.1, yoyo: true, repeat: 1 })
-      tl.set('#tc-light', { backgroundColor: '#0E6E5C' })
+      tl.set('#tc-light', { backgroundColor: '#07C160' })
+      // 卡片状态翻转为「已确认」
+      tl.call(() => {
+        const b = document.getElementById('tc-btn')
+        if (b) { b.textContent = '已确认 ✓'; b.style.color = '#9A9A9A' }
+      })
 
       // 5) 完成
       tl.to('#tc-done', { opacity: 1, duration: 0.4 })

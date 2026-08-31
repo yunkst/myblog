@@ -13,6 +13,8 @@ export interface DemoHandle {
   pause(): void
   reset(): void                      // pause + seek(0)
   replay(): void                     // seek(0) + play
+  /** pause + progress(1)：立即跳到终态（Director skip 用；progress(1) 同步触发 onComplete） */
+  finish(): void
   finished(): boolean
   kill(): void
 }
@@ -32,6 +34,7 @@ export function createDemoHandle(tl: gsap.core.Timeline): DemoHandle {
       tl.pause().seek(0)
       if (!reduced()) tl.play()
     },
+    finish() { tl.pause().progress(1) },
     finished() { return tl.progress() >= 1 },
     kill() { tl.kill() },
   }

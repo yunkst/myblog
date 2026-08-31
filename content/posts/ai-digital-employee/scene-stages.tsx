@@ -19,57 +19,73 @@ import {
 /* ───────── 体验型 2 个 ───────── */
 
 export function FloodStage() {
+  const AV = '/posts/ai-digital-employee/avatars'
   return (
     <div className="flood-stage">
       <ChatPane title="公司群">
-        <Bubble id="b1" side="left" avatar="/posts/ai-digital-employee/avatars/avi-a.webp" name="小周">
-          这个账号怎么开通啊？
+        {/* DOM 顺序 = 消息到达顺序（opacity 预留槽位、高度在 mount 时已稳定，
+            mode 1 全屏按此量尺寸）；build 按此顺序逐条揭示 */}
+        <div className="mock-chat-time">周一 9:41</div>
+        <Bubble id="b1" side="left" avatar={`${AV}/avi-a.webp`} name="小周">
+          活动小程序做得怎么样了？下午要开始预热了
         </Bubble>
-        <Bubble id="b2" side="left" avatar="/posts/ai-digital-employee/avatars/avi-b.webp" name="小吴">
-          后台怎么配置？
+        <Bubble id="b2" side="left" avatar={`${AV}/avi-b.webp`} name="小吴">
+          推文里的小程序卡片，跳转配了吗？
         </Bubble>
-        <Bubble id="b3" side="left" avatar="/posts/ai-digital-employee/avatars/avi-c.webp" name="李姐">
-          这个需求帮我做下
+        <Bubble id="b3" side="left" avatar={`${AV}/avi-c.webp`} name="李姐">
+          发布系统又报错了，三点前那篇要发，快看看
         </Bubble>
-        <Bubble id="b4" side="left" avatar="/posts/ai-digital-employee/avatars/avi-d.webp" name="小郑">
-          上次那个数据再发我一遍
+        <Bubble id="b-me1" side="right" avatar={`${AV}/avi-me.webp`}>
+          在的，一个个来
         </Bubble>
-        <Bubble id="b5" side="left" avatar="/posts/ai-digital-employee/avatars/avi-e.webp" name="小王">
-          活动文案改一下
+        <Bubble id="b4" side="left" avatar={`${AV}/avi-d.webp`} name="小郑">
+          明早 9 点那篇定时发布设了吗？
         </Bubble>
-        <Bubble id="b-me1" side="right" avatar="/posts/ai-digital-employee/avatars/avi-me.webp" name="我">
-          在的，等我看看
+        <Bubble id="b5" side="left" avatar={`${AV}/avi-f.webp`} name="小赵">
+          文章推送怎么配置定时？教我一下
         </Bubble>
-        <Bubble id="b-me2" side="right" avatar="/posts/ai-digital-employee/avatars/avi-me.webp" name="我">
+        <Bubble id="b6" side="left" avatar={`${AV}/avi-e.webp`} name="小王">
+          预览链接打不开了，急
+        </Bubble>
+        <Bubble id="b-me2" side="right" avatar={`${AV}/avi-me.webp`}>
           在
         </Bubble>
       </ChatPane>
-      <p id="flood-line1" className="flood-line">公司的技术人员，只有我一个。</p>
-      <p id="flood-line2" className="flood-line">能不能做一个 AI 数字分身，替我处理这些？</p>
+      <p id="flood-line1" className="flood-line">全公司的发布系统，只有我一个人扛。</p>
+      <p id="flood-line2" className="flood-line">如果有个 AI 数字分身，替我接住这些呢？</p>
     </div>
   )
 }
 
 export function ConfirmStage() {
+  const AV = '/posts/ai-digital-employee/avatars'
   return (
     <div className="confirm-stage">
       <ChatPane title="AI 数字员工">
-        <Bubble id="tc-user" side="right">
-          <Typewriter text="请给张三开通 BI 看板权限" id="tc-input" />
+        <div className="mock-chat-time">昨天 22:18</div>
+        <Bubble id="tc-user" side="right" avatar={`${AV}/avi-me.webp`}>
+          <Typewriter text="把《AI 数字员工实践》定时到明早 9 点发布" id="tc-input" />
         </Bubble>
-        <Bubble id="tc-ai-thinking" side="left">…</Bubble>
-        <Bubble id="tc-ai-ask" side="left">该操作涉及【安全写】，需要您确认</Bubble>
+        <Bubble id="tc-ai-thinking" side="left" avatar={`${AV}/avi-ai.webp`}>…</Bubble>
+        <Bubble id="tc-ai-ask" side="left" avatar={`${AV}/avi-ai.webp`}>
+          将对外发布到 3 个渠道，属于「安全写」操作，需要你确认
+        </Bubble>
         <div id="tc-card" className="confirm-card">
           <div className="confirm-card-head">
-            <span className="confirm-card-title">开通看板权限</span>
+            <span className="confirm-card-title">文章发布 · 需确认</span>
             <span id="tc-light" className="confirm-card-light" />
           </div>
-          <div className="confirm-card-row">
-            目标：张三 · 权限：BI 看板 · 身份：张三本人
+          <div className="confirm-card-row">文章：<b>《AI 数字员工实践》</b></div>
+          <div className="confirm-card-row">时间：<b>明早 9:00</b>（定时发布）</div>
+          <div className="confirm-card-row">渠道：<b>公众号 · 知乎 · 掘金</b></div>
+          <div className="confirm-card-actions">
+            <button type="button" className="confirm-card-btn">拒绝</button>
+            <button id="tc-btn" type="button" className="confirm-card-btn confirm-card-btn--primary">确认</button>
           </div>
-          <button id="tc-btn" type="button" className="confirm-card-btn">确认</button>
         </div>
-        <Bubble id="tc-done" side="left">已完成：张三的看板权限已开通</Bubble>
+        <Bubble id="tc-done" side="left" avatar={`${AV}/avi-ai.webp`}>
+          已定时：明早 9:00 发布，发布前可随时撤回
+        </Bubble>
         <MockCursor id="tc-cursor" />
       </ChatPane>
     </div>

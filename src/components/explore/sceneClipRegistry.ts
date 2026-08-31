@@ -22,6 +22,13 @@ export interface SceneClipApi {
   replay(): void
   /** 当前 demo 是否已播完（finished=true 时 play() 直接 resolve，不重复播） */
   finished(): boolean
+  /** 是否已开始播放（IO 首次入视口 / 重看 / Director 触发过 play）——
+   * Director skip 用它区分「未开始」与「播放中」：只 finish 播放中的 demo，
+   * 未开始的保持原速轮到它再播（skip 语义是逐段推进，不是整幕跳没）。 */
+  started?(): boolean
+  /** 立即跳到终态（Director skip 用）：progress(1) 触发 onComplete →
+   * data-finished 落属性 + 挂起的 play() promise 随之 resolve。 */
+  finish?(): void
 }
 
 const map = new Map<string, SceneClipApi>()
