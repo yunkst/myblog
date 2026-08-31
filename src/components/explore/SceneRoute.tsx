@@ -41,6 +41,18 @@ function basenameOfKey(key: string): string {
   return (key.split('/').slice(-1)[0] ?? '').replace(/\.tsx$/, '')
 }
 
+/** v8：按 slug + sceneId 命中场景组件（SceneRoute 舞台模式 / FlatPost 平铺模式共用）。 */
+export function resolveSceneComponent(
+  modules: Record<string, SceneModule>,
+  slug: string,
+  sceneId: string,
+): ComponentType | null {
+  const key = Object.keys(modules).find(
+    (k) => slugOfKey(k) === slug && basenameOfKey(k) === sceneId,
+  )
+  return key ? modules[key].default : null
+}
+
 interface Props {
   slug: string
   /** 测试注入用：默认走真实 import.meta.glob（brief 方案 1 的注入点） */
@@ -60,10 +72,7 @@ export default function SceneRoute({ slug, modules }: Props) {
 
   const Scene = useMemo<ComponentType | null>(() => {
     if (!activeId) return null
-    const key = Object.keys(sceneMap).find(
-      (k) => slugOfKey(k) === slug && basenameOfKey(k) === activeId,
-    )
-    return key ? sceneMap[key].default : null
+    return resolveSceneComponent(sceneMap, slug, activeId)
   }, [sceneMap, slug, activeId])
 
   if (!scene || !Scene) return null

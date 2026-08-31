@@ -22,6 +22,15 @@ export const routes: RouteRecord[] = [
         getStaticPaths: () => getAllPosts().map((p) => blogPostPath(p.slug)),
       },
       {
+        /* v8 平铺阅读页（双形态共存）：仅 hasExplore 的文章有平铺版 */
+        path: 'blog/:slug/flat',
+        Component: lazyRoute(() => import('./pages/FlatPost')),
+        getStaticPaths: () =>
+          getAllPosts()
+            .filter((p) => p.hasExplore)
+            .map((p) => `${blogPostPath(p.slug)}flat/`),
+      },
+      {
         path: 'domain/:slug',
         Component: lazyRoute(() => import('./pages/Domain')),
         getStaticPaths: () => getAllDomains().map((d) => `/domain/${encodeURIComponent(d.slug)}/`),

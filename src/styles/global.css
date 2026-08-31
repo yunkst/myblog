@@ -885,7 +885,7 @@ body.stage-locked { overflow: hidden; }
   display: flex; flex-direction: column;
   padding: 32px clamp(16px, 4vw, 56px) 96px;
 }
-.stage-frame .stage-stage {
+:is(.stage-frame, .flat-post) .stage-stage {
   flex: 1; min-height: 0;
   /* 唯一滚动层：浏览器原生滚动条（用户可感知、可拖动）。
    * overflow-y: scroll 强制留出滚动条槽避免内容抖动；
@@ -899,7 +899,7 @@ body.stage-locked { overflow: hidden; }
   display: flex; flex-direction: column; align-items: center;
   width: 100%;
 }
-.stage-frame .theater {
+:is(.stage-frame, .flat-post) .theater {
   width: 100%; margin: 0 auto; animation: v4-scene-in 0.35s ease both;
   /* v6：场景含 .stage（动画/图片）时走 grid 双列；纯文本场景保持单列。
    * - 左列 .stage：动画/图片
@@ -915,7 +915,7 @@ body.stage-locked { overflow: hidden; }
   justify-items: center;
   row-gap: 24px;
 }
-.stage-frame .theater--dual {
+:is(.stage-frame, .flat-post) .theater--dual {
   /* 双列：动画略宽强调视觉；窄屏（<920px）回退单列见媒体查询。
    * v7：modifier class 由 Answer 依据「本幕是否渲染 .stage」显式挂上
    * （三原则 1 布局显式化），与原 `:has(> .stage)` 探测严格等价。
@@ -935,15 +935,15 @@ body.stage-locked { overflow: hidden; }
  * 也是 (0,4,0)）。若写裸 .theater--dual 则为 (0,3,0)，会被下方媒体查询里
  * 源序更靠后的 .stage-frame .theater > .dialogue { max-width: none }（(0,3,0)）
  * 翻转覆盖，窄屏断点内 grid-area/720px 约束失效。 */
-.stage-frame .theater.theater--dual > .stage     { grid-area: stage; width: 100%; }
-.stage-frame .theater.theater--dual > .act-head  { grid-area: head; }
-.stage-frame .theater.theater--dual > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
-.stage-frame .theater.theater--dual > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
+:is(.stage-frame, .flat-post) .theater.theater--dual > .stage     { grid-area: stage; width: 100%; }
+:is(.stage-frame, .flat-post) .theater.theater--dual > .act-head  { grid-area: head; }
+:is(.stage-frame, .flat-post) .theater.theater--dual > .dialogue  { grid-area: dialogue; width: 100%; max-width: 720px; }
+:is(.stage-frame, .flat-post) .theater.theater--dual > .choices   { grid-area: choices; width: 100%; max-width: 720px; }
 
 /* ExploreRouter 根容器（display: contents 让 children 直接参与父布局）。
  * 2026-08-31 起：mode 1 全屏改为 clip reparent 到 body 根，本元素不再是全屏
  * 包含块祖先链成员（原「禁止 transform」契约随之退役，见下方「mode 1 全屏」注释块）。 */
-.stage-frame .explore-router { display: contents; }
+:is(.stage-frame, .flat-post) .explore-router { display: contents; }
 
 @keyframes v4-scene-in {
   /* 仅 opacity 入场，不用 transform：
@@ -956,14 +956,14 @@ body.stage-locked { overflow: hidden; }
 }
 
 /* theater 面板：1px 发丝线 + 直角 */
-.stage-frame .theater { background: var(--panel); border: 1px solid var(--sline); border-radius: 0; padding: 32px 38px 28px; box-shadow: none; }
-.stage-frame .act-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 26px; }
-.stage-frame .act-no { font: 700 12px var(--mono); letter-spacing: 0.3em; color: var(--sacc); white-space: nowrap; }
-.stage-frame .act-head h2,
-.stage-frame .act-head h3 { font: 700 20px var(--sans); letter-spacing: 0.02em; margin: 0; color: var(--stext); border: 0; padding: 0; }
-.stage-frame .act-rule { flex: 1; height: 1px; background: var(--sline); }
+:is(.stage-frame, .flat-post) .theater { background: var(--panel); border: 1px solid var(--sline); border-radius: 0; padding: 32px 38px 28px; box-shadow: none; }
+:is(.stage-frame, .flat-post) .act-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 26px; }
+:is(.stage-frame, .flat-post) .act-no { font: 700 12px var(--mono); letter-spacing: 0.3em; color: var(--sacc); white-space: nowrap; }
+:is(.stage-frame, .flat-post) .act-head h2,
+:is(.stage-frame, .flat-post) .act-head h3 { font: 700 20px var(--sans); letter-spacing: 0.02em; margin: 0; color: var(--stext); border: 0; padding: 0; }
+:is(.stage-frame, .flat-post) .act-rule { flex: 1; height: 1px; background: var(--sline); }
 /* CRT 舞台：直角、1px 发丝线、扫描线淡到 5%、删暗角/聚光 */
-.stage-frame .stage {
+:is(.stage-frame, .flat-post) .stage {
   position: relative;
   border-radius: 0;
   background: #060606;
@@ -973,18 +973,18 @@ body.stage-locked { overflow: hidden; }
   min-height: 420px;
 }
 /* 极淡水平扫描线（5% opacity）—— 仅留 CRT 暗示 */
-.stage-frame .stage::before {
+:is(.stage-frame, .flat-post) .stage::before {
   content: "";
   position: absolute; inset: 0; pointer-events: none; z-index: 3;
   background: repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 3px);
   opacity: 0.05;
 }
-.stage-frame .stage::after { display: none; }  /* 删除 v3 的 mix-blend overlay 强扫描线 */
-.stage-frame .stage-spot { display: none; }    /* 删除 v3 中央聚光 */
-.stage-frame .stage-inner { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; padding: 52px 40px 40px; }
-.stage-frame .stage-tag { position: absolute; top: 14px; left: 18px; font: 11px var(--mono); letter-spacing: 0.26em; color: var(--sfaint); z-index: 4; }
-.stage-frame .stage-ch { position: absolute; top: 14px; right: 18px; font: 10px var(--mono); letter-spacing: 0.3em; color: var(--sacc); z-index: 4; }
-.stage-frame .stage .scene-clip { border: 0; min-height: 0; margin: 0; width: 100%; display: flex; flex-direction: column; align-items: center; }
+:is(.stage-frame, .flat-post) .stage::after { display: none; }  /* 删除 v3 的 mix-blend overlay 强扫描线 */
+:is(.stage-frame, .flat-post) .stage-spot { display: none; }    /* 删除 v3 中央聚光 */
+:is(.stage-frame, .flat-post) .stage-inner { position: relative; z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center; padding: 52px 40px 40px; }
+:is(.stage-frame, .flat-post) .stage-tag { position: absolute; top: 14px; left: 18px; font: 11px var(--mono); letter-spacing: 0.26em; color: var(--sfaint); z-index: 4; }
+:is(.stage-frame, .flat-post) .stage-ch { position: absolute; top: 14px; right: 18px; font: 10px var(--mono); letter-spacing: 0.3em; color: var(--sacc); z-index: 4; }
+:is(.stage-frame, .flat-post) .stage .scene-clip { border: 0; min-height: 0; margin: 0; width: 100%; display: flex; flex-direction: column; align-items: center; }
 /* mode 1 全屏镜像（2026-08-31）：clip reparent 到 body 根后，上一条规则（要求
  * .stage-frame .stage 祖先链）不再匹配，clip 会回落到 v2 基线 .scene-clip
  * （display:block / margin:20px 0 / dashed border / min-height:120px /
@@ -995,9 +995,9 @@ body.stage-locked { overflow: hidden; }
   border: 0; min-height: 0; margin: 0;
   display: flex; flex-direction: column; align-items: center;
 }
-.stage-frame .stage .scene-replay { right: 14px; bottom: 14px; background: rgba(6,6,6,0.85); border-color: var(--line); color: var(--dim); z-index: 4; }
+:is(.stage-frame, .flat-post) .stage .scene-replay { right: 14px; bottom: 14px; background: rgba(6,6,6,0.85); border-color: var(--line); color: var(--dim); z-index: 4; }
 /* 文本窗：--panel 底 + 1px --line 直角 */
-.stage-frame .dialogue {
+:is(.stage-frame, .flat-post) .dialogue {
   position: relative;
   border: 1px solid var(--sline);
   background: var(--panel);
@@ -1007,42 +1007,42 @@ body.stage-locked { overflow: hidden; }
 }
 /* grid 双列时 dialogue/choices 的原有 margin-top 会叠到 row-gap 上——
  * 把上下间距让 row-gap 统一管，避免「stage 后空 24 + dialogue 前 24 = 48」双重空白。 */
-.stage-frame .theater.theater--dual > .dialogue { margin-top: 0; }
-.stage-frame .theater.theater--dual > .choices { margin-top: 28px; }
+:is(.stage-frame, .flat-post) .theater.theater--dual > .dialogue { margin-top: 0; }
+:is(.stage-frame, .flat-post) .theater.theater--dual > .choices { margin-top: 28px; }
 /* 名字牌：翠绿底黑字 + mono 字符间距 */
-.stage-frame .dlg-name {
+:is(.stage-frame, .flat-post) .dlg-name {
   position: absolute; top: 0; left: 22px; transform: translateY(-50%);
   background: var(--sacc); color: #0A0A0A;
   font: 700 12px var(--mono); letter-spacing: 0.3em;
   padding: 4px 13px 4px 17px; border-radius: 0;
 }
-.stage-frame .dialogue p { color: var(--stext); }
-.stage-frame .dialogue strong { color: var(--sacc); font-weight: 600; }
+:is(.stage-frame, .flat-post) .dialogue p { color: var(--stext); }
+:is(.stage-frame, .flat-post) .dialogue strong { color: var(--sacc); font-weight: 600; }
 /* blockquote：1px --accent 左竖线（减淡自 v3 的 50% 不透明） */
-.stage-frame .dialogue blockquote {
+:is(.stage-frame, .flat-post) .dialogue blockquote {
   border-left: 1px solid var(--sacc);
   background: var(--sacc-soft);
   font-family: var(--fang);
   border-radius: 0;
   color: var(--stext);
 }
-.stage-frame .dialogue img { border-radius: 0; }
-.stage-frame .dialogue code { background: var(--sacc-soft); color: var(--stext); }
-.stage-frame .dialogue table th { background: var(--panel); color: var(--stext); }
-.stage-frame .dialogue table td,
-.stage-frame .dialogue table th { border-color: var(--sline); color: var(--stext); }
+:is(.stage-frame, .flat-post) .dialogue img { border-radius: 0; }
+:is(.stage-frame, .flat-post) .dialogue code { background: var(--sacc-soft); color: var(--stext); }
+:is(.stage-frame, .flat-post) .dialogue table th { background: var(--panel); color: var(--stext); }
+:is(.stage-frame, .flat-post) .dialogue table td,
+:is(.stage-frame, .flat-post) .dialogue table th { border-color: var(--sline); color: var(--stext); }
 /* 表格/媒体不撑破舞台：dialogue 内表格按容器宽自适应换行（v5 零横向滚动） */
-.stage-frame .dialogue table { display: block; max-width: 100%; overflow-x: auto; }
-.stage-frame .dialogue img { max-width: 100%; }
+:is(.stage-frame, .flat-post) .dialogue table { display: block; max-width: 100%; overflow-x: auto; }
+:is(.stage-frame, .flat-post) .dialogue img { max-width: 100%; }
 /* final review m7：打字期间段落锁最小高度，防塌陷 reflow */
-.stage-frame .dialogue > p,
-.stage-frame .dialogue > blockquote { min-height: 1.9em; }
+:is(.stage-frame, .flat-post) .dialogue > p,
+:is(.stage-frame, .flat-post) .dialogue > blockquote { min-height: 1.9em; }
 
 /* 选项区 */
-.stage-frame .choices { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-.stage-frame .choices-label { font: 11px var(--mono); letter-spacing: 0.55em; color: var(--sfaint); margin-bottom: 4px; }
-.stage-frame .choices .exit-chips { flex-direction: column; align-items: center; margin: 0; }
-.stage-frame .choices .exit-chip {
+:is(.stage-frame, .flat-post) .choices { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+:is(.stage-frame, .flat-post) .choices-label { font: 11px var(--mono); letter-spacing: 0.55em; color: var(--sfaint); margin-bottom: 4px; }
+:is(.stage-frame, .flat-post) .choices .exit-chips { flex-direction: column; align-items: center; margin: 0; }
+:is(.stage-frame, .flat-post) .choices .exit-chip {
   position: relative;
   /* v5 追加（用户裁定）：chip 撑满 choices 容器宽（不设 500px min-width 上限） */
   width: 100%; text-align: left;
@@ -1051,33 +1051,33 @@ body.stage-locked { overflow: hidden; }
   color: var(--stext); border-color: var(--sline);
   background: var(--stage-bg);
 }
-.stage-frame .choices .exit-chip:hover { background: var(--sacc-soft); border-color: var(--sacc); }
-.stage-frame .choices .exit-chip::before {
+:is(.stage-frame, .flat-post) .choices .exit-chip:hover { background: var(--sacc-soft); border-color: var(--sacc); }
+:is(.stage-frame, .flat-post) .choices .exit-chip::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px;
   background: transparent; transition: background 0.15s ease;
 }
-.stage-frame .choices .exit-chip:hover::before { background: var(--sacc); }
-.stage-frame .choices .exit-chips-questions .exit-chip { border-style: dashed; border-color: var(--sline); color: var(--sdim); }
-.stage-frame .choices .exit-chips-questions .exit-chip:hover { color: var(--stext); border-color: var(--smark); }
+:is(.stage-frame, .flat-post) .choices .exit-chip:hover::before { background: var(--sacc); }
+:is(.stage-frame, .flat-post) .choices .exit-chips-questions .exit-chip { border-style: dashed; border-color: var(--sline); color: var(--sdim); }
+:is(.stage-frame, .flat-post) .choices .exit-chips-questions .exit-chip:hover { color: var(--stext); border-color: var(--smark); }
 /* 焦点出口（键盘 ↑↓ 选中）—— 鼠标 hover 不抢焦点 */
-.stage-frame .exit-chip--focused {
+:is(.stage-frame, .flat-post) .exit-chip--focused {
   border-color: var(--sacc); background: var(--sacc-soft);
   outline: 2px solid var(--sacc); outline-offset: 2px;
 }
 /* chip-prefix（v3 T5 评审 I3）：選択肢前缀 ▸/？ 的对齐与配色 */
-.stage-frame .choices .chip-prefix {
+:is(.stage-frame, .flat-post) .choices .chip-prefix {
   display: inline-block;
   width: 18px;
   margin-right: 12px;
   font-family: var(--mono);
   color: var(--sacc);
 }
-.stage-frame .choices .exit-chips-questions .chip-prefix {
+:is(.stage-frame, .flat-post) .choices .exit-chips-questions .chip-prefix {
   color: var(--smark);
 }
 
 /* v3 final review B1：暗色探索页内归零 v2 answer-block 左竖线样式 */
-.stage-frame .answer-block { border-left: 0; padding-left: 0; margin: 54px 0; }
+:is(.stage-frame, .flat-post) .answer-block { border-left: 0; padding-left: 0; margin: 54px 0; }
 
 /* mode 1 全屏：2026-08-31 起由 Director.tsx 手工实现——clip **reparent 到 body 根**
  * + body 根 overlay + fixed/scale 动画，播完按占位元素位置缩回并插回原槽位。
@@ -1103,28 +1103,29 @@ body.stage-locked { overflow: hidden; }
   padding: 12px 16px; border-top: 1px solid var(--sline);
   background: rgba(10, 10, 10, 0.92); backdrop-filter: blur(8px);
 }
-.stage-nav button {
+.stage-nav button, .stage-nav a {
   appearance: none; background: transparent; border: 1px solid var(--sline); border-radius: 0;
   padding: 8px 18px; font: 13px var(--sans); letter-spacing: 0.06em;
   color: var(--stext); cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease;
+  text-decoration: none; display: inline-flex; align-items: center;
 }
-.stage-nav button:hover:not(:disabled) { color: var(--sacc); border-color: var(--sacc); }
+.stage-nav button:hover:not(:disabled), .stage-nav a:hover { color: var(--sacc); border-color: var(--sacc); }
 .stage-nav button:disabled { color: var(--sfaint); cursor: not-allowed; }
-.stage-nav button:focus-visible { outline: 2px solid var(--sacc); outline-offset: 2px; }
+.stage-nav button:focus-visible, .stage-nav a:focus-visible { outline: 2px solid var(--sacc); outline-offset: 2px; }
 
 /* ===== v6 路线图面板：z-index 70 > 底栏 60 ===== */
-.stage-frame .roadmap-panel {
+:is(.stage-frame, .flat-post) .roadmap-panel {
   position: fixed;
   inset: 0;
   z-index: 70;
   color: var(--stext);
 }
-.stage-frame .roadmap-panel__backdrop {
+:is(.stage-frame, .flat-post) .roadmap-panel__backdrop {
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.6);
 }
-.stage-frame .roadmap-panel__body {
+:is(.stage-frame, .flat-post) .roadmap-panel__body {
   position: relative;
   max-width: min(1080px, 92vw);
   margin: 6vh auto 0;
@@ -1137,7 +1138,7 @@ body.stage-locked { overflow: hidden; }
   flex-direction: column;
   overflow: hidden;
 }
-.stage-frame .roadmap-panel__header {
+:is(.stage-frame, .flat-post) .roadmap-panel__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1145,13 +1146,13 @@ body.stage-locked { overflow: hidden; }
   padding: 16px 20px;
   border-bottom: 1px solid var(--sline);
 }
-.stage-frame .roadmap-panel__title {
+:is(.stage-frame, .flat-post) .roadmap-panel__title {
   font: 11px var(--mono);
   letter-spacing: 0.3em;
   color: var(--sdim);
   margin-right: auto;
 }
-.stage-frame .roadmap-panel__toggle {
+:is(.stage-frame, .flat-post) .roadmap-panel__toggle {
   appearance: none;
   background: transparent;
   border: 1px solid var(--sline);
@@ -1162,8 +1163,8 @@ body.stage-locked { overflow: hidden; }
   color: var(--stext);
   cursor: pointer;
 }
-.stage-frame .roadmap-panel__toggle:hover { color: var(--sacc); border-color: var(--sacc); }
-.stage-frame .roadmap-panel__close {
+:is(.stage-frame, .flat-post) .roadmap-panel__toggle:hover { color: var(--sacc); border-color: var(--sacc); }
+:is(.stage-frame, .flat-post) .roadmap-panel__close {
   appearance: none;
   background: transparent;
   border: 0;
@@ -1177,35 +1178,35 @@ body.stage-locked { overflow: hidden; }
   line-height: 1;
   transition: color 0.15s ease;
 }
-.stage-frame .roadmap-panel__close:hover { color: var(--stext); }
-.stage-frame .roadmap-panel__close:focus-visible { outline: 2px solid var(--sacc); outline-offset: 2px; }
+:is(.stage-frame, .flat-post) .roadmap-panel__close:hover { color: var(--stext); }
+:is(.stage-frame, .flat-post) .roadmap-panel__close:focus-visible { outline: 2px solid var(--sacc); outline-offset: 2px; }
 
 /* 动作镜像条（沿用 v5 spec §3.3） */
-.stage-frame .roadmap-panel__actions {
+:is(.stage-frame, .flat-post) .roadmap-panel__actions {
   display: flex; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--sline);
 }
-.stage-frame .roadmap-panel__actions button {
+:is(.stage-frame, .flat-post) .roadmap-panel__actions button {
   appearance: none; background: transparent; border: 1px solid var(--sline); border-radius: 0;
   padding: 6px 14px; font: 12px var(--sans); letter-spacing: 0.05em;
   color: var(--stext); cursor: pointer;
 }
-.stage-frame .roadmap-panel__actions button:hover:not(:disabled) { color: var(--sacc); border-color: var(--sacc); }
-.stage-frame .roadmap-panel__actions button:disabled { color: var(--sfaint); cursor: not-allowed; }
+:is(.stage-frame, .flat-post) .roadmap-panel__actions button:hover:not(:disabled) { color: var(--sacc); border-color: var(--sacc); }
+:is(.stage-frame, .flat-post) .roadmap-panel__actions button:disabled { color: var(--sfaint); cursor: not-allowed; }
 
 /* 图画布：双向滚动；stage 定宽高，SVG 边铺底、节点绝对定位 */
-.stage-frame .roadmap-panel__canvas {
+:is(.stage-frame, .flat-post) .roadmap-panel__canvas {
   flex: 1;
   overflow: auto;
   padding: 8px;
 }
-.stage-frame .roadmap-stage { position: relative; }
-.stage-frame .roadmap-edges { position: absolute; inset: 0; pointer-events: none; }
-.stage-frame .roadmap-edges line { stroke: var(--sline); stroke-width: 1.5; }
-.stage-frame .roadmap-edges line.roadmap-edge--portal { stroke-dasharray: 4 4; }
-.stage-frame .roadmap-edges marker path { fill: var(--sline); }
+:is(.stage-frame, .flat-post) .roadmap-stage { position: relative; }
+:is(.stage-frame, .flat-post) .roadmap-edges { position: absolute; inset: 0; pointer-events: none; }
+:is(.stage-frame, .flat-post) .roadmap-edges line { stroke: var(--sline); stroke-width: 1.5; }
+:is(.stage-frame, .flat-post) .roadmap-edges line.roadmap-edge--portal { stroke-dasharray: 4 4; }
+:is(.stage-frame, .flat-post) .roadmap-edges marker path { fill: var(--sline); }
 
 /* 节点：尺寸与 src/lib/roadmap.ts 的 ROADMAP_NODE_W/H 常量对齐 */
-.stage-frame .roadmap-node {
+:is(.stage-frame, .flat-post) .roadmap-node {
   position: absolute;
   width: 180px;
   min-height: 52px;
@@ -1225,23 +1226,23 @@ body.stage-locked { overflow: hidden; }
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
-.stage-frame .roadmap-node:hover { border-color: var(--sacc); }
-.stage-frame .roadmap-node:focus-visible { outline: 2px solid var(--sacc); outline-offset: 2px; }
-.stage-frame .roadmap-node__glyph {
+:is(.stage-frame, .flat-post) .roadmap-node:hover { border-color: var(--sacc); }
+:is(.stage-frame, .flat-post) .roadmap-node:focus-visible { outline: 2px solid var(--sacc); outline-offset: 2px; }
+:is(.stage-frame, .flat-post) .roadmap-node__glyph {
   flex: none;
   width: 14px;
   text-align: center;
   font: 12px var(--mono);
   color: var(--sdim);
 }
-.stage-frame .roadmap-node__label {
+:is(.stage-frame, .flat-post) .roadmap-node__label {
   flex: 1;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-.stage-frame .roadmap-node__back {
+:is(.stage-frame, .flat-post) .roadmap-node__back {
   flex: none;
   margin-left: auto;
   font: 11px var(--mono);
@@ -1249,30 +1250,30 @@ body.stage-locked { overflow: hidden; }
   cursor: help;
 }
 /* 三态 */
-.stage-frame .roadmap-node--unvisited { color: var(--sdim); border-style: dashed; }
-.stage-frame .roadmap-node--visited { background: var(--sacc-soft); }
-.stage-frame .roadmap-node--visited .roadmap-node__glyph { color: var(--sacc); }
-.stage-frame .roadmap-node--current {
+:is(.stage-frame, .flat-post) .roadmap-node--unvisited { color: var(--sdim); border-style: dashed; }
+:is(.stage-frame, .flat-post) .roadmap-node--visited { background: var(--sacc-soft); }
+:is(.stage-frame, .flat-post) .roadmap-node--visited .roadmap-node__glyph { color: var(--sacc); }
+:is(.stage-frame, .flat-post) .roadmap-node--current {
   border-color: var(--sacc);
   animation: roadmap-pulse 2.2s ease-in-out infinite;
 }
-.stage-frame .roadmap-node--current .roadmap-node__glyph { color: var(--sacc); }
+:is(.stage-frame, .flat-post) .roadmap-node--current .roadmap-node__glyph { color: var(--sacc); }
 @keyframes roadmap-pulse {
   0%, 100% { box-shadow: 0 0 0 1px var(--sacc); }
   50% { box-shadow: 0 0 0 4px var(--sacc-soft); }
 }
 /* portal（跨文章）与 +N 聚合节点 */
-.stage-frame .roadmap-node--portal { border-style: dashed; color: var(--sdim); }
-.stage-frame .roadmap-node--more {
+:is(.stage-frame, .flat-post) .roadmap-node--portal { border-style: dashed; color: var(--sdim); }
+:is(.stage-frame, .flat-post) .roadmap-node--more {
   justify-content: center;
   border-style: dashed;
   color: var(--sdim);
   font-family: var(--mono);
 }
-.stage-frame .roadmap-node--more:hover { color: var(--sacc); }
+:is(.stage-frame, .flat-post) .roadmap-node--more:hover { color: var(--sacc); }
 
 /* 图例 */
-.stage-frame .roadmap-panel__legend {
+:is(.stage-frame, .flat-post) .roadmap-panel__legend {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 18px;
@@ -1286,11 +1287,11 @@ body.stage-locked { overflow: hidden; }
 /* 移动端（<920px）：舞台 padding 收紧 + 底栏按钮紧凑 + 面板贴底 */
 @media (max-width: 920px) {
   .stage-frame { padding: 20px 12px 88px; }
-  .stage-frame .theater { padding: 24px 20px 22px; }
-  .stage-frame .stage-inner { padding: 40px 16px 32px; }
+  :is(.stage-frame, .flat-post) .theater { padding: 24px 20px 22px; }
+  :is(.stage-frame, .flat-post) .stage-inner { padding: 40px 16px 32px; }
   .stage-nav { gap: 8px; }
-  .stage-nav button { padding: 8px 10px; font-size: 12px; }
-  .stage-frame .roadmap-panel__body {
+  .stage-nav button, .stage-nav a { padding: 8px 10px; font-size: 12px; }
+  :is(.stage-frame, .flat-post) .roadmap-panel__body {
     max-width: none;
     margin: 0;
     border-radius: 0;
@@ -1300,7 +1301,7 @@ body.stage-locked { overflow: hidden; }
    * v7：:has(> .stage) 探测改为 Answer 声明的 theater--dual modifier class（三原则 1）
    * 2026-08-31 修复：单列时必须同时清掉桌面端的 2 列 grid-template-areas——
    * 否则 1 列 template 配 2 列 areas 会生成隐式第二列，内容被挤歪。 */
-  .stage-frame .theater--dual {
+  :is(.stage-frame, .flat-post) .theater--dual {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "stage"
@@ -1310,20 +1311,115 @@ body.stage-locked { overflow: hidden; }
     column-gap: 0;
     row-gap: 24px;
   }
-  .stage-frame .theater > .dialogue,
-  .stage-frame .theater > .choices { max-width: none; }
+  :is(.stage-frame, .flat-post) .theater > .dialogue,
+  :is(.stage-frame, .flat-post) .theater > .choices { max-width: none; }
 }
 
 /* 舞台滚动条主题：暗底配细轨 + sacc 滑块（WebKit/Blink + Firefox） */
-.stage-frame .stage-stage {
+:is(.stage-frame, .flat-post) .stage-stage {
   scrollbar-width: thin;
   scrollbar-color: var(--sline) transparent;
 }
-.stage-frame .stage-stage::-webkit-scrollbar { width: 10px; }
-.stage-frame .stage-stage::-webkit-scrollbar-track { background: transparent; }
-.stage-frame .stage-stage::-webkit-scrollbar-thumb {
+:is(.stage-frame, .flat-post) .stage-stage::-webkit-scrollbar { width: 10px; }
+:is(.stage-frame, .flat-post) .stage-stage::-webkit-scrollbar-track { background: transparent; }
+:is(.stage-frame, .flat-post) .stage-stage::-webkit-scrollbar-thumb {
   background: var(--sline);
   border: 2px solid var(--stage-bg);
   border-radius: 0;
 }
-.stage-frame .stage-stage::-webkit-scrollbar-thumb:hover { background: var(--sacc); }
+:is(.stage-frame, .flat-post) .stage-stage::-webkit-scrollbar-thumb:hover { background: var(--sacc); }
+
+/* ============================================================
+ * v8 平铺阅读页（/blog/<slug>/flat/，双形态共存）
+ *  —— 组件样式经 :is(.stage-frame, .flat-post) 与舞台共享；
+ *     本块只负责：CSS 变量（原定义在 .stage-frame 上）+ 文章排版骨架
+ *     + 平铺特有的覆盖（单列阅读序 / 隐藏舞台术语）。
+ * ============================================================ */
+.flat-post {
+  /* 与 .stage-frame 同一组变量——组件样式原样生效 */
+  --stage-bg: #0A0A0A;
+  --panel: #101010;
+  --stext: #E6E6E6;
+  --sdim: #8F8F8F;
+  --sfaint: #5C5C5C;
+  --sline: #262626;
+  --sacc: #00D26A;
+  --sacc-soft: rgba(0, 210, 106, 0.10);
+  --smark: #FF6B6B;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 48px clamp(16px, 4vw, 40px) 96px;
+  color: var(--stext);
+}
+
+/* 头部：文章标题区 + 舞台模式入口 */
+.flat-post__header { margin-bottom: 8px; }
+.flat-post__meta {
+  font: 11px var(--mono);
+  letter-spacing: 0.25em;
+  color: var(--sdim);
+  margin: 0 0 14px;
+}
+.flat-post__title {
+  font: 700 clamp(26px, 4vw, 36px)/1.3 var(--sans);
+  letter-spacing: 0.02em;
+  margin: 0 0 12px;
+}
+.flat-post__excerpt {
+  font: 15px/1.7 var(--sans);
+  color: var(--sdim);
+  margin: 0 0 20px;
+}
+.flat-post__mode-switch {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 1px solid var(--sacc);
+  border-radius: 0;
+  font: 13px var(--sans);
+  letter-spacing: 0.06em;
+  color: var(--sacc);
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.flat-post__mode-switch:hover { background: var(--sacc-soft); }
+
+/* 每一幕 = 文章一节：上到下 标题 → 动画 → 解说 → 出口锚点，节间分隔线 */
+:is(.flat-post) .theater {
+  padding: 48px 0 40px;
+  border-bottom: 1px solid var(--sline);
+  animation: none; /* 舞台的入场淡入在平铺长文里无意义（15 节同时播） */
+}
+:is(.flat-post) .theater:last-of-type { border-bottom: 0; }
+/* 双列 grid 回退单列阅读序（子元素 grid-area 规则按名命中本 template） */
+.flat-post .theater.theater--dual {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "head"
+    "stage"
+    "dialogue"
+    "choices";
+  row-gap: 20px;
+  justify-items: stretch;
+}
+.flat-post .theater .stage { max-width: 640px; justify-self: center; width: 100%; }
+.flat-post .theater > .dialogue,
+.flat-post .theater > .choices { max-width: 720px; }
+
+/* 舞台术语在平铺长文里隐藏：幕序号 / DEMO·CH 角标 / 選択肢 标签 */
+.flat-post .act-no,
+.flat-post .stage-tag,
+.flat-post .stage-ch,
+.flat-post .choices-label { display: none; }
+/* 出口 chips 降级为「相关章节」锚点：去掉舞台感的 choices 容器边距 */
+.flat-post .choices { margin-top: 4px; }
+
+/* 页尾：再回到舞台模式 */
+.flat-post__footer {
+  padding-top: 40px;
+  text-align: center;
+}
+
+@media (max-width: 920px) {
+  .flat-post { padding: 32px 16px 80px; }
+  :is(.flat-post) .theater { padding: 36px 0 32px; }
+}
