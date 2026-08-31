@@ -65,4 +65,37 @@ describe('useHistoryStack', () => {
     // canPop 仍为 false（栈长=1）
     expect(result.current.canPop).toBe(false)
   })
+
+  /* ===== v6 路线图：visited 已读集合（只增不减，不受栈截断影响） ===== */
+
+  it('visited：push/reset 都会标记已读（幂等去重）', () => {
+    const { result } = renderHook(() => useHistoryStack('test'))
+    act(() => { result.current.push('a'); result.current.push('b') })
+    expect(result.current.visited).toEqual(['a', 'b'])
+    // 重复 push 同一幕 → visited 不重复记录
+    act(() => result.current.push('a'))
+    expect(result.current.visited).toEqual(['a', 'b'])
+    // reset 清栈但标记当前幕已读
+    act(() => result.current.reset('c'))
+    expect(result.current.visited).toEqual(['a', 'b', 'c'])
+  })
+
+  it('visited：pop/jumpTo 截断栈不影响已读集合', () => {
+    const { result } = renderHook(() => useHistoryStack('test'))
+    act(() => { result.current.push('a'); result.current.push('b'); result.current.push('c') })
+    act(() => result.current.jumpTo(0))
+    expect(result.current.stack).toHaveLength(1)
+    expect(result.current.visited).toEqual(['a', 'b', 'c'])
+    let popped: string | undefined
+    act(() => { popped = result.current.pop() })
+    expect(popped).toBeUndefined() // 栈长 1 不可退
+    expect(result.current.visited).toEqual(['a', 'b', 'c'])
+  })
+
+  it('visited：sessionStorage 往返，同 key 共享已读集合', () => {
+    const { result: r1 } = renderHook(() => useHistoryStack('test'))
+    act(() => { r1.current.push('a'); r1.current.push('b') })
+    const { result: r2 } = renderHook(() => useHistoryStack('test'))
+    expect(r2.current.visited).toEqual(['a', 'b'])
+  })
 })

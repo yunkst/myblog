@@ -192,13 +192,13 @@ describe('ExploreRouter', () => {
     window.getSelection = realGetSelection
   })
 
-  it('Esc 关闭履历面板；履历按钮打开面板（底栏在 Stage 页挂 StageNav，此处走 runtime setPanelOpen 驱动）', () => {
+  it('Esc 关闭路线图面板；路线图按钮打开面板（底栏在 Stage 页挂 StageNav，此处走 runtime setPanelOpen 驱动）', () => {
     renderRouter()
-    expect(document.querySelector('.history-panel')).toBeNull()
+    expect(document.querySelector('.roadmap-panel')).toBeNull()
     fireEvent.click(screen.getByTestId('rt-open-panel'))
-    expect(document.querySelector('.history-panel')).toBeTruthy()
+    expect(document.querySelector('.roadmap-panel')).toBeTruthy()
     fireEvent.keyDown(window, { key: 'Escape' })
-    expect(document.querySelector('.history-panel')).toBeNull()
+    expect(document.querySelector('.roadmap-panel')).toBeNull()
   })
 
   it('hydration 后 main.stage-frame 挂 data-has-router', () => {
@@ -213,16 +213,19 @@ describe('ExploreRouter', () => {
     }
   })
 
-  it('面板点击历史项 jumpTo + 关闭面板', () => {
+  it('v6：面板点击路线图节点 goTo 直达（push 语义，含已读幕）+ 关闭面板', () => {
     renderRouter()
     fireEvent.click(screen.getByTestId('go')) // 栈 [q-a, q-b]
     fireEvent.click(screen.getByTestId('rt-open-panel'))
-    // 点击第 01 项（q-a）→ 截断栈到 [q-a] + 激活 q-a + 关面板
-    fireEvent.click(screen.getByText('q-a'))
-    expect(document.querySelector('.history-panel')).toBeNull()
+    /* 点击 q-a 节点（已读幕）→ goTo push（不再是旧的 jumpTo 截断）+ 激活 q-a + 关面板 */
+    fireEvent.click(document.querySelector('[data-node-id="q-a"]')!)
+    expect(document.querySelector('.roadmap-panel')).toBeNull()
     expect(screen.getByTestId('scene-q-a')).toHaveAttribute('data-active')
     const stack = JSON.parse(sessionStorage.getItem('explore.history.t')!) as { sceneId: string }[]
-    expect(stack.map((s) => s.sceneId)).toEqual(['q-a'])
+    expect(stack.map((s) => s.sceneId)).toEqual(['q-a', 'q-b', 'q-a'])
+    /* visited 只增不减 */
+    const visited = JSON.parse(sessionStorage.getItem('explore.visited.t')!) as string[]
+    expect(visited).toEqual(['q-a', 'q-b'])
   })
 
   /* I2 fix round：mount → push entry → goTo(b) → goTo(c) → back() → 回到 b（不是 a）；
@@ -335,7 +338,7 @@ describe('ExploreRouter v5 runtime 扩展', () => {
     expect(screen.getByTestId('rt').dataset.panelOpen).toBe('true')
   })
 
-  it('v5 review fix:back/jumpTo 回看不重演——目标幕切 firstActivation=false', () => {
+  it('v5 review fix:back/路线图节点直达 回看不重演——目标幕切 firstActivation=false', () => {
     const config3: ExploreConfig = {
       title: 't3', entry: 'q-a',
       scenes: [
@@ -371,9 +374,9 @@ describe('ExploreRouter v5 runtime 扩展', () => {
     expect(probeB).toHaveAttribute('data-active')
     expect(probeB).not.toHaveAttribute('data-first')
 
-    /* jumpTo 回 q-a(面板点击历史项路径):同样不重演 */
+    /* 路线图节点直达回 q-a（v6：面板点击节点走 goTo）:同样不重演 */
     fireEvent.click(screen.getByTestId('rt-open-panel'))
-    fireEvent.click(screen.getByText('q-a'))
+    fireEvent.click(document.querySelector('[data-node-id="q-a"]')!)
     expect(probeB).not.toHaveAttribute('data-active')
     expect(probeA).toHaveAttribute('data-active')
     expect(probeA).not.toHaveAttribute('data-first')

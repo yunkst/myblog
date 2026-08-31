@@ -5,9 +5,10 @@ import {
   type ExploreRuntime,
 } from './AnswerContext'
 import { useHistoryStack } from './useHistoryStack'
-import HistoryPanel from './HistoryPanel'
+import RoadmapPanel from './RoadmapPanel'
 import { useKeyboardShortcuts } from './useKeyboardShortcuts'
 import { resolveExploreHref } from '../../lib/explore'
+import { computeRoadmapLayout } from '../../lib/roadmap'
 import type { ExploreConfig, ExploreScene } from '../../lib/types'
 
 interface Props {
@@ -26,21 +27,22 @@ function currentSceneId(config: ExploreConfig): string {
 }
 
 /** spec §3.3：点空白处调 skip——交互元素不触发。 */
-const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .chip-prefix, .stage-nav, .history-panel'
+const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .chip-prefix, .stage-nav, .roadmap-panel'
 
 /**
  * v4 探索视图路由器（plan Task 5）。
  *
  * 职责：
  * - hash 监听（双向：用户改 URL / goTo 出口点击 / popstate）→ setActiveId；
- * - 履历栈（useHistoryStack）：goTo 时 push；back() pop；面板 jumpTo 截断；
+ * - 履历栈（useHistoryStack）：goTo 时 push；back() pop；
  * - 已看幕集合（seenScenes）：firstActivation=true 时 Director 挂演出、回看不挂；
- * - FAB + 履历面板挂载；
+ * - FAB + 路线图面板挂载（v6：RoadmapPanel 取代 HistoryPanel）；
  * - 容器 onClick 非交互目标 → 调激活幕注入的 skip（Director.onReady 注入）；
  * - 键盘接线（v5 Task 3，spec §3.2）：useKeyboardShortcuts——← → 切幕、↑↓ 焦点出口、
  *   Enter 跳转、Esc 关面板或退出；面板开时非 Esc 键失效。
  *
- * 出幕主线/支线（在 HistoryPanel slot 里渲染）：yaml 顺序下一幕 = 主线，其余 features/questions = 支线。
+ * v6：面板主体改为整篇 explore.yaml 的路线图（computeRoadmapLayout）——
+ * 任意节点点击直达（goTo），旧的「出口树 slot + 访问历史 jumpTo 截断」移除。
  *
  * Provider 嵌套：ExploreConfigContext 包外、ExploreRuntimeContext 包内——
  * Answer 既能读 exploreConfig 也能读 runtime。
@@ -75,9 +77,6 @@ export function ExploreRouter({ config, children, onExit }: Props) {
   /** Stage onExit ref（模式同 skipRef/stackRef）：useRef(onExit) + useEffect 同步最新值 */
   const onExitRef = useRef(onExit)
   useEffect(() => { onExitRef.current = onExit }, [onExit])
-  /** 履历栈 ref（用于 jumpTo 同步取最新栈顶——见 jumpTo 实现注释） */
-  const stackRef = useRef(history.stack)
-  useEffect(() => { stackRef.current = history.stack }, [history.stack])
   /** activeId ref（goTo 判重用——副作用不能放 setState updater，StrictMode 会 double-invoke） */
   const activeIdRef = useRef(activeId)
   useEffect(() => { activeIdRef.current = activeId }, [activeId])
@@ -180,19 +179,7 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     }
   }, [history])
 
-  const jumpTo = useCallback((idx: number) => {
-    history.jumpTo(idx)
-    /* jumpTo 内部 setStack 是异步的——用同步维护的 ref 读截断后的栈顶 */
-    const last = stackRef.current[idx]?.sceneId ?? config.entry
-    window.history.pushState(null, '', `#${last}`)
-    /* v5 review fix:同 back——面板跳转目标已激活过,不重演。 */
-    if (activatedRef.current.has(last)) {
-      setFirstActivation((m) => ({ ...m, [last]: false }))
-    }
-    activatedRef.current.add(last)
-    setActiveId(last)
-    setPanelOpen(false)
-  }, [history, config.entry])
+  /* v6：面板节点直达改走 goTo（push 语义），jumpTo 截断只保留在 hook 层（hook 测试覆盖） */
 
   /* activeIdRef 守卫替代闭包依赖：onActivate 引用稳定，
    * 跳幕时不因 onActivate 新引用把 runtime（连带全部 Answer）拉进重渲染（T5 评审 I1） */
@@ -237,16 +224,9 @@ export function ExploreRouter({ config, children, onExit }: Props) {
     nextScene: current.next,
   }), [activeId, goTo, onActivate, firstActivation, back, history.stack.length, panelOpen, focusedExitIdx, current])
 
-  /* 出幕主线/支线（HistoryPanel slot 渲染）：yaml 顺序下一幕 = 主线；features/questions = 支线
-   * （下一幕经 current.next 取——Task 9 查表收敛点） */
-  const exitsWithMain = useMemo(() => {
-    const main = current.next ? [{ text: `▸ 继续：${current.next.label}`, to: current.next.id, main: true }] : []
-    return [
-      ...main,
-      ...(current.scene?.features ?? []),
-      ...(current.scene?.questions ?? []),
-    ]
-  }, [current])
+  /* v6 路线图布局：纯函数，config 不变则结果不变（RoadmapPanel 内聚焦裁剪克隆节点，
+   * 不会改写这份缓存——roadmap.test.ts 有针对性断言） */
+  const roadmapLayout = useMemo(() => computeRoadmapLayout(config), [config])
 
   return (
     <ExploreConfigContext.Provider value={config}>
@@ -262,27 +242,14 @@ export function ExploreRouter({ config, children, onExit }: Props) {
           }}
         >
           {children}
-          <HistoryPanel open={panelOpen} onClose={() => setPanelOpen(false)}
-            stack={history.stack} onJumpTo={jumpTo}
+          <RoadmapPanel open={panelOpen} onClose={() => setPanelOpen(false)}
+            layout={roadmapLayout} currentId={activeId} visited={history.visited}
+            onGoTo={goTo}
             canBack={history.stack.length > 1}
             onBack={back}
             nextLabel={current.next ? `⏵ 继续：${current.next.label}` : ''}
             onNext={() => current.next && goTo(current.next.id)}
-            onExit={() => { setPanelOpen(false); onExitRef.current?.() }}>
-            <div className="exits-tree">
-              <span className="history-panel__sub">─ 主线/支线 ─</span>
-              <ul className="exits-tree__list">
-                {exitsWithMain.filter((e): e is { text: string; to: string } & { main?: boolean } => typeof e.to === 'string').map((e, i) => (
-                  <li key={`${e.text}-${i}`}>
-                    <a href={`#${e.to}`}
-                      onClick={(ev) => { ev.preventDefault(); goTo(e.to) }}>
-                      {e.text}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </HistoryPanel>
+            onExit={() => { setPanelOpen(false); onExitRef.current?.() }} />
         </div>
       </ExploreRuntimeContext.Provider>
     </ExploreConfigContext.Provider>

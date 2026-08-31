@@ -2,10 +2,10 @@
  * v5（spec §2.2/§7.1）探索舞台壳。
  *
  * - main.stage-frame 包在 ExploreRouter **外层**（spec §2.2 嵌套契约）——
- *   HistoryPanel 由 ExploreRouter 在 children 之后渲染，只有 main 包住 router，
- *   面板才是 main 的后代，21 条 `.stage-frame .history-panel*` 选择器才能命中
- *   （反嵌套会让面板画在不透明 fixed main 之下，履历 ▾ 按钮形同虚设）；
- *   SceneRoute 按 activeId 从 glob 命中场景组件；StageNav 渲染底栏 ◀/⏵/履历/✕。
+ *   RoadmapPanel 由 ExploreRouter 在 children 之后渲染，只有 main 包住 router，
+ *   面板才是 main 的后代，`.stage-frame .roadmap-panel*` 选择器才能命中
+ *   （反嵌套会让面板画在不透明 fixed main 之下，路线图 ▾ 按钮形同虚设）；
+ *   SceneRoute 按 activeId 从 glob 命中场景组件；StageNav 渲染底栏 ◀/⏵/路线图/✕。
  * - setCurrentSlug 渲染期同步调用（v4 SceneClip 反查机制不变；SSG/客户端一致）。
  * - explore 配置经 content.getExploreConfig 取(数据层单点);glob/解析在 content.ts 单点维护。
  * - handleExit：浏览器历史可退则回退，否则跳首页（stage-frame 是「全屏覆盖」语义）。
