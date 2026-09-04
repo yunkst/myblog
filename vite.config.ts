@@ -42,6 +42,9 @@ function copyAllPostAssetsToDist() {
   }
 }
 
+/* 中文路由目录名解码由 scripts/decode-dist.ts 在 postbuild 阶段处理
+ * （GitHub Pages 解码请求路径后按解码名找文件，磁盘名必须是字面 Unicode）。 */
+
 export default defineConfig(() => ({
   /* GitHub Pages 项目站点部署时传 DEPLOY_BASE=/myblog/（见 .github/workflows/deploy.yml）；
    * 本地 dev/preview 与其他托管（CloudBase）保持 / 不变。 */
@@ -66,7 +69,8 @@ export default defineConfig(() => ({
           fs.createReadStream(file).pipe(res)
         })
       },
-      /* build 期：closeBundle 时把 assets 拷到 dist/posts/<slug>/ */
+      /* build 期：closeBundle 时把 assets 拷到 dist/posts/<slug>/
+       * （中文目录名解码在 postbuild 脚本 scripts/decode-dist.ts，避免 closeBundle 顺序问题） */
       closeBundle() {
         copyAllPostAssetsToDist()
       },
