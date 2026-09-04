@@ -85,7 +85,11 @@ export default defineConfig(() => ({
   },
   ssgOptions: {
     dirStyle: 'nested',
-    script: 'async',
+    /* 不要用 'async'：vite-react-ssg 把 __VITE_REACT_SSG_HASH__ 放在 app <script> 之后
+     * 的内联脚本里注入，async app 可能赶在内联脚本之前执行 → loader 拿到 undefined hash
+     * → manifest-undefined.json 404 → React Router loader reject → React 19 #418。
+     * module 脚本默认就是 deferred（下载完成后按顺序执行），完全够用。 */
+    script: 'sync',
   },
   test: {
     environment: 'jsdom',
