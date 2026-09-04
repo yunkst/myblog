@@ -43,6 +43,9 @@ function copyAllPostAssetsToDist() {
 }
 
 export default defineConfig(() => ({
+  /* GitHub Pages 项目站点部署时传 DEPLOY_BASE=/myblog/（见 .github/workflows/deploy.yml）；
+   * 本地 dev/preview 与其他托管（CloudBase）保持 / 不变。 */
+  base: process.env.DEPLOY_BASE || '/',
   plugins: [
     react(),
     /* dev 期：拦截 /posts/<slug>/<file>，即时从 content/posts/<slug>/assets/ 返回。
