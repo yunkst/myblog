@@ -59,6 +59,19 @@ function patchHtml(file: string) {
     return `${attr}${q}${BASE}${rest}${q}`
   })
 
+  /* vite-react-ssg 的图片 preload <link> 被误放进 #root（水合容器内）第一个子节点，
+   * 客户端 React 不渲染它 → 根级 hydration mismatch（React #418）。
+   * 把 #root 开头的 <link> 全部搬回 </head> 前；与 head 已有的重复项交给下面的去重。 */
+  const movedLinks: string[] = []
+  html = html.replace(/(<div id="root"[^>]*>)((?:<link\b[^>]*>)+)/g, (_m, open, links) => {
+    movedLinks.push(links)
+    return open
+  })
+  if (movedLinks.length) {
+    html = html.replace('</head>', `${movedLinks.join('')}</head>`)
+    refs += movedLinks.length
+  }
+
   /* 补前缀后与 Vite 自身注入的 <link> 重复 → 按完整标签文本去重 */
   const seen = new Set<string>()
   html = html.replace(/<link\b[^>]*>/g, (tag) => {

@@ -7,7 +7,13 @@ import './styles/theme.css'
 import './styles/framework.css'
 
 export const createRoot = ViteReactSSG(
-  { routes },
+  {
+    routes,
+    /* vite-react-ssg 的客户端 router basename 取自这里的 basename（默认 '/'），
+     * 而非 vite 的 base。GitHub Pages 项目站点构建时 BASE_URL=/myblog/，
+     * 不传的话客户端路由匹配不到 /myblog/* → 404 错误页 → hydration #418。 */
+    basename: import.meta.env.BASE_URL,
+  },
   ({ isClient }) => {
     // MDX 内嵌动画组件通过 registry 提供
     void isClient
