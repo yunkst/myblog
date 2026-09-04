@@ -1,6 +1,10 @@
 site:
   name: yunkst
-  tagline: 一个人撑起 8 年技术部，从 OAuth2 到 BI Agent
+  # 头衔行：跟在姓名后面的一行定位
+  tagline: 全栈开发 · 独立负责公司技术体系
+  eyebrow: 求职
+  updated: 2026-09
+  years: 8
   email: kfeb4@outlook.com
   wechat_qr: /static/wechat-qr.png
   github: https://github.com/yunkst
@@ -8,3 +12,39 @@ site:
     - 项目经历
     - AI 与工程
     - 开源作品
+
+  # 关于我：经历概述 + 教育 + 技术栈 + AI 实战背景 + 业务规模数字
+  about:
+    experience: 8 年后端与全栈开发。所在公司运营「你今天真好看」APP（AI 测肤）与自有护肤品牌 LAKELAB。2024 年 11 月起，公司全部技术工作由我一人负责——APP 后台运维、客户端开发、小程序与营销活动开发、内部系统，从需求到上线闭环。
+    education: （待补充：学校 / 专业 / 学历）
+    ai: 近一年的重点是把 AI 接进真实生产：给 AI 加上和人一样的权限、审批与审计，让它安全地承担发布、运维和内部工具。下面三个项目都在日常用着。
+    stacks:
+      - { label: 前端, items: Vue / React / 微信小程序 }
+      - { label: 后端, items: Python / Flask / FastAPI / PostgreSQL }
+      - { label: 移动端, items: 安卓 / 鸿蒙 / Flutter }
+      - { label: 运维, items: Docker / GitOps / CI 发布体系 }
+    # 数字与公开报道对齐（潮新闻 2026-07 / 36氪 2026-01）
+    stats:
+      - { value: 2000 万, label: 「你今天真好看」注册用户 · 后台运维 }
+      - { value: 安卓 / 鸿蒙, label: 客户端开发 }
+      - { value: 63%, label: LAKELAB 年复购率 · 累计销售超 3 千万 }
+      - { value: 20 + 4, label: 日常支撑的销售 / 运营 }
+
+  # AI 提效实践：三张卡，post 填博客 slug，点击进对应文章
+  practices:
+    - post: ai-digital-employee
+      kicker: AI 数字员工平台
+      desc: 让 AI 走和人一样的权限、审批、审计通道，安全接入公司生产系统，承担发布和内部工具开发。
+    - post: ai-ops
+      kicker: AI 运维体系
+      desc: 人定边界、AI 执行的 GitOps 运维，已在生产跑了半年：写操作有笼子，密钥走管道，巡检只读。
+    - post: mybi
+      kicker: AI + BI 平台
+      desc: 看板配置即数据，AI 助手生成和修改看板，Linter 做质量底线，销售和运营直接在用。
+
+  # 核心优势：卡片网格
+  strengths:
+    - { title: 独立交付, desc: 需求、开发、测试、发布、运维一人闭环，不依赖流程补位。 }
+    - { title: 全栈覆盖, desc: 前端、后端、安卓 / 鸿蒙客户端、运维，都做过且在生产用着。 }
+    - { title: AI 落地, desc: 不是 demo：AI 在真实生产系统里干活，有权限边界和审计。 }
+    - { title: 贴着业务, desc: 技术直接支撑 20 个销售和 4 个运营的日常，知道系统是写给谁用的。 }

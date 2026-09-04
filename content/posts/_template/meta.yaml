@@ -1,0 +1,9 @@
+# 复制本目录为 content/posts/<你的-slug>/，把 status 改成 published 即上线
+title: 文章标题
+slug: _template
+domain: 开源作品        # 须存在于 content/site.yaml 的 domains
+date: 2026-01-01
+pinned: false
+anim_profile: architecture   # auto / data-narrative / architecture / story
+status: draft                # draft 不进列表；published 才上线
+excerpt: 一句话摘要，显示在主页卡片上。

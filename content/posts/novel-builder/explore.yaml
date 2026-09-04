@@ -1,0 +1,105 @@
+title: novel_builder · AI 原生小说阅读平台
+entry: q-intro
+
+scenes:
+  # ─── 入口：问题 + 技术栈 + 开源地址 + 功能列表 ───
+  - id: q-intro
+    label: 写给读者的 AI：口味自己做主
+    demo: intro-overview
+    mode: 2
+    features:
+      - { text: 任意网站，一键加入书架, to: f-add-book }
+      - { text: 干净正文 + 离线缓存, to: f-read }
+      - { text: 字体反爬也能读（端侧 OCR）, to: f-ocr }
+      - { text: 不爽的剧情，AI 帮你改, to: f-rewrite }
+      - { text: 小修小补，省 token, to: f-surgical }
+      - { text: 从 0 写一本自己的小说, to: f-write }
+      - { text: 个性化素材：标签 / 记忆 / 作家设定, to: f-ammo }
+ 
+  # ─── 功能展示场景（读）───
+  - id: f-add-book
+    label: 功能：任意网站，一键加入书架
+    demo: add-book-flow
+    mode: 1
+    features:
+      - { text: 实现原理：AI 现场生成提取脚本, to: p-script-gen }
+    questions:
+      - { text: 站点把字做成乱码怎么办？, to: f-ocr }
+
+  - id: f-read
+    label: 功能：干净正文 + 离线缓存
+    demo: read-clean
+    features:
+      - { text: 实现原理：Headless WebView 与预加载调度, to: p-extract }
+
+  - id: f-ocr
+    label: 功能：字体反爬也能读
+    demo: ocr-restore
+    features:
+      - { text: 实现原理：端侧 OCR 还原管线, to: p-ocr }
+
+  # ─── 功能展示场景（改）───
+  - id: f-rewrite
+    label: 功能：不爽的剧情，AI 帮你改
+    demo: rewrite-flow
+    mode: 1
+    features:
+      - { text: 实现原理：Agent 工具设计, to: p-agent-tools }
+    questions:
+      - { text: 只想改一句错别字呢？, to: f-surgical }
+
+  - id: f-surgical
+    label: 功能：小修小补，省 token
+    demo: surgical-edit
+    features:
+      - { text: 实现原理：Agent 工具设计, to: p-agent-tools }
+
+  # ─── 功能展示场景（写）───
+  - id: f-write
+    label: 功能：从 0 写一本自己的小说
+    demo: write-flow
+    features:
+      - { text: 实现原理：上下文工程六件套, to: p-context }
+    questions:
+      - { text: 个性化素材是怎么积累的？, to: f-ammo }
+
+  - id: f-ammo
+    label: 功能：个性化素材——标签、记忆与作家设定
+    demo: ammo-arsenal
+    features:
+      - { text: 实现原理：上下文工程六件套, to: p-context }
+    questions:
+      - { text: 几百章的书，AI 怎么读得完？, to: p-subagent }
+
+  # ─── 实现原理场景 ───
+  - id: p-script-gen
+    label: 原理：AI 现场生成提取脚本
+    demo: script-gen-principle
+
+  - id: p-extract
+    label: 原理：Headless WebView 与预加载调度
+    demo: extract-principle
+
+  - id: p-ocr
+    label: 原理：端侧 OCR 还原管线
+    demo: ocr-principle
+
+  - id: p-agent-tools
+    label: 原理：Agent 工具设计
+    demo: agent-tools-principle
+    questions:
+      - { text: 全部 29 个工具怎么分工？, to: p-tool-map }
+
+  - id: p-tool-map
+    label: 原理：29 个工具的全景分工
+    demo: tool-map
+    questions:
+      - { text: 子 Agent 是怎么设计的？, to: p-subagent }
+
+  - id: p-subagent
+    label: 原理：子 Agent——上下文隔离与并行调度
+    demo: subagent-principle
+
+  - id: p-context
+    label: 原理：上下文工程六件套
+    demo: context-principle

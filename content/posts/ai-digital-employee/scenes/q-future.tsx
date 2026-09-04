@@ -1,6 +1,6 @@
-import SceneClip from '../../../../src/components/explore/SceneClip'
+import SceneClip from '@/components/explore/SceneClip'
 
-/** 幕正文：q-future（yaml label：未来拓展：让 AI 替我接需求）—— 一幕一动画 */
+/** 幕正文：q-future（yaml label：未来拓展：让 AI 替我接需求）—— 节点动画 + 开发流架构图 */
 export default function QFuture() {
   return (
     <>
@@ -11,8 +11,8 @@ export default function QFuture() {
         <li><strong>方案落地（独立系统 + 高风险接口）</strong>：落地不在平台里做，而是通过 GitLab 的触发器唤起一个独立的 agent 系统来实施。实施发生在开发分支，完成后提交，由 CI/CD 自动部署到测试环境。管理人员审查方案、验证可行之后，再正式发布。注意这个 agent 系统是<strong>独立隔离</strong>的——源码访问的权限管控由它自己负责，平台自始至终碰不到源码，当年 OpenClaw 没解决好的凭证隔离问题不会回流到平台里。</li>
         <li><strong>客户端需求的交付</strong>：如果是小程序需求，返回体验码；如果是 App，直接返回 APK。所有代码都在非主分支上。</li>
       </ol>
-      <p>整个开发流的形态见下一幕。</p>
-      <p>这一步落地之后，我就能从"接收需求 → 转述给 Claude Code"这个复读机循环里彻底解放出来了。</p>
+      <p>把这条开发流画成图（节点动画播完后淡入），从左到右分三段读。需求侧：业务需求进来。中间是 Agent 系统（独立隔离区）：方案生成 Agent 只读源码、反向追问后输出完整方案，管理人员审查通过后由 GitLab 触发器唤起方案落地 Agent，实施只发生在开发分支。右侧是 CI/CD 工程流：自动部署到测试环境，管理人员和需求方验证通过后正式发布，需求方拿体验码或 APK 验收。整条链路里高危动作两次经过管理人员：审查方案一次，正式发布一次。</p>
+      <p>这一步落地之后，「接收需求 → 转述给 Claude Code」这个复读机循环就可以交给系统了。</p>
     </>
   )
 }

@@ -1,0 +1,65 @@
+title: mybi · 声明式 + AI 编辑的 BI 平台
+entry: q-intro
+
+scenes:
+  # ─── 入口:定位 + 原则 + 技术栈 ───
+  - id: q-intro
+    label: mybi：定位、原则与技术栈
+    demo: bi-overview
+    mode: 1
+    features:
+      - { text: 全流程:ReAct 循环怎么跑、验证门怎么守, to: q-sentence }
+      - { text: 运行时:看板怎么从一棵 spec 树变成页面, to: q-runtime }
+      - { text: 语义树:为什么 LLM 不能写 element key, to: q-schema }
+      - { text: 错误回流:让 AI 自己修到过为止, to: q-errors }
+      - { text: SQL 代理:校验面与织入面严格对称, to: q-sql }
+      - { text: 语义层:向量检索怎么帮 AI 选表, to: q-semantic }
+      - { text: 数据流:CDC → 物化 → 看板, to: q-flow }
+
+  # ─── ReAct + 验证门 ───
+  - id: q-sentence
+    label: 一句话进来,ReAct 循环怎么跑
+    demo: sentence-to-board
+    features:
+      - { text: 运行时:看板怎么从一棵 spec 树变成页面, to: q-runtime }
+
+  # ─── 看板运行时 ───
+  - id: q-runtime
+    label: 看板运行时:一棵 spec 树怎么变成页面
+    demo: spec-render
+    features:
+      - { text: 语义树:为什么 LLM 不能写 element key, to: q-schema }
+
+  # ─── 语义树契约 ───
+  - id: q-schema
+    label: 语义树契约:LLM 只写意图,物理形态由编译器推导
+    demo: schema-contract
+    features:
+      - { text: 错误回流:让 AI 自己修到过为止, to: q-errors }
+
+  # ─── 错误回流 ───
+  - id: q-errors
+    label: 错误回流:让 AI 自己修到过为止
+    demo: error-loop
+    features:
+      - { text: SQL 代理:校验面与织入面严格对称, to: q-sql }
+
+  # ─── SQL 安全代理 ───
+  - id: q-sql
+    label: SQL 安全代理:校验面与织入面严格对称
+    demo: sql-gate
+    features:
+      - { text: 语义层:向量检索怎么帮 AI 选表, to: q-semantic }
+
+  # ─── 语义层 ───
+  - id: q-semantic
+    label: 语义层:向量检索怎么帮 AI 选表
+    demo: semantic-search
+    features:
+      - { text: 数据流:CDC → 物化 → 看板, to: q-flow }
+
+  # ─── 端到端数据流 ───
+  - id: q-flow
+    label: 数据流:CDC → 物化 → 看板
+    demo: end-to-end
+    features: []

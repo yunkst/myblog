@@ -1,0 +1,8 @@
+title: novel_builder：面向读者的 AI 小说平台——能读、能改、能写
+slug: novel-builder
+domain: 开源作品
+date: 2026-08-31
+pinned: true
+anim_profile: architecture
+status: published
+excerpt: novel_builder：个人独立开发、面向读者的 AI 小说平台（Flutter APP + 可选 FastAPI 后端）。功能覆盖任意站点一键加书、正文提取与离线缓存、端侧 OCR 还原、剧情改写与版本回滚、从 0 创作小说；数据本地存储，MIT 开源。

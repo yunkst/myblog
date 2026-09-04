@@ -1,0 +1,54 @@
+title: 让 AI 安全地担负运维 · GitOps 体系复盘
+entry: q-intro
+
+scenes:
+  # ─── 入口：定位 + 问题清单 + 体系总览 ───
+  - id: q-intro
+    label: 让 AI 安全地担负运维：体系复盘
+    demo: ops-overview
+    mode: 2
+    features:
+      - { text: 安全模型：权限边界怎么画, to: q-cage }
+      - { text: 密钥与脱敏：AI 设计管道，人灌水, to: q-secrets }
+      - { text: 体系搭建：清单与真实落地, to: q-platform }
+      - { text: 巡检 agent：AI 运维的执行者, to: q-inspector }
+      - { text: 节约成本：稳定性分级, to: q-cost }
+
+  # ─── 安全模型 ───
+  - id: q-cage
+    label: 安全模型：GitOps 笼子
+    demo: gitops-cage
+    features:
+      - { text: 密钥与脱敏, to: q-secrets }
+
+  - id: q-secrets
+    label: 密钥管道与输出脱敏
+    demo: secret-pipeline
+    features:
+      - { text: 体系搭建清单, to: q-platform }
+
+  # ─── 体系搭建 ───
+  - id: q-platform
+    label: 体系搭建：清单与真实落地
+    demo: platform-stack
+    features:
+      - { text: 巡检 agent, to: q-inspector }
+
+  # ─── 巡检 agent ───
+  - id: q-inspector
+    label: 巡检 agent：三阶段架构
+    demo: inspector-phases
+    features:
+      - { text: 成本分级, to: q-cost }
+
+  # ─── 成本 ───
+  - id: q-cost
+    label: 节约成本：稳定性分级
+    demo: cost-tiers
+    features:
+      - { text: 后记与下一步, to: q-afterword }
+
+  # ─── 后记 ───
+  - id: q-afterword
+    label: 后记：三条结论与下一步
+    demo: next-step

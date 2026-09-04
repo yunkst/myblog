@@ -1,0 +1,7 @@
+title: 让 AI 安全地担负运维：一套 GitOps 体系的半年生产复盘
+slug: ai-ops
+domain: AI 与工程
+date: 2026-09-02
+anim_profile: architecture
+status: published
+excerpt: 一套「人搭体系、定边界、做审批，AI 观察、判断、执行」的运维体系跑了大半年之后的复盘：GitOps 写操作笼子、Infisical 密钥管道、只读巡检 agent 的三阶段架构、三个真实生产坑，以及包年保底 + 竞价冲量的成本分级策略。

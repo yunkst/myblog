@@ -1,0 +1,7 @@
+title: 时习：一个面向「真学会」的学习 App——AI 反问教学 + 遗忘曲线复习
+slug: study-buddy
+domain: 开源作品
+date: 2026-09-01
+anim_profile: architecture
+status: published
+excerpt: 时习（study_buddy）：个人独立开发的 Flutter 学习 App。拍题问 AI、知识点库与关联图、「为什么？」反问式教学、FSRS 间隔复习、备考计划拆解、专注时钟与学习日报。内置纯 Dart 端侧 Agent 引擎，无自建后端，LLM 走用户自备的 OpenAI 兼容接口，数据本地存储，MIT 开源。

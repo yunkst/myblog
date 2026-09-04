@@ -1,4 +1,4 @@
-import SceneClip from '../../../../src/components/explore/SceneClip'
+import SceneClip from '@/components/explore/SceneClip'
 
 /** 幕正文：q-threat-model（yaml label：威胁模型：平台约束的是 AI，不是人） */
 export default function QThreatModel() {
@@ -12,7 +12,7 @@ export default function QThreatModel() {
         <li><strong>AI 能做的任何事，这个用户本来就能自己在后台做掉。</strong> 身份透传意味着平台没有赋予任何新能力，只是让既有能力调用得更快。运营人员在平台上批准一个操作之前能看到完整内容——他本来就可以直接登录生产后台做同样的操作，平台并没有引入额外风险。</li>
         <li><strong>平台挂了不影响业务。</strong> 人随时可以回到传统后台直接操作，它是效率工具，不是命脉。</li>
       </ul>
-      <p>平台真正要回答的问题只有一个：<strong>当 AI 顶着某个人的身份干活时，怎么保证它不干这个人不想干的事。</strong> 分级执行、预演、审批、撤回，全部是为这一个问题服务的。</p>
+      <p>平台真正要回答的问题只有一个：<strong>当 AI 顶着某个人的身份干活时，怎么保证它不干这个人不想干的事。</strong> 分级执行、预演、确认、撤回，全部是为这一个问题服务的。</p>
     </>
   )
 }

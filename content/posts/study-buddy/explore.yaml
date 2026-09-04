@@ -1,0 +1,68 @@
+title: 时习 study_buddy · AI 学习闭环 App
+entry: q-intro
+
+scenes:
+  # ─── 入口：定位 + 技术栈 + 开源地址 + 功能列表 ───
+  - id: q-intro
+    label: 时习：把「学会」做成闭环
+    demo: intro-overview
+    mode: 2
+    features:
+      - { text: 拍题问 AI，知识点自动入库, to: f-snapshot }
+      - { text: 「为什么？」AI 反问式教学, to: f-why }
+      - { text: 知识点库与关联图, to: f-knowledge }
+      - { text: 间隔复习，只复习到期的卡, to: f-review }
+      - { text: 备考拆里程碑, to: f-plan }
+      - { text: 专注时钟 + 学习日报, to: f-focus }
+
+  # ─── 功能展示场景 ───
+  - id: f-snapshot
+    label: 功能：拍题问 AI，知识点自动入库
+    demo: snapshot-flow
+    mode: 1
+    features:
+      - { text: 实现原理：端侧 ReAct Agent 引擎, to: p-agent }
+
+  - id: f-why
+    label: 功能：「为什么？」AI 反问式教学
+    demo: why-teach
+    mode: 1
+    features:
+      - { text: 实现原理：端侧 ReAct Agent 引擎, to: p-agent }
+
+  - id: f-knowledge
+    label: 功能：知识点库与关联图
+    demo: knowledge-graph
+    features:
+      - { text: 实现原理：本地优先数据层, to: p-local-first }
+
+  - id: f-review
+    label: 功能：间隔复习，只复习到期的卡
+    demo: fsrs-review
+    features:
+      - { text: 实现原理：FSRS 复习调度器, to: p-scheduler }
+
+  - id: f-plan
+    label: 功能：备考拆里程碑
+    demo: plan-flow
+    features:
+      - { text: 实现原理：端侧 ReAct Agent 引擎, to: p-agent }
+
+  - id: f-focus
+    label: 功能：专注时钟 + 学习日报
+    demo: focus-report
+    features:
+      - { text: 实现原理：本地优先数据层, to: p-local-first }
+
+  # ─── 实现原理场景 ───
+  - id: p-agent
+    label: 原理：端侧 ReAct Agent 引擎
+    demo: agent-principle
+
+  - id: p-scheduler
+    label: 原理：FSRS 复习调度器
+    demo: scheduler-principle
+
+  - id: p-local-first
+    label: 原理：无后端的本地优先架构
+    demo: local-first-principle

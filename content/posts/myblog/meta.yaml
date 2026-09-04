@@ -1,0 +1,8 @@
+title: 这个博客怎么做：可演化的个人博客框架
+slug: myblog
+domain: 开源作品
+date: 2026-09-03
+pinned: false
+anim_profile: architecture
+status: published
+excerpt: 你现在正在看的这个博客，本身也是一个作品：一个可以带着 AI 持续演进的个人博客框架——文章不是长文，而是可交互演示（打字机解说、架构图动画、场景跳转），同一份内容还支持平铺长文阅读。本文从「为什么做」讲到「怎么做」。

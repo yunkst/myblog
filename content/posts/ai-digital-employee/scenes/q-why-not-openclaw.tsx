@@ -1,6 +1,6 @@
-import SceneClip from '../../../../src/components/explore/SceneClip'
+import SceneClip from '@/components/explore/SceneClip'
 
-/** 幕正文：q-why-not-openclaw（yaml label：第一次尝试：为什么没用 openclaw？） */
+/** 幕正文：q-why-not-openclaw（yaml label：可以用 OpenClaw 吗？） */
 export default function QWhyNotOpenclaw() {
   return (
     <>

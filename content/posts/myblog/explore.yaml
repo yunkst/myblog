@@ -1,0 +1,35 @@
+title: 可演化的个人博客框架
+entry: q-vision
+
+scenes:
+  - id: q-vision
+    label: 为什么博客不该只是长文
+    demo: vision-chain
+    questions:
+      - { text: 那这个底座长什么样？, to: q-intro }
+
+  - id: q-intro
+    label: 这个博客怎么做：定位与技术栈
+    demo: blog-overview
+    mode: 1
+    features:
+      - { text: 场景编排：三种 mode 的演出调度, to: q-engine }
+      - { text: 架构图组件：契约 + 自动校验, to: q-diagram }
+      - { text: 内容即数据：加文章 = 加目录, to: q-content }
+
+  - id: q-engine
+    label: 场景编排：yaml 声明，Director 调度
+    demo: scene-engine
+    features:
+      - { text: 架构图组件, to: q-diagram }
+
+  - id: q-diagram
+    label: 架构图组件：ArchDiagram
+    demo: arch-engine
+    features:
+      - { text: 内容即数据, to: q-content }
+
+  - id: q-content
+    label: 内容即数据：两层结构与对齐校验
+    demo: content-as-data
+    features: []

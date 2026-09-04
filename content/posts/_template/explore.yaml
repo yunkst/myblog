@@ -1,0 +1,16 @@
+# 场景图：entry 是入口幕；每幕一个 id + label + demo；features 是「▸ 深入」出口
+# mode：1 = demo 全屏先播；2 = 文字全屏先打字（默认）；3 = 纯文字（无 demo 的幕用）
+title: 模板文章
+entry: q-intro
+
+scenes:
+  - id: q-intro
+    label: 入口幕：一句话说清这篇文章讲什么
+    demo: tpl-overview
+    features:
+      - { text: 细节幕标题, to: q-detail }
+
+  - id: q-detail
+    label: 细节幕：一个实现点讲透
+    demo: tpl-detail
+    features: []

@@ -1,4 +1,4 @@
-import SceneClip from '../../../../src/components/explore/SceneClip'
+import SceneClip from '@/components/explore/SceneClip'
 
 /** 幕正文：q-problem（yaml label：公司的技术问题，都是谁在解决？） */
 export default function QProblem() {
