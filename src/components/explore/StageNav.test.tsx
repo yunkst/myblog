@@ -41,42 +41,42 @@ function renderNav(rt: ExploreRuntime) {
 }
 
 describe('StageNav', () => {
-  it('渲染 4 个按钮 + 平铺链接', () => {
+  it('渲染 4 个按钮 + 平铺全文链接', () => {
     renderNav(mkRt({}))
-    expect(screen.getByText('◀ 返回')).toBeInTheDocument()
-    expect(screen.getByText('⏵ 继续：B')).toBeInTheDocument()
-    expect(screen.getByText('路线图 ▾')).toBeInTheDocument()
-    expect(screen.getByText('✕ 退出')).toBeInTheDocument()
+    expect(screen.getByText('◀ 上一幕')).toBeInTheDocument()
+    expect(screen.getByText('下一幕：B ▶')).toBeInTheDocument()
+    expect(screen.getByText('场景地图')).toBeInTheDocument()
+    expect(screen.getByText('✕ 退出舞台')).toBeInTheDocument()
     /* v8：平铺阅读入口（Link → /blog/<slug>/flat/） */
-    const flat = screen.getByRole('link', { name: '平铺阅读' })
+    const flat = screen.getByRole('link', { name: '平铺阅读全文' })
     expect(flat).toHaveAttribute('href', '/blog/test-post/flat/')
   })
 
   it('canBack=false 时返回 disabled；启用时点击调 back', () => {
     const back = vi.fn()
     const { rerender } = renderNav(mkRt({ back }))
-    expect(screen.getByText('◀ 返回').closest('button')).toBeDisabled()
+    expect(screen.getByText('◀ 上一幕').closest('button')).toBeDisabled()
     rerender(navTree(mkRt({ back, canBack: true })))
-    fireEvent.click(screen.getByText('◀ 返回'))
+    fireEvent.click(screen.getByText('◀ 上一幕'))
     expect(back).toHaveBeenCalledOnce()
   })
 
-  it('继续/路线图/退出动作分发', () => {
+  it('下一幕/场景地图/退出动作分发', () => {
     const rt = mkRt({ canBack: true })
     renderNav(rt)
-    fireEvent.click(screen.getByText('⏵ 继续：B'))
+    fireEvent.click(screen.getByText('下一幕：B ▶'))
     expect(rt.goTo).toHaveBeenCalledWith('q-b')
-    fireEvent.click(screen.getByText('路线图 ▾'))
+    fireEvent.click(screen.getByText('场景地图'))
     expect(rt.setPanelOpen).toHaveBeenCalledWith(true)
-    fireEvent.click(screen.getByText('✕ 退出'))
+    fireEvent.click(screen.getByText('✕ 退出舞台'))
     expect(rt.onExit).toHaveBeenCalledOnce()
   })
 
-  it('nextScene 缺失时隐藏「⏵ 继续」按钮(其余 3 个保留)', () => {
+  it('nextScene 缺失时隐藏「下一幕」按钮(其余 3 个保留)', () => {
     renderNav(mkRt({ nextScene: undefined }))
-    expect(screen.getByText('◀ 返回')).toBeInTheDocument()
-    expect(screen.queryByText(/⏵ 继续/)).toBeNull()
-    expect(screen.getByText('路线图 ▾')).toBeInTheDocument()
-    expect(screen.getByText('✕ 退出')).toBeInTheDocument()
+    expect(screen.getByText('◀ 上一幕')).toBeInTheDocument()
+    expect(screen.queryByText(/下一幕/)).toBeNull()
+    expect(screen.getByText('场景地图')).toBeInTheDocument()
+    expect(screen.getByText('✕ 退出舞台')).toBeInTheDocument()
   })
 })

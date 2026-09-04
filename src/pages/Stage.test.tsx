@@ -28,6 +28,7 @@ const post: Post = {
   status: 'published',
   excerpt: '',
   fileName: 'ai-digital-employee',
+  pinned: false,
   hasExplore: true,
 }
 
@@ -59,12 +60,12 @@ describe('<Stage> 嵌套契约（v5 终审 fix round）', () => {
     expect(router.parentElement).toBe(main)
   })
 
-  it('点击 路线图 ▾ 后，.roadmap-panel 是 main.stage-frame 的后代（CSS 作用域契约）', () => {
+  it('点击 场景地图 后，.roadmap-panel 是 main.stage-frame 的后代（CSS 作用域契约）', () => {
     const { container } = renderStage()
     const main = container.querySelector('main.stage-frame')!
     expect(main.querySelector('.roadmap-panel')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: '打开路线图面板' }))
+    fireEvent.click(screen.getByRole('button', { name: '打开场景地图面板' }))
     const panel = main.querySelector('.roadmap-panel')
     expect(panel).not.toBeNull()
     expect(main.contains(panel)).toBe(true)
@@ -76,7 +77,7 @@ describe('<Stage> 嵌套契约（v5 终审 fix round）', () => {
     const { container } = renderStage()
     const main = container.querySelector('main.stage-frame')!
 
-    fireEvent.click(screen.getByRole('button', { name: '打开路线图面板' }))
+    fireEvent.click(screen.getByRole('button', { name: '打开场景地图面板' }))
     expect(screen.getByRole('button', { name: '关闭' })).toBeInTheDocument()
     expect(main.querySelector('.roadmap-panel__actions')).not.toBeNull()
 

@@ -14,13 +14,13 @@ interface Props {
 /** 场景下方出口按钮组。
  * v4（Task 5）：本地跳转不再 scrollIntoView，改走 ExploreRouter.goTo
  * （pushState + 激活 + 履历入栈）；跨文章照旧 `<a href>` 整页跳转。
- * v3 chip 文本前装饰前缀——features ▸、questions ？（aria-hidden，纯视觉）。
  * v5（Task 3）：runtime.focusedExitIdx === baseIdx + i 的 chip 挂 exit-chip--focused
- * （键盘 ↑↓ 循环焦点、Enter 跳转的可视反馈）。 */
+ * （键盘 ↑↓ 循环焦点、Enter 跳转的可视反馈）。
+ * v8：chip 内的 ▸/？ 前缀与尾部 → 移除——分组标签（▸ 深入 / ？ 提问）
+ * 由 Answer 的 choices-group-label 承担，chip 只留出口文本。 */
 export default function ExitChips({ group, exits, config, baseIdx }: Props) {
   const runtime = useContext(ExploreRuntimeContext)
   if (exits.length === 0) return null
-  const prefix = group === 'features' ? '▸' : '？'
   return (
     <div className={`exit-chips exit-chips-${group}`}>
       {exits.map((e, i) => {
@@ -38,15 +38,13 @@ export default function ExitChips({ group, exits, config, baseIdx }: Props) {
                   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
                 }
               }}>
-              <span className="chip-prefix" aria-hidden="true">{prefix}</span>
-              {e.text} →
+              {e.text}
             </a>
           )
         }
         return (
           <a key={e.text} className={`exit-chip${focused}`} href={resolveExploreHref(e.to, config)}>
-            <span className="chip-prefix" aria-hidden="true">{prefix}</span>
-            {e.text} →
+            {e.text}
           </a>
         )
       })}

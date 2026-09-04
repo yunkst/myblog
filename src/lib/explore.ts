@@ -115,6 +115,13 @@ export function validateExploreConfig(
     }
   }
 
+  // 规则6：mode 3 是纯文字演出（Director 不播 demo）——配了 demo 的幕用 mode 3 是矛盾配置
+  for (const s of config.scenes) {
+    if (s.mode === 3 && s.demo) {
+      errors.push(`[${slug}] ${s.id}：mode 3 为纯文字演出，demo="${s.demo}" 不会播放；要播 demo 请用 mode 1/2`)
+    }
+  }
+
   return { errors, warnings }
 }
 

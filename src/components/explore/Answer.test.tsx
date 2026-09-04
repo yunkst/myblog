@@ -250,7 +250,7 @@ describe('Answer v3 演出', () => {
     expect(p.textContent).toBe('文本')
   })
 
-  it('ExitChips 前缀：features 渲染 ▸、questions 渲染 ？', () => {
+  it('选项区分组标签：features 组标「▸ 深入」、questions 组标「？ 提问」，chip 不再带前缀', () => {
     render(
       <MemoryRouter>
         <ExploreConfigContext.Provider value={config}>
@@ -258,15 +258,18 @@ describe('Answer v3 演出', () => {
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
-    // features chip：▸ 前缀；questions chip：？ 前缀（aria-hidden 装饰字符）
+    // v8：前缀上移到组标签（choices-group-label），chip 内不再有 chip-prefix / 尾部 →
+    const labels = Array.from(document.querySelectorAll('.choices-group-label')).map((el) => el.textContent)
+    expect(labels).toEqual(['▸ 深入', '？ 提问'])
     const feat = document.querySelector('.exit-chips-features .exit-chip')!
     const ques = document.querySelector('.exit-chips-questions .exit-chip')!
-    expect(feat.querySelector('.chip-prefix')?.textContent).toBe('▸')
-    expect(feat.querySelector('.chip-prefix')?.getAttribute('aria-hidden')).toBe('true')
-    expect(ques.querySelector('.chip-prefix')?.textContent).toBe('？')
-    // 前缀在文本之前
-    expect(feat.textContent).toContain('▸')
-    expect(feat.textContent!.indexOf('▸')).toBeLessThan(feat.textContent!.indexOf('看 B'))
+    expect(feat.querySelector('.chip-prefix')).toBeNull()
+    expect(feat.textContent).not.toContain('→')
+    expect(ques.textContent).not.toContain('→')
+    // 组标签在 chips 之前
+    const groups = document.querySelectorAll('.choices-group')
+    expect(groups[0].querySelector('.exit-chips-features')).not.toBeNull()
+    expect(groups[1].querySelector('.exit-chips-questions')).not.toBeNull()
   })
 })
 
@@ -424,18 +427,19 @@ describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径
 })
 
 /* v5 终审 fix round：partition 不再直调 hooks 组件。
- * 真实场景组件 q-architecture 的 body 含 ArchDiagram（useRef×3 + useEffect），
+ * 真实场景组件 q-badge-metaphor 的 stage 含 ArchDiagram（useRef×3 + useEffect，
+ * 2026-09-03 纯图幕并入概念幕后由它接替 q-architecture 当夹具），
  * 把这个 body 喂给 Answer，必须不抛错、直调路径不该把 ArchDiagram 的 hook 寄生到
- * Answer 的 fiber 上。视觉输出（dialogue 含 ArchDiagram figure）不变。
+ * Answer 的 fiber 上。视觉输出（dialogue 含正文、stage 含图）不变。
  * jsdom + matchMedia stub（vitest.setup）→ ArchDiagram 走 reduced-motion 路径，jsdom 安全。 */
 describe('Answer v5 partition：top-level 函数组件展开，不递归深 hooks 组件', () => {
   const yamlWithArch = [
     'title: t',
-    'entry: q-architecture',
+    'entry: q-badge-metaphor',
     'scenes:',
-    '  - id: q-architecture',
-    '    label: 整体架构图',
-    '    demo: architecture',
+    '  - id: q-badge-metaphor',
+    '    label: 方案总览',
+    '    demo: badge-metaphor',
   ].join('\n')
 
   /* 本文件模块级 stubGlobal 把 matchMedia 接到 mockedReduce（默认 false = 播放动画）；
@@ -446,10 +450,10 @@ describe('Answer v5 partition：top-level 函数组件展开，不递归深 hook
   it('渲染含 ArchDiagram 的真实场景组件不抛错；ArchDiagram 落在 stage 区（SceneClip 内）', async () => {
     const cfg = parseExploreYaml(yamlWithArch)
     if (!cfg.ok) throw new Error(cfg.error)
-    // 动态 import：scenes/q-architecture.tsx 物理上位于 content/posts/...
+    // 动态 import：scenes/q-badge-metaphor.tsx 物理上位于 content/posts/...
     // vitest ESM 不会动 Vite 的 glob，所以走真实相对路径导入场景文件。
-    const { default: QArchitecture } = await import(
-      '../../../content/posts/ai-digital-employee/scenes/q-architecture'
+    const { default: QBadgeMetaphor } = await import(
+      '../../../content/posts/ai-digital-employee/scenes/q-badge-metaphor'
     )
     // v6 单源：SceneClip 经 moduleForSlug(currentSlug) 反查 demos 字典——
     // 不 setCurrentSlug 则反查不到、ArchDiagram 不渲染（与生产 SSG 直出路径不同，
@@ -458,21 +462,21 @@ describe('Answer v5 partition：top-level 函数组件展开，不递归深 hook
     const { container } = render(
       <MemoryRouter>
         <ExploreConfigContext.Provider value={cfg.value}>
-          <Answer scene={cfg.value.scenes[0]} body={<QArchitecture />} />
+          <Answer scene={cfg.value.scenes[0]} body={<QBadgeMetaphor />} />
         </ExploreConfigContext.Provider>
       </MemoryRouter>,
     )
     setCurrentSlug(null)
-    // dialogue 区含段落「把刚才的比喻翻译成工程语言」（来自场景组件）
+    // dialogue 区含段落「这套方案用一句话就能讲完」（来自场景组件）
     const dialogue = container.querySelector('.dialogue')
     expect(dialogue).not.toBeNull()
-    expect(dialogue?.textContent).toContain('把刚才的比喻翻译成工程语言')
-    // 一幕一元素：ArchDiagram 由 SceneClip 内的 architecture demo 渲染，
+    expect(dialogue?.textContent).toContain('这套方案用一句话就能讲完')
+    // 一幕一元素：ArchDiagram 内嵌在 badge-metaphor Stage（SceneClip 渲染），
     // 图（.ba-arch）落在 stage-inner 里的 scene-clip 容器内，不在 dialogue
     expect(container.querySelector('.stage-inner .ba-arch')).not.toBeNull()
     expect(container.querySelector('.dialogue .ba-arch')).toBeNull()
     // SceneClip 仍然进 stage 区
-    expect(container.querySelector('.stage-inner [data-scene-clip-demo="architecture"]')).not.toBeNull()
+    expect(container.querySelector('.stage-inner [data-scene-clip-demo="badge-metaphor"]')).not.toBeNull()
     // 无 hook 寄生报警：React 渲染期非法 hook 调用会抛 "Invalid hook call"，渲染能走到断言即安全
   })
 })

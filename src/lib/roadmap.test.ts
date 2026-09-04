@@ -104,20 +104,23 @@ scenes:
     expect(l.total).toBe(2)
   })
 
-  it('真实 explore.yaml（ai-digital-employee）：15 幕全可达 + 树边 14 条 + 回边标记命中', () => {
+  it('真实 explore.yaml（ai-digital-employee）：13 幕全可达 + 树边 12 条 + 回边标记命中', () => {
     const r = parseExploreYaml(realYamlRaw)
     if (!r.ok) throw new Error(r.error)
     const l = computeRoadmapLayout(r.value)
-    expect(l.total).toBe(15)
+    expect(l.total).toBe(13)
     /* 无跨文章出口 → 无 portal；全部场景从 entry 可达 → 树边 = 节点数 - 1 */
     expect(l.nodes.every((n) => n.kind === 'scene')).toBe(true)
-    expect(l.edges).toHaveLength(14)
+    expect(l.edges).toHaveLength(12)
     const node = (id: string) => l.nodes.find((n) => n.id === id)!
     expect(node('q-problem').layer).toBe(0)
     expect(node('q-tiered-confirm').layer).toBe(1)
-    /* 「回到入口」式回边：威胁模型/局限性 两幕挂 ↩ 到入口 label */
-    expect(node('q-threat-model').backLabels).toContain('公司的技术问题，都是谁在解决？')
-    expect(node('q-limits').backLabels).toContain('公司的技术问题，都是谁在解决？')
+    /* 叙事脊单线前推（2026-09-03 重构）：q-threat-model / q-limits 由 q-tiered-execution
+     * 先发现，威胁模型→局限性 降级为 ↩ 回边；四前提→方案总览 同为回边；叶子幕无回边 */
+    expect(node('q-threat-model').backLabels).toContain('这套方案解决不了什么')
+    expect(node('q-four-prerequisites').backLabels).toContain('方案总览：把工牌借给 AI')
+    expect(node('q-limits').backLabels).toEqual([])
+    expect(node('q-future').backLabels).toEqual([])
   })
 })
 

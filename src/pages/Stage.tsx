@@ -8,7 +8,7 @@
  *   SceneRoute 按 activeId 从 glob 命中场景组件；StageNav 渲染底栏 ◀/⏵/路线图/✕。
  * - setCurrentSlug 渲染期同步调用（v4 SceneClip 反查机制不变；SSG/客户端一致）。
  * - explore 配置经 content.getExploreConfig 取(数据层单点);glob/解析在 content.ts 单点维护。
- * - handleExit：浏览器历史可退则回退，否则跳首页（stage-frame 是「全屏覆盖」语义）。
+ * - handleExit（v13 用户裁定）：退出舞台直接跳首页，不再 history 回退。
  */
 import { useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -26,10 +26,10 @@ export default function Stage({ post }: { post: Post }) {
   /* 同步写 SceneClip 反查的 slug（v4 机制；Stage 渲染 main 时一并写） */
   setCurrentSlug(post.slug)
 
+  /* v13（用户裁定）：退出舞台直接回首页——舞台是从博客文章进入的全屏模式，
+   * 「返回上一页」会把用户弹回文章中部，语义不如回首页清晰。 */
   const handleExit = useCallback(() => {
-    if (typeof window === 'undefined') return
-    if (window.history.length > 1) navigate(-1)
-    else navigate('/')
+    navigate('/')
   }, [navigate])
 
   if (!config) {

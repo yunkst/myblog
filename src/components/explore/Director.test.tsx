@@ -374,7 +374,8 @@ describe('Director', () => {
   })
 
   /* C2+I1 fix round：
-   * - 演出开始前 SSR 直出的「终态」按「揭示单元」粒度隐藏（gsap.set opacity 0），
+   * - 演出开始前 SSR 直出的「终态」按「揭示单元」粒度隐藏（gsap.set autoAlpha 0——
+   *   2026-09-01 起 opacity + visibility 双写，隐形 chip 不再吃点击），
    *   否则用户先看到 dialogue 全文 / chips opacity 1 再被打回原态（视觉跳跃）。
    * - head 整块 / dialogue 文本段落 / choices chips → 隐藏；
    *   dialogue 容器不藏（容器藏了会吞掉打字机的 reveal；真实浏览器实测）。
@@ -406,6 +407,10 @@ describe('Director', () => {
     expect(gsap.getProperty(dlg.current!.querySelector('p')!, 'opacity')).toBe(0)
     expect(gsap.getProperty(choices.current!, 'opacity')).toBe(1)
     expect(gsap.getProperty(choices.current!.querySelector('.exit-chip')!, 'opacity')).toBe(0)
+    // 2026-09-01 fix 回归：autoAlpha 同时写 visibility:hidden——
+    // 隐藏的 chip 不再响应点击（opacity:0 时代点空白会被隐形 chip 跳走）
+    expect(gsap.getProperty(choices.current!.querySelector('.exit-chip')!, 'visibility')).toBe('hidden')
+    expect(gsap.getProperty(head.current!, 'visibility')).toBe('hidden')
   })
 
   it('reduced-motion 不做 gsap.set：保留 SSR 直出终态（opacity 1 默认）', () => {

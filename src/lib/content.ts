@@ -1,6 +1,5 @@
 import yaml from 'js-yaml'
-import type { Post, Domain, Wip, Faq, SiteConfig, AnimProfile, PostStatus, ExploreConfig } from './types'
-import faqsYamlRaw from '/content/faqs.yaml?raw'
+import type { Post, Domain, SiteConfig, AnimProfile, PostStatus, ExploreConfig } from './types'
 import siteYamlRaw from '/content/site.yaml?raw'
 
 /* v5：数据层单一化（SSG 与浏览器同源）。meta.yaml = 文章元数据；
@@ -71,11 +70,15 @@ export function getAllPosts(): Post[] {
       status: VALID_STATUS.includes(status) ? status : 'published',
       excerpt: String(data.excerpt || ''),
       fileName: slug,
+      pinned: data.pinned === true,
       hasExplore: Object.keys(exploreYamls).some((k) => slugOf(k) === slug),
       exploreEntry: exploreEntryOf(slug),
     })
   }
-  cachedPosts = posts.filter((p) => p.status === 'published').sort((a, b) => (a.date < b.date ? 1 : -1))
+  /* 置顶优先，其余按日期倒序；置顶之间同样日期倒序 */
+  cachedPosts = posts
+    .filter((p) => p.status === 'published')
+    .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (a.date < b.date ? 1 : -1))
   return cachedPosts
 }
 
@@ -99,20 +102,6 @@ export function getAllDomains(): Domain[] {
     out.push({ slug, posts: list, updatedAt: list[0]?.date || '' })
   }
   return out.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
-}
-
-export function getWips(): Wip[] {
-  // content/wip/ 目录当前不存在；客户端无 fs，等价于 SSG 版 fs.existsSync(WIP_DIR) 为 false 的行为。
-  return []
-}
-
-let cachedFaqs: Faq[] | null = null
-export function getFAQs(): Faq[] {
-  if (cachedFaqs === null) {
-    const parsed = yaml.load(faqsYamlRaw) as Faq[] | null
-    cachedFaqs = Array.isArray(parsed) ? parsed : []
-  }
-  return cachedFaqs
 }
 
 let cachedSite: SiteConfig | null = null

@@ -15,6 +15,15 @@ export const ExploreConfigContext = createContext<ExploreConfig | null>(null)
  */
 export const SceneDemoContext = createContext<string | null>(null)
 
+/** v10：本幕是否处于 Director 演出编排中（perform = 激活且首次激活）。
+ *
+ * SceneClip 消费它关闭 IntersectionObserver 自动播放——修「mode 2 文字和动画
+ * 一起播」：Director 编排期间 demo 只允许经 registry 的 api.play() 触发
+ * （mode 1 进场即播 / mode 2 打字机后全屏播），IO 不得抢跑。
+ * 非编排场景（flat-post 平铺页 / 回看幕 / reduced-motion / 测试直渲）为 false，
+ * IO 自动播放保持原行为。 */
+export const SceneDirectedContext = createContext<boolean>(false)
+
 /** v4（Task 5）幕式导航 Context：ExploreRouter 在 Provider 挂 activeId/goTo/onActivate，
  * Answer/ExitChips 消费——退出演出 IO useEffect、改走路由化跳转。
  *

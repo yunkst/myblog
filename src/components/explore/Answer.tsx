@@ -2,7 +2,7 @@ import { Fragment, useContext, useRef, type ReactNode } from 'react'
 import SceneClip from './SceneClip'
 import ExitChips from './ExitChips'
 import { toChineseOrdinal } from '../../lib/explore'
-import { ExploreConfigContext, ExploreRuntimeContext, SceneDemoContext } from './AnswerContext'
+import { ExploreConfigContext, ExploreRuntimeContext, SceneDemoContext, SceneDirectedContext } from './AnswerContext'
 import { Director } from './Director'
 import type { ExploreScene } from '../../lib/types'
 
@@ -128,7 +128,10 @@ export default function Answer({ scene, body }: { scene: ExploreScene; body: Rea
 
   const sections = (
     /* SceneDemoContext：注入本幕 scene.demo（yaml 单一真相）——幕内 SceneClip
-     * 消费它，q-*.tsx 不再写死 demo 名（v6 review 单源收敛）。 */
+     * 消费它，q-*.tsx 不再写死 demo 名（v6 review 单源收敛）。
+     * SceneDirectedContext（v10）：perform 期间告诉 SceneClip 关闭 IO 抢播，
+     * demo 统一由 Director 经 registry 编排触发。 */
+    <SceneDirectedContext.Provider value={perform}>
     <SceneDemoContext.Provider value={scene.demo ?? null}>
       {hasHead && (
         <div className="act-head" ref={headRef}>
@@ -150,14 +153,50 @@ export default function Answer({ scene, body }: { scene: ExploreScene; body: Rea
         {rest}
       </div>
       {hasExits && config && (
+        /* 选项区分组：features（深入）与 questions（提问）各自带组标签；
+         * 出口总数 > 4 时挂 choices--many，chip 改双列栅格（入口幕 12 个出口不再单列长龙） */
+        <div
+          className={`choices${((scene.features ?? []).length + (scene.questions ?? []).length) > 4 ? ' choices--many' : ''}`}
+          ref={choicesRef}
+        >
+          {(scene.features ?? []).length > 0 && (
+            <div className="choices-group">
+              <span className="choices-group-label">▸ 深入</span>
+              {/* v5 Task 3：baseIdx 与 runtime.focusedExitIdx 平铺序对齐——features 0 起，questions 接 features 长度 */}
+              <ExitChips group="features" baseIdx={0} exits={scene.features ?? []} config={config} />
+            </div>
+          )}
+          {(scene.questions ?? []).length > 0 && (
+            <div className="choices-group">
+              <span className="choices-group-label">？ 提问</span>
+              <ExitChips group="questions" baseIdx={(scene.features ?? []).length} exits={scene.questions ?? []} config={config} />
+            </div>
+          )}
+        </div>
+      )}
+      {/* v13（用户裁定）：无选项分支的幕（如原理幕）不留空——展示「场景地图」
+       * 按钮打开总览面板，作为唯一的去向出口。用 button + exit-chip class：
+       * Director 的 choicesRise 演出按 .exit-chip 选择器揭示，无需特判。
+       * 仅舞台态（runtime 存在）渲染；平铺全文态无面板可开，不渲染。 */}
+      {!hasExits && config && runtime && (
         <div className="choices" ref={choicesRef}>
-          <span className="choices-label">─ 選択肢 ─</span>
-          {/* v5 Task 3：baseIdx 与 runtime.focusedExitIdx 平铺序对齐——features 0 起，questions 接 features 长度 */}
-          <ExitChips group="features" baseIdx={0} exits={scene.features ?? []} config={config} />
-          <ExitChips group="questions" baseIdx={(scene.features ?? []).length} exits={scene.questions ?? []} config={config} />
+          <div className="choices-group">
+            <span className="choices-group-label">▸ 去向</span>
+            <div className="exit-chips exit-chips-features">
+              <button
+                type="button"
+                className="exit-chip"
+                aria-label="打开场景地图面板"
+                onClick={() => runtime.setPanelOpen(true)}
+              >
+                场景地图
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </SceneDemoContext.Provider>
+    </SceneDirectedContext.Provider>
   )
 
   return (

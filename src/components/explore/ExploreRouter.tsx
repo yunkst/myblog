@@ -27,7 +27,7 @@ function currentSceneId(config: ExploreConfig): string {
 }
 
 /** spec §3.3：点空白处调 skip——交互元素不触发。 */
-const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .chip-prefix, .stage-nav, .roadmap-panel'
+const SKIP_IGNORE_SELECTOR = 'a, button, [role="button"], .scene-replay, .stage-nav, .roadmap-panel'
 
 /**
  * v4 探索视图路由器（plan Task 5）。

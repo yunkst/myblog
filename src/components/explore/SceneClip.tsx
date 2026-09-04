@@ -3,7 +3,9 @@ import type {} from 'gsap'
 import type { Scene } from './SceneController'
 import { createDemoHandle } from './SceneController'
 import { registerSceneClip } from './sceneClipRegistry'
-import { SceneDemoContext } from './AnswerContext'
+import { SceneDemoContext, SceneDirectedContext } from './AnswerContext'
+import { openClipLightbox, cancelClipFullscreen } from './clipFullscreen'
+import { prefersReducedMotion } from '../../lib/motion'
 
 /* 与 v1 同一 glob 手法，但消费 demos 字典而非 default Scene */
 const demoModules = import.meta.glob<{ demos: Record<string, Scene> }>(
@@ -46,6 +48,17 @@ export function setCurrentSlug(slug: string | null) {
   currentSlug = slug
 }
 
+/* 首次访问引导：强调 ⛶ 全屏按钮（localStorage 记忆；点过任意 ⛶ 即永久撤下）。
+ * 只挂在页面第一个 .scene-expand 上，避免一页多个 clip 同时呼吸。 */
+const FS_HINT_KEY = 'yunkst:fs-hint-v1'
+function fsHintSeen(): boolean {
+  try { return !!localStorage.getItem(FS_HINT_KEY) } catch { return true }
+}
+function markFsHintSeen() {
+  try { localStorage.setItem(FS_HINT_KEY, '1') } catch { /* 隐私模式等：跳过记忆 */ }
+  document.querySelectorAll('.scene-expand.is-hint').forEach((b) => b.classList.remove('is-hint'))
+}
+
 /**
  * v2：唯一 demo 播放入口（spec §4.3）。
  *
@@ -64,7 +77,9 @@ export function setCurrentSlug(slug: string | null) {
 export default function SceneClip({ demo }: { demo?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
+  const fsBtnRef = useRef<HTMLButtonElement>(null)
   const ctxDemo = useContext(SceneDemoContext)
+  const directedCtx = useContext(SceneDirectedContext)
 
   const demoName = resolveDemoName(demo, ctxDemo)
   const scene = moduleForSlug(currentSlug)?.demos?.[demoName] ?? null
@@ -101,7 +116,13 @@ export default function SceneClip({ demo }: { demo?: string }) {
     const handle = createDemoHandle(tl)
     let started = false
 
-    const observer = new IntersectionObserver((entries) => {
+    /* v10：Director 编排期间（SceneDirectedContext=true 且非 reduced-motion）
+     * 关掉 IO 自动播放——修「mode 2 文字和动画一起播」：demo 只经 registry 的
+     * api.play() 触发（mode 1 进场全屏播 / mode 2 打字机后全屏播）。
+     * 非编排场景（flat-post / 回看幕 / reduced-motion / 测试直渲）保持 IO 自动播放。 */
+    const directed = directedCtx && !prefersReducedMotion()
+
+    const observer = directed ? null : new IntersectionObserver((entries) => {
       for (const e of entries) {
         if (e.isIntersecting) {
           if (!started) { started = true; handle.play() }
@@ -112,9 +133,32 @@ export default function SceneClip({ demo }: { demo?: string }) {
       }
     }, { threshold: 0.3 })
 
-    observer.observe(el)
+    observer?.observe(el)
     const btn = btnRef.current
     btn?.addEventListener('click', handle.replay)
+
+    /* v12：⛶ 灯箱——全屏从头播一次（不等待完成，播完停留全屏），
+     * 支持滚轮缩放/拖动平移，由用户经 ✕ 关闭 / ESC / 点背景主动缩回。
+     * playFromStart 与 Director 的 play() 分离语义：无论是否
+     * finished 都从头重播（reset + play），播完 resolve。 */
+    const playFromStart = (): Promise<void> =>
+      new Promise<void>((resolve) => {
+        playResolver = resolve
+        started = true
+        handle.reset()
+        handle.play()
+      })
+    const fsBtn = fsBtnRef.current
+    const onFullscreen = () => {
+      markFsHintSeen()
+      void openClipLightbox({ clip: el, play: playFromStart })
+    }
+    fsBtn?.addEventListener('click', onFullscreen)
+
+    /* 首次访问：给页面第一个 ⛶ 挂引导强调（点击任意 ⛶ 后全局撤下） */
+    if (fsBtn && !fsHintSeen() && document.querySelector('.scene-expand') === fsBtn) {
+      fsBtn.classList.add('is-hint')
+    }
 
     /* v7 Task 3（demo API promise 化）：play() 返回 Promise<void>——
      * 已 finished 直接 resolve；否则先挂 resolver 再触发 handle.play()
@@ -143,8 +187,13 @@ export default function SceneClip({ demo }: { demo?: string }) {
 
     return () => {
       unregister()
-      observer.disconnect()
+      observer?.disconnect()
       btn?.removeEventListener('click', handle.replay)
+      fsBtn?.removeEventListener('click', onFullscreen)
+      fsBtn?.classList.remove('is-hint')
+      /* v10：卸载时若本 clip 正处于手动/演出全屏态，先还原 reparent——
+       * 保证 React 能从原父节点移除 DOM（reparent 后 removeChild 会找不到节点） */
+      cancelClipFullscreen(el)
       /* v7 Task 3：cleanup 兜底——手动 resolve 挂起的 play promise
        * （GSAP 的 eventCallback onKill 不会在 tl.kill 触发，
        *  切幕/卸载时若 play() 还挂着，需手动 resolve 防止 Director await 悬挂） */
@@ -153,12 +202,13 @@ export default function SceneClip({ demo }: { demo?: string }) {
       r?.()
       handle.kill()
     }
-  }, [scene, demoName])
+  }, [scene, demoName, directedCtx])
 
   const Stage = scene?.Stage
   return (
     <div ref={ref} className="scene-clip" data-scene-clip-demo={demoName} aria-label={`动画：${demoName}`}>
       {Stage && <Stage />}
+      <button ref={fsBtnRef} type="button" className="scene-expand" aria-label="全屏播放">⛶ 全屏</button>
       <button ref={btnRef} type="button" className="scene-replay" aria-label="重看">↻ 重看</button>
     </div>
   )
