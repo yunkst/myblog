@@ -11,7 +11,7 @@ export default function Contact() {
       </div>
       <div className="qr">
         {site.wechat_qr.endsWith('.png')
-          ? <img src={site.wechat_qr} alt="微信二维码" />
+          ? <img src={`${import.meta.env.BASE_URL}static/${site.wechat_qr}`} alt="微信二维码" />
           : <span>微信二维码<br />占位</span>}
       </div>
     </section>
