@@ -81,6 +81,10 @@ describe('clipFullscreen（v12 top-layer 版）', () => {
     setSize(400, 900)
     ro.cb([], ro as unknown as ResizeObserver)
     expect(gsap.getProperty(clip, 'scale')).toBeCloseTo(REFIT_SCALE, 3)
+    // 占位同步内容真实尺寸：槽位全程诚实，缩窗 FLIP 落点才准（修收缩抖动）
+    const ph = wrap.querySelector<HTMLElement>('.mode1-placeholder')!
+    expect(ph.style.height).toBe('900px')
+    expect(ph.style.width).toBe('400px')
 
     // 播完 → 缩窗还原：close + 占位移除 + 停止观察
     resolvePlay()
@@ -123,7 +127,7 @@ describe('clipFullscreen（v12 top-layer 版）', () => {
 
     expect(clip.open).toBe(true)
     expect(clip.parentElement).toBe(wrap)
-    // 控制条：↻ 重播 + ✕ 关闭 + 提示，挂在 body 的 popover 容器里
+    // 控制条：↻ 重播 + ✕ 关闭 + 提示，挂在 body 的容器里
     expect(document.querySelectorAll('.clip-lb-close').length).toBe(2)
     expect(document.querySelector('.clip-lb-hint')).not.toBeNull()
     expect(document.body.classList.contains('clip-lb-live')).toBe(true)
@@ -138,6 +142,35 @@ describe('clipFullscreen（v12 top-layer 版）', () => {
     expect(document.querySelector('.clip-lb-ui')).toBeNull()
     expect(document.body.classList.contains('clip-lb-live')).toBe(false)
     resolvePlay()
+    await done
+  })
+
+  /* 灯箱打开瞬间图片可能尚未解码——用户接管（滚轮/拖动）前保持自动 refit，
+   * 接管后永久让位（v11：缩放权在用户）。 */
+  it('灯箱型：接管前自动 refit（含占位同步），滚轮接管后停止', async () => {
+    vi.stubGlobal('ResizeObserver', roStub)
+    const { clip, setSize } = makeDialogClip()
+    const done = openClipLightbox({ clip })
+
+    expect(gsap.getProperty(clip, 'scale')).toBeCloseTo(INITIAL_SCALE, 3)
+    const ro = roStub.instances.at(-1)!
+    // 内容长高（图片就绪）→ 用户未接管 → 重夹 + 占位同步
+    setSize(400, 900)
+    ro.cb([], ro as unknown as ResizeObserver)
+    expect(gsap.getProperty(clip, 'scale')).toBeCloseTo(REFIT_SCALE, 3)
+    const ph = document.querySelector<HTMLElement>('.mode1-placeholder')!
+    expect(ph.style.height).toBe('900px')
+
+    // 用户滚轮接管 → 再长高 → 不再自动 refit
+    window.dispatchEvent(new Event('wheel'))
+    const scaleAfterWheel = gsap.getProperty(clip, 'scale')
+    setSize(400, 1500)
+    ro.cb([], ro as unknown as ResizeObserver)
+    expect(gsap.getProperty(clip, 'scale')).toBe(scaleAfterWheel)
+    expect(ph.style.height).toBe('900px')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await vi.waitFor(() => expect(clip.open).toBe(false), { timeout: 3000 })
     await done
   })
 })

@@ -25,8 +25,9 @@ import gsap from 'gsap'
  *   瞬间展开，漫画图未加载时量到的高度≈0，scale 只按宽度算出超大值，图片
  *   加载完成后内容长高溢出视口）。
  * - openClipLightbox（灯箱型，v11 用户裁定）：SceneClip ⛶ 按钮用——全屏从头
- *   播放后停留不缩回；滚轮缩放（光标锚定）+ 拖动平移（缩放权在用户，不自动
- *   refit）；右上角「✕ 关闭」/ ESC / 点遮罩背景触发缩回原位。灯箱控制条挂在
+ *   播放后停留不缩回；滚轮缩放（光标锚定）+ 拖动平移。打开时保持自动 refit
+ *   （内容可能尚未解码），用户一旦滚轮/拖动即接管、自动 fit 让位；右上角
+ *   「✕ 关闭」/ ESC / 点遮罩背景触发缩回原位。灯箱控制条挂在
  *   第二个 <dialog> 里随后 showModal——top layer 内后提升者画在上，且不被
  *   clip 的缩放平移 transform 带走（clip 内容进 top layer 后，页面层的任何
  *   z-index 都画不过它，控制条必须同在 top layer）。
@@ -71,7 +72,10 @@ interface PromoteCtx {
   shrinkToHome: (registerTl?: (tl: gsap.core.Animation) => void) => Promise<void>
 }
 
-function promoteClip(clip: HTMLDialogElement, opts: { refit: boolean }): PromoteCtx {
+function promoteClip(
+  clip: HTMLDialogElement,
+  opts: { refit: boolean; refitWhile?: () => boolean },
+): PromoteCtx {
   // 量 demo rect（grid 原态，未放大）
   const clipRect = clip.getBoundingClientRect()
   const vw = window.innerWidth
@@ -81,10 +85,12 @@ function promoteClip(clip: HTMLDialogElement, opts: { refit: boolean }): Promote
 
   const origStyle = clip.getAttribute('style') ?? ''
   const origParent = clip.parentElement!
-  // 占位元素：dialog 进 top layer 后出流，grid 槽位会塌——撑住它，缩窗时作落点标尺
+  // 占位元素：dialog 进 top layer 后出流，grid 槽位会塌——撑住它，缩窗时作落点标尺。
+  // margin 一并镜像（flat-post 内联态 clip 有 20px 上下边距），保证落点 = 还原位置。
+  const clipCS = getComputedStyle(clip)
   const ph = document.createElement('div')
   ph.className = 'mode1-placeholder'
-  ph.style.cssText = `width:${clipRect.width}px;height:${clipRect.height}px;visibility:hidden;pointer-events:none`
+  ph.style.cssText = `width:${clipRect.width}px;height:${clipRect.height}px;margin:${clipCS.margin};visibility:hidden;pointer-events:none`
   origParent.insertBefore(ph, clip)
 
   // top layer 提升：不搬 DOM。UA 的 dialog:modal 几何（margin auto / max-width /
@@ -113,15 +119,20 @@ function promoteClip(clip: HTMLDialogElement, opts: { refit: boolean }): Promote
   const onCancel = (ev: Event) => ev.preventDefault()
   clip.addEventListener('cancel', onCancel)
 
-  /* fit 不变量（演出型）：内容盒尺寸变化（图片/字体迟到加载）或窗口 resize 时
-   * 重夹 scale 并保持居中。offsetWidth/Height 是布局盒，不受 transform 缩放
-   * 影响，可直接代入 fit 公式。灯箱型不挂——缩放权在用户。 */
+  /* fit 不变量：内容盒尺寸变化（图片/字体迟到加载）或窗口 resize 时重夹 scale
+   * 并保持居中。offsetWidth/Height 是布局盒，不受 transform 缩放影响，可直接
+   * 代入 fit 公式。placeholder 同步内容真实尺寸——槽位全程诚实（重排发生在
+   * 不透明幕布之后），缩窗 FLIP 落点才准、restore 不再跳位。
+   * refitWhile：灯箱型在用户滚轮/拖动接管后停止自动 refit（缩放权在用户）。 */
   let ro: ResizeObserver | null = null
   const fit = () => {
     if (restored) return
+    if (opts.refitWhile && !opts.refitWhile()) return
     const w = clip.offsetWidth
     const h = clip.offsetHeight
     if (!w || !h) return
+    ph.style.width = `${w}px`
+    ph.style.height = `${h}px`
     gsap.set(clip, {
       x: window.innerWidth / 2,
       y: window.innerHeight / 2,
@@ -173,22 +184,30 @@ function promoteClip(clip: HTMLDialogElement, opts: { refit: boolean }): Promote
         ease: 'power3.inOut',
         onStart: () => { clip.classList.remove('fs-dim') },
         onComplete: () => {
-          /* FLIP 收尾补偿：先 restore（清 transform + 撤 top layer 回槽位）再量
-           * 真实静态 rect（顺序关键），残差用同帧反向 transform 对齐 + 0.18s 滑零
-           * ——「跳变」变「滑入」。 */
+          /* 落点以 close 瞬间的占位实测为准（0.6s 缩窗里列宽/滚动条可能已变，
+           * 起点测的 phRect 已过期）。restore() 清 transform + 撤 top layer 回槽位
+           * （顺序关键），随后**下一帧**再量 real：close 瞬间列宽处于过渡态
+           * （占位↔真实内容高度交叉会让 stage-inner 瞬时变宽/变窄，垂直居中
+           * 随之摆动），同帧量到的 real 是瞬态值，会产生假残差 → 收尾滑动
+           * （实测 ±19px 抖尾）。延后一帧等布局稳定，残差真存在才补偿。 */
+          const target = ph.isConnected ? ph.getBoundingClientRect() : phRect
           restore()
-          const real = clip.getBoundingClientRect()
-          const dx = phRect.left - real.left
-          const dy = phRect.top - real.top
-          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-            const settle = gsap.fromTo(
-              clip,
-              { x: dx, y: dy },
-              { x: 0, y: 0, duration: 0.18, ease: 'power1.out', clearProps: 'transform' },
-            )
-            registerTl?.(settle)
-          }
-          resolve()
+          requestAnimationFrame(() => {
+            const real = clip.getBoundingClientRect()
+            const dx = target.left - real.left
+            const dy = target.top - real.top
+            if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+              const settle = gsap.fromTo(
+                clip,
+                { x: dx, y: dy },
+                { x: 0, y: 0, duration: 0.18, ease: 'power1.out', clearProps: 'transform' },
+              )
+              registerTl?.(settle)
+              settle.then(() => resolve())
+            } else {
+              resolve()
+            }
+          })
         },
       })
       registerTl?.(shrink)
@@ -236,7 +255,14 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
    * 点击/指针由 dialog 承接）——光标语义挂 body 类，dialog 全域继承。 */
   document.body.classList.add('clip-lb-live')
 
-  const ctx = promoteClip(clip as HTMLDialogElement, { refit: false })
+  /* 打开瞬间图片可能尚未解码（如 reduced-motion 下无 mode 1 预热、快速切幕），
+   * 量到的尺寸会过期——内容就绪前保持自动 refit；用户一旦滚轮/拖动即接管，
+   * 自动 fit 永久让位（v11：缩放权在用户）。 */
+  let userTookOver = false
+  const ctx = promoteClip(clip as HTMLDialogElement, {
+    refit: true,
+    refitWhile: () => !userTookOver,
+  })
 
   /* 控制条：↻ 重播 + ✕ 关闭 + 底部提示。容器是第二个 <dialog>，在 clip dialog
    * 之后 showModal → 同在 top layer 且画在 clip 之上（页面层任何 z-index 都画
@@ -274,6 +300,7 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
   const apply = () => gsap.set(clip, { x: px, y: py, scale: s })
 
   const onWheel = (ev: WheelEvent) => {
+    userTookOver = true
     ev.preventDefault()
     const factor = ev.deltaY < 0 ? 1.15 : 1 / 1.15
     const ns = Math.min(5, Math.max(0.5, s * factor))
@@ -301,6 +328,7 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
   const onPointerDown = (ev: PointerEvent) => {
     // 从按钮上按下（↻ 重看 / ⛶ / ✕）不启动平移
     if ((ev.target as HTMLElement | null)?.closest('button')) return
+    userTookOver = true
     dragging = true
     moved = 0
     lastX = ev.clientX
