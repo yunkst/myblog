@@ -18,7 +18,7 @@ import {
   figNbSubagent,
 } from './diagrams'
 
-const AV = '/posts/novel-builder/avatars'
+const AV = `${import.meta.env.BASE_URL}posts/novel-builder/avatars`
 
 /* ───────── 入口：intro-overview ───────── */
 export function IntroStage() {

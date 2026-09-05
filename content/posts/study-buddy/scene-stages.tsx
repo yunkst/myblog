@@ -14,7 +14,7 @@ import {
   figSbLocalFirst,
 } from './diagrams'
 
-const AV = '/posts/study-buddy/avatars'
+const AV = `${import.meta.env.BASE_URL}posts/study-buddy/avatars`
 
 /* ───────── 入口：intro-overview ───────── */
 export function IntroStage() {

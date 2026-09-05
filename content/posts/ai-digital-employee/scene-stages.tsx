@@ -20,7 +20,7 @@ import {
 /* ───────── 体验型 2 个 ───────── */
 
 export function FloodStage() {
-  const AV = '/posts/ai-digital-employee/avatars'
+  const AV = `${import.meta.env.BASE_URL}posts/ai-digital-employee/avatars`
   return (
     <div className="flood-stage">
       <ChatPane title="公司群">
