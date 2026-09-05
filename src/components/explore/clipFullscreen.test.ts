@@ -173,4 +173,50 @@ describe('clipFullscreen（v12 top-layer 版）', () => {
     await vi.waitFor(() => expect(clip.open).toBe(false), { timeout: 3000 })
     await done
   })
+
+  /* 收尾残差补偿（settle）：close 瞬间列宽处于过渡态，同帧量到的 real 是瞬态值
+   * （实测会假报 ±19px 残差 → 收尾抖尾）。修复后：延后一帧量 real，布局稳定后
+   * 残差为 0 → 不建 settle，落点帧级精准；残差真存在才补偿滑入。 */
+  it('演出型：缩窗落点无残差时不建 settle（close 后延后一帧量测）', async () => {
+    vi.stubGlobal('ResizeObserver', roStub)
+    const { wrap, clip } = makeDialogClip()
+    let resolvePlay!: () => void
+    const done = playClipFullscreen({ clip, play: () => new Promise<void>((r) => { resolvePlay = r }) })
+    await vi.waitFor(() => expect(clip.open).toBe(true), { timeout: 3000 })
+
+    // close 后的 real 与落点（jsdom 占位为 0 矩形）一致 → 残差 0 → 不补偿
+    clip.getBoundingClientRect = () => ({
+      width: 0, height: 0, left: 0, top: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}),
+    }) as DOMRect
+
+    resolvePlay()
+    await vi.waitFor(() => expect(clip.open).toBe(false), { timeout: 3000 })
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    expect(gsap.getTweensOf(clip).length).toBe(0)
+    await done
+    expect(wrap.querySelector('.mode1-placeholder')).toBeNull()
+  })
+
+  it('演出型：缩窗落点存在残差时建 settle 滑入，完成后 transform 清理', async () => {
+    vi.stubGlobal('ResizeObserver', roStub)
+    const { clip } = makeDialogClip()
+    let resolvePlay!: () => void
+    const done = playClipFullscreen({ clip, play: () => new Promise<void>((r) => { resolvePlay = r }) })
+    await vi.waitFor(() => expect(clip.open).toBe(true), { timeout: 3000 })
+
+    // close 后 real 偏离落点（jsdom 占位为 0 矩形）→ 残差 -100/-100 → 建 settle。
+    // 断言 spy 调用参数而非 tween 存活——0.18s 的 settle 在慢环境下可能已结束回收。
+    const fromToSpy = vi.spyOn(gsap, 'fromTo')
+    resolvePlay()
+    await vi.waitFor(() => expect(clip.open).toBe(false), { timeout: 3000 })
+    await new Promise((r) => requestAnimationFrame(() => r(null)))
+    expect(fromToSpy).toHaveBeenCalledWith(
+      clip,
+      expect.objectContaining({ x: -100, y: -100 }),
+      expect.objectContaining({ duration: 0.18 }),
+    )
+    fromToSpy.mockRestore()
+    await done
+    expect(clip.style.transform).toBe('')
+  })
 })

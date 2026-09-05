@@ -68,6 +68,8 @@ interface PromoteCtx {
   baseScale: number
   /** 立即还原（清 inline 几何 + close 撤 top layer + 撤占位），幂等 */
   restore: () => void
+  /** 会话取消路径：标记取消（缩窗尾部的 settle 决策据此跳过）+ restore */
+  cancel: () => void
   /** 缩窗动画落回原槽位（含 FLIP 残差补偿），完成后内部调 restore */
   shrinkToHome: (registerTl?: (tl: gsap.core.Animation) => void) => Promise<void>
 }
@@ -107,6 +109,7 @@ function promoteClip(
   clip.style.top = '0'
 
   let restored = false
+  let sessionCancelled = false
 
   // 第一帧即居中终态——提升 + 几何 + 居中 set 在同一同步任务内完成，无中间帧
   gsap.set(clip, { xPercent: -50, yPercent: -50, x: vw / 2, y: vh / 2, scale })
@@ -193,6 +196,9 @@ function promoteClip(
           const target = ph.isConnected ? ph.getBoundingClientRect() : phRect
           restore()
           requestAnimationFrame(() => {
+            // 等 rAF 的间隙里被 cancel（切幕/卸载）：会话已取消还原，不得再挂补偿。
+            // 注意不能拿 restored 判断——正常完成的 restore 也会置位它。
+            if (sessionCancelled) { resolve(); return }
             const real = clip.getBoundingClientRect()
             const dx = target.left - real.left
             const dy = target.top - real.top
@@ -214,7 +220,12 @@ function promoteClip(
     })
   }
 
-  return { clip, baseX: vw / 2, baseY: vh / 2, baseScale: scale, restore, shrinkToHome }
+  const cancel = () => {
+    sessionCancelled = true
+    restore()
+  }
+
+  return { clip, baseX: vw / 2, baseY: vh / 2, baseScale: scale, restore, cancel, shrinkToHome }
 }
 
 /* ───────────────────────── 形态 1：演出型全屏（Director mode 1） ───────────────────────── */
@@ -229,7 +240,7 @@ export async function playClipFullscreen(opts: ClipFullscreenOpts): Promise<void
   }
 
   const ctx = promoteClip(clip as HTMLDialogElement, { refit: true })
-  active = { clip, cancel: ctx.restore }
+  active = { clip, cancel: ctx.cancel }
 
   // demo 在全屏态播放，播完立即缩回
   await play()
@@ -402,7 +413,7 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
     clip,
     cancel: () => {
       teardown()
-      ctx.restore()
+      ctx.cancel()
       resolveDone()
     },
   }
