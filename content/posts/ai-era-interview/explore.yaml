@@ -1,0 +1,45 @@
+title: AI 时代应该怎么面试
+entry: q-intro
+
+scenes:
+  - id: q-intro
+    label: 为什么老的面试题测不出 AI 时代的工程师？
+    demo: horse-comic
+    mode: 1
+    features:
+      - { text: 路线一：传统面试 + 反 AI 作弊, to: q-route-1 }
+      - { text: 路线二：考架构设计, to: q-route-2 }
+
+  - id: q-route-1
+    label: 路线一为什么失效：防出来的「纯净成绩」不是你要的能力
+    demo: route-1-fails
+    questions:
+      - { text: 那考架构设计呢？, to: q-route-2 }
+
+  - id: q-route-2
+    label: 路线二为什么失效：能作弊的考法是在做逆向筛选
+    demo: reverse-filter
+    questions:
+      - { text: 那到底该怎么考？, to: q-solution }
+
+  - id: q-solution
+    label: 解法：把 AI 从作弊工具变成考试工具
+    demo: open-ai
+    features:
+      - { text: 怎么出题：复杂但一句话能描述, to: q-question }
+
+  - id: q-question
+    label: 怎么出题：AI 的坑就是你的面试题
+    demo: question-design
+    features:
+      - { text: 怎么观察：重点不是产出，是过程, to: q-observe }
+
+  - id: q-observe
+    label: 怎么观察：重点不是产出，是过程
+    demo: observe-four
+    questions:
+      - { text: 这样招的人会不会离开 AI 就不会写代码？, to: q-objections }
+
+  - id: q-objections
+    label: 两个质疑，和三条总结
+    demo: objections

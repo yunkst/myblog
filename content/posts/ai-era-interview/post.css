@@ -1,0 +1,29 @@
+/* post.css — ai-era-interview 场景舞台专属样式（随文章走） */
+
+/* ─── 漫画舞台：分格逐现 ─── */
+.comic-stage {
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+.comic-panel {
+  margin: 0;
+  max-width: 560px;
+  width: 100%;
+}
+.comic-panel img {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.comic-panel figcaption {
+  margin-top: 8px;
+  text-align: center;
+  font: 12px var(--mono);
+  color: var(--dim);
+  letter-spacing: 0.03em;
+}

@@ -12,6 +12,10 @@ import { getAllPosts } from '../lib/content'
 describe('PostList explore 入口', () => {
   it('explore 卡片显示「▶ 进入舞台 · <label>」', () => {
     const { container } = render(<MemoryRouter><PostList /></MemoryRouter>)
+    /* 默认筛选「AI 与工程」（2026-09-05 起），先切到「全部」再看所有文章入口 */
+    const allChip = Array.from(container.querySelectorAll('.post-filter-btn'))
+      .find((b) => b.textContent?.includes('全部'))!
+    fireEvent.click(allChip)
     const btns = Array.from(container.querySelectorAll('.explore-entry-btn'))
     expect(btns.length).toBeGreaterThanOrEqual(2)
     for (const btn of btns) {
@@ -25,14 +29,18 @@ describe('PostList explore 入口', () => {
 })
 
 describe('PostList 领域筛选 + 置顶', () => {
-  it('筛选按钮：默认「全部」激活，含全部有文章的领域及计数', () => {
+  it('筛选按钮：默认「AI 与工程」激活，含全部有文章的领域及计数', () => {
     const { container } = render(<MemoryRouter><PostList /></MemoryRouter>)
     const btns = Array.from(container.querySelectorAll('.post-filter-btn'))
     expect(btns[0].textContent).toContain('全部')
-    expect(btns[0].className).toContain('is-active')
+    expect(btns[0].className).not.toContain('is-active')
+    /* 默认筛选「AI 与工程」（2026-09-05 起）：该 chip 激活，卡片全部属于该领域 */
+    const defChip = btns.find((b) => b.textContent?.includes('AI 与工程'))!
+    expect(defChip.className).toContain('is-active')
+    const cards = Array.from(container.querySelectorAll('.post-card'))
+    expect(cards.length).toBe(getAllPosts().filter((p) => p.domain === 'AI 与工程').length)
     const texts = btns.map((b) => b.textContent ?? '')
     expect(texts.some((t) => t.includes('开源作品'))).toBe(true)
-    expect(texts.some((t) => t.includes('AI 与工程'))).toBe(true)
     // 无文章的领域（如 site.yaml 里的「项目经历」）不渲染筛选项
     expect(texts.some((t) => t.includes('项目经历'))).toBe(false)
   })

@@ -12,7 +12,10 @@ export default function PostList() {
     ...order.filter((d) => present.includes(d)),
     ...present.filter((d) => !order.includes(d)),
   ]
-  const [active, setActive] = useState('all')
+  /* 默认选中「AI 与工程」（求职主场域）；「想法」等领域的文章需手动切换查看。
+   * 该领域暂无文章时回退到全部。 */
+  const DEFAULT_DOMAIN = 'AI 与工程'
+  const [active, setActive] = useState(present.includes(DEFAULT_DOMAIN) ? DEFAULT_DOMAIN : 'all')
   const visible = active === 'all' ? posts : posts.filter((p) => p.domain === active)
 
   return (
