@@ -129,6 +129,34 @@ dialog.scene-clip {
   font-family: var(--sans);
   color: var(--text);
 }
+
+/* 漫画舞台：分格逐现（ai-era-interview 两格 / ai-digital-employee 单格共用） */
+.comic-stage {
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+.comic-panel {
+  margin: 0;
+  max-width: 560px;
+  width: 100%;
+}
+.comic-panel img {
+  width: 100%;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+.comic-panel figcaption {
+  margin-top: 8px;
+  text-align: center;
+  font: 12px var(--mono);
+  color: var(--dim);
+  letter-spacing: 0.03em;
+}
 .concept-title {
   font: 14px var(--fang);
   letter-spacing: 0.18em;

@@ -138,8 +138,15 @@ function ConceptList({
 }
 
 export function OpenclawPitfallsStage() {
-  return <ConceptList id="openclaw-pitfalls" title="OpenClaw 三条绕不过去的坑"
-    items={['凭证隔离问题', '细粒度权限做不到', '审计是黑洞']} />
+  /* 单格漫画：龙虾 agent（OpenClaw 吉祥物）在冒烟的机房里手忙脚乱——
+   * 不加解说，画面自己说话（2026-09-05 替换原三条坑列表，列表与正文重复无信息增量） */
+  return (
+    <div className="concept-demo comic-stage" data-concept="openclaw-pitfalls">
+      <figure className="comic-panel" id="oc-1">
+        <img src="/posts/ai-digital-employee/openclaw-mess.png" alt="龙虾机器人在冒烟的服务器机房里举着扳手一脸无辜，电线散落、警报闪烁" />
+      </figure>
+    </div>
+  )
 }
 
 export function FourPrerequisitesStage() {

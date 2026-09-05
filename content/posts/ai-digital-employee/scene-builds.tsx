@@ -40,27 +40,11 @@ function activateIdentityNode(sel: string | null) {
   if (sel) document.querySelector<HTMLElement>(sel)?.classList.add('is-active')
 }
 
-/** 概念型 1：openclaw-pitfalls — 3 条 stagger 出现 → 全部变灰 + 「未上线」标签 */
+/** 概念型 1：openclaw-pitfalls — 单格漫画淡入（漫画即观点，不加解说） */
 export function buildOpenclawPitfalls() {
   const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
-  const items = setConcept('openclaw-pitfalls')
-  const nos = nosOf('openclaw-pitfalls')
-  tl.set(items, { opacity: 0, y: 12 })
-  tl.to(items, { opacity: 1, y: 0, duration: 0.45, stagger: 0.55 })
-  // 强调：3 条都出现后，整体变灰 + 编号方块警示色 + 右侧「未上线」角标
-  tl.to(items, { opacity: 0.4, duration: 0.5 }, '+=0.4')
-  tl.to(nos, { backgroundColor: 'rgba(192,57,43,0.10)', color: '#C0392B', duration: 0.4 }, '<')
-  tl.call(() => {
-    document.querySelectorAll('[data-concept="openclaw-pitfalls"] .concept-text').forEach((el) => {
-      if (!el.querySelector('.concept-tag')) {
-        const tag = document.createElement('span')
-        tag.className = 'concept-tag'
-        tag.textContent = '未上线'
-        tag.style.color = '#C0392B'
-        el.appendChild(tag)
-      }
-    })
-  }, [], '<')
+  tl.set('#oc-1', { opacity: 0, y: 18 })
+  tl.to('#oc-1', { opacity: 1, y: 0, duration: 0.8 })
   return tl
 }
 
