@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { ExploreConfig, ExploreScene } from '../../lib/types'
+import type { ExploreConfig } from '../../lib/types'
 
 /** exploreConfig Context 注入通道（Post.tsx 提供，Answer 消费）。
  * 单独抽出文件避免 Answer.tsx 被 Answer.test.tsx 用 `import Answer, { ExploreConfigContext }`
@@ -49,9 +49,6 @@ export interface ExploreRuntime {
   /* v5 Task 3：当前幕出口（features→questions 平铺）焦点下标；null = 无焦点。
    * 键盘 ↑↓ 循环切换，Enter 跳到焦点出口。ExitChips 据此给对应 chip 加 exit-chip--focused。 */
   focusedExitIdx: number | null
-  /** 主线下一幕（yaml 顺序 activeId 的下一幕）；StageNav/面板动作镜像共用。
-   * v5 review fix：原 StageNav 自行 findIndex 查表——收敛到 router 单一查表点。 */
-  nextScene?: ExploreScene
 }
 
 export const ExploreRuntimeContext = createContext<ExploreRuntime | null>(null)

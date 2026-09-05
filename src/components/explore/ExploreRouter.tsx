@@ -128,8 +128,8 @@ export function ExploreRouter({ config, children, onExit }: Props) {
   /* 切幕时清焦点：避免上一幕的 idx 落到新幕出口数组中越界 */
   useEffect(() => { setFocusedExitIdx(null) }, [activeId])
 
-  /* 当前幕 + 主线下一幕——单一查表（flatExits / 键盘 onNext / exitsWithMain / nextSceneId /
-   * nextSceneLabel 五处 findIndex+(idx+1)%len 的收敛点；StageNav 改消费 runtime.nextScene）。 */
+  /* 当前幕 + 主线下一幕——flatExits / 键盘 onNext 共用的单一查表点
+   * （findIndex+(idx+1)%len 收敛于此，下游不再各自查表）。 */
   const current = useMemo(() => {
     const idx = config.scenes.findIndex((s) => s.id === activeId)
     if (idx < 0) return { idx: -1, scene: null, next: undefined as ExploreScene | undefined }
@@ -221,8 +221,7 @@ export function ExploreRouter({ config, children, onExit }: Props) {
      * runtime.onExit 保留为 Stage 直接退出入口（面板/Esc 决策只在 hook 一处）。 */
     onExit: () => onExitRef.current?.(),
     focusedExitIdx,
-    nextScene: current.next,
-  }), [activeId, goTo, onActivate, firstActivation, back, history.stack.length, panelOpen, focusedExitIdx, current])
+  }), [activeId, goTo, onActivate, firstActivation, back, history.stack.length, panelOpen, focusedExitIdx])
 
   /* v6 路线图布局：纯函数，config 不变则结果不变（RoadmapPanel 内聚焦裁剪克隆节点，
    * 不会改写这份缓存——roadmap.test.ts 有针对性断言） */

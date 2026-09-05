@@ -21,11 +21,36 @@ export function typeInto(
   text: string,
   stepSec = 0.05,
 ) {
+  /* 终态高度预留（防抖动）：构建时同步「塞全文→量高→还原」（同一帧内
+   * 完成，无中间绘制），把终态 border-box 高锁进 min-height——打字期间
+   * 目标高度恒定，下方内容/居中容器不再随段落增行位移。目标此刻可能未
+   * 挂载（每次回调 getElementById 重查的同一原因），量不到就跳过。
+   * 用 innerHTML 保存/还原，避免 textContent 回写丢掉占位标记的样式。
+   * 全局 box-sizing:border-box（theme.css），rect.height 即 min-height 语义值。 */
+  if (text.length > 0) {
+    const el0 = document.getElementById(selector)
+    if (el0) {
+      const prev = el0.innerHTML
+      el0.textContent = text
+      const finalH = el0.getBoundingClientRect().height
+      el0.innerHTML = prev
+      if (finalH > 0) el0.style.minHeight = `${finalH}px`
+    }
+  }
+
   for (let i = 1; i <= text.length; i++) {
     tl.call(() => {
       const el = document.getElementById(selector)
       if (el) el.textContent = text.slice(0, i)
     })
     tl.to({}, { duration: stepSec })
+  }
+
+  // restore 收尾：清掉预留（打字中 resize 造成的 px 失真随之自愈）
+  if (text.length > 0) {
+    tl.call(() => {
+      const el = document.getElementById(selector)
+      if (el) el.style.minHeight = ''
+    })
   }
 }
