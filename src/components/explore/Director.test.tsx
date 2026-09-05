@@ -21,15 +21,16 @@ function makeRef<T extends HTMLElement>(): React.RefObject<T> {
   return { current: el } as unknown as React.RefObject<T>
 }
 
-/** mode 1 手工全屏（2026-08-31 版契约）测试夹具：Director 用
- * document.querySelector('.scene-clip') 找 demo 根节点。jsdom 无 layout，
- * getBoundingClientRect 全 0 会让 scale = vw/0 = Infinity——mock 非零尺寸。
- * clip 放在包裹容器里（模拟 .stage-inner 槽位）：reparent 契约是
- * 「全屏期 clip.parentElement === document.body，收尾后插回原容器」。 */
-function makeClip(): { wrap: HTMLElement; clip: HTMLElement } {
+/** mode 1 全屏（v12 top-layer 版契约）测试夹具：Director 用
+ * stageRef.querySelector('.scene-clip') 在舞台内定位 clip（<dialog>）——
+ * 所以 wrap 必须嵌在 stage 元素里（模拟 .stage-inner > clip 槽位）。
+ * jsdom 无 layout，getBoundingClientRect 全 0 会让 scale = vw/0 = Infinity——
+ * mock 非零尺寸。top-layer 契约是「clip 始终留在原容器，全屏期 dialog.open === true，
+ * 收尾后 close」。showModal/close 由 vitest.setup.ts 的 polyfill 提供（jsdom 未实现）。 */
+function makeClip(stage: HTMLElement): { wrap: HTMLElement; clip: HTMLDialogElement } {
   const wrap = document.createElement('div')
   wrap.className = 'test-clip-wrap'
-  const el = document.createElement('div')
+  const el = document.createElement('dialog')
   el.className = 'scene-clip'
   el.getBoundingClientRect = () => ({
     width: 400, height: 300, left: 100, top: 100,
@@ -37,15 +38,15 @@ function makeClip(): { wrap: HTMLElement; clip: HTMLElement } {
     toJSON: () => ({}),
   }) as DOMRect
   wrap.appendChild(el)
-  document.body.appendChild(wrap)
+  stage.appendChild(wrap)
   return { wrap, clip: el }
 }
 
 beforeEach(() => { mockedReduce.value = false })
 afterEach(() => {
   gsap.globalTimeline.clear()
-  // mode 1 的 overlay / 占位 / 假 clip 都是 append 到 DOM 的非 React 托管节点，逐个清
-  document.querySelectorAll('.scene-clip, .mode1-overlay, .mode1-placeholder, .test-clip-wrap').forEach((el) => el.remove())
+  // mode 1 的占位 / 假 clip 都是 append 到 DOM 的非 React 托管节点，逐个清
+  document.querySelectorAll('.scene-clip, .mode1-placeholder, .test-clip-wrap').forEach((el) => el.remove())
 })
 
 describe('Director', () => {
@@ -105,17 +106,16 @@ describe('Director', () => {
     expect(buildTypewriterTimeline(dlgEl)).toBeNull()
   })
 
-  /* mode 1 手工全屏（2026-08-31 版契约，取代已退役的 onFullscreen/data-fullscreen
-   * 属性驱动路径）：Director 直接操作 DOM——挂载即把 .mode1-overlay append 到 body、
-   * clip 转 position:fixed；不经过 Answer 持状态。 */
-  it('mode 1：挂载即建 overlay + clip reparent 到 body 根转 fixed，并建出演示 timeline（空 demo 短路不卡等待）', () => {
-    const { wrap, clip } = makeClip()
+  /* mode 1 全屏（v12 top-layer 版契约，取代 reparent 版）：Director 展开时
+   * showModal() 提升 clip，不搬 DOM——clip 留在原容器，槽位由占位元素撑住。 */
+  it('mode 1：挂载即提升 clip 进全屏（dialog.open）+ 占位撑槽，并建出演示 timeline（空 demo 短路不卡等待）', () => {
+    const stage = makeRef<HTMLElement>()
+    const { wrap, clip } = makeClip(stage.current!)
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
-    const stage = makeRef<HTMLElement>()
 
     // demo 空：playDemo 立即 resolve（v6 空 demo 短路），全屏/缩窗照常建
     const scene: DirectorScene = { id: 'q-m1', mode: 1, demo: '' }
@@ -125,27 +125,24 @@ describe('Director', () => {
       </Director>,
     )
     // 挂载即全屏（layout 阶段同步——React paint 前 flush，首帧即全屏）
-    expect(document.querySelector('.mode1-overlay')).not.toBeNull()
+    expect(clip.open).toBe(true)
     expect(clip.style.position).toBe('fixed')
-    // reparent 契约：clip 移到 body 根（脱离 stage-inner stacking context，治入场黑屏），
-    // 原槽位由占位元素撑住；挂 scene-clip--fs 镜像 class（归属变化护栏——
-    // reparent 后 .stage-frame .stage 规则链失效，镜像 grid 内布局防内容跳变）
-    expect(clip.parentElement).toBe(document.body)
-    expect(clip.classList.contains('scene-clip--fs')).toBe(true)
+    // top-layer 契约：clip 原地提升（脱离 reparent 时代），原槽位由占位元素撑住
+    expect(clip.parentElement).toBe(wrap)
     expect(wrap.querySelector('.mode1-placeholder')).not.toBeNull()
     // mode 1 应至少建出 timeline（入场 / 缩窗 / act-head / dialogue / choices 任一进 globalTimeline）
     expect(gsap.globalTimeline.getChildren(true, true, true).length).toBeGreaterThan(0)
   })
 
-  /* mode 3 纯文字：从不进全屏分支（不建 overlay、不碰 clip）。 */
-  it('mode 3 不建 overlay（直走文字演出，clip 样式/位置不动）', () => {
-    const { wrap, clip } = makeClip()
+  /* mode 3 纯文字：从不进全屏分支（不提升 clip、不碰 clip）。 */
+  it('mode 3 不进全屏（直走文字演出，clip 样式/位置不动）', () => {
+    const stage = makeRef<HTMLElement>()
+    const { wrap, clip } = makeClip(stage.current!)
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
-    const stage = makeRef<HTMLElement>()
 
     const scene: DirectorScene = { id: 'q-m3', mode: 3, demo: '' }
     render(
@@ -153,23 +150,22 @@ describe('Director', () => {
         <span>x</span>
       </Director>,
     )
-    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(clip.open).toBe(false)
     expect(clip.style.position).toBe('')
     expect(clip.parentElement).toBe(wrap)
   })
 
   /* P0 回归（2026-08 实锤 bug：shrink.eventCallback('onComplete') 覆盖 vars onComplete →
-   * 样式还原永不执行 → clip 永久残留 fixed 盖住标题）+ 架构回归（原地 fixed 被 overlay
-   * 盖住 → 入场黑屏；终点 x:0,y:0 → 闪现）：
-   * 缩窗 onComplete 必须一处收尾——clip inline style 还原 + 插回原容器 + 占位/overlay 移除。 */
-  it('mode 1 缩窗完成后：clip 还原并插回原容器 + 占位/overlay 移除', async () => {
-    const { wrap, clip } = makeClip()
+   * 样式还原永不执行 → clip 永久残留 fixed 盖住标题）：
+   * 缩窗 onComplete 必须一处收尾——clip inline style 还原 + 撤 top layer + 占位移除。 */
+  it('mode 1 缩窗完成后：clip 还原（close + 清 inline style）+ 占位移除', async () => {
+    const stage = makeRef<HTMLElement>()
+    const { wrap, clip } = makeClip(stage.current!)
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
-    const stage = makeRef<HTMLElement>()
 
     const scene: DirectorScene = { id: 'q-m1-shrink', mode: 1, demo: '' }
     render(
@@ -178,17 +174,14 @@ describe('Director', () => {
       </Director>,
     )
     // 挂载即全屏（mode 1 语义）
-    expect(document.querySelector('.mode1-overlay')).not.toBeNull()
+    expect(clip.open).toBe(true)
     expect(clip.style.position).toBe('fixed')
-    expect(clip.parentElement).toBe(document.body)
-    // 等缩窗(0.6s) 走完：overlay/占位移除 + clip 还原并插回原容器 + 摘镜像 class
+    // 等缩窗(0.6s) 走完：占位移除 + clip 还原（close + inline style 清空）
     await vi.waitFor(() => {
-      expect(document.querySelector('.mode1-overlay')).toBeNull()
+      expect(clip.open).toBe(false)
       expect(document.querySelector('.mode1-placeholder')).toBeNull()
       expect(clip.style.position).toBe('')
       expect(clip.style.transform).toBe('')
-      expect(clip.style.zIndex).toBe('')
-      expect(clip.classList.contains('scene-clip--fs')).toBe(false)
       expect(clip.parentElement).toBe(wrap)
     }, { timeout: 3000 })
   })
@@ -322,16 +315,16 @@ describe('Director', () => {
   })
 
   /* 中途 unmount（快速切幕）：tl.kill() 不触发 tween onComplete/clearProps——
-   * overlay（append 到 body 的非 React 托管节点）与 clip 的 fixed inline style
-   * 必须由 cleanup 手工收尾，不能残留。 */
-  it('mode 1 中途 unmount：cleanup 手工收尾——overlay/占位移除 + clip 还原并插回原容器', () => {
-    const { wrap, clip } = makeClip()
+   * clip 的 fixed inline style 与占位元素必须由 cleanup 手工收尾（会话 cancel），
+   * 不能残留。 */
+  it('mode 1 中途 unmount：cleanup 手工收尾——撤 top layer + 占位移除 + clip 还原', () => {
+    const stage = makeRef<HTMLElement>()
+    const { wrap, clip } = makeClip(stage.current!)
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
-    const stage = makeRef<HTMLElement>()
 
     // demo 未注册：playDemo 走 waitForApi 轮询（演出停在全屏播放阶段）
     const scene: DirectorScene = { id: 'q-unmount-full', mode: 1, demo: 'demo-not-registered' }
@@ -340,27 +333,25 @@ describe('Director', () => {
         <span>x</span>
       </Director>,
     )
-    expect(document.querySelector('.mode1-overlay')).not.toBeNull()
+    expect(clip.open).toBe(true)
     expect(clip.style.position).toBe('fixed')
-    expect(clip.parentElement).toBe(document.body)
     unmount()
-    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(clip.open).toBe(false)
     expect(document.querySelector('.mode1-placeholder')).toBeNull()
     expect(clip.style.position).toBe('')
-    expect(clip.classList.contains('scene-clip--fs')).toBe(false)
     expect(clip.parentElement).toBe(wrap)
   })
 
-  /* reduced-motion 早 return：从不进全屏分支（不建 overlay、clip 样式/位置不动）。 */
-  it('reduced-motion 下不建 overlay（clip 样式/位置不动）', () => {
+  /* reduced-motion 早 return：从不进全屏分支（不提升 clip、clip 样式/位置不动）。 */
+  it('reduced-motion 下不进全屏（clip 样式/位置不动）', () => {
     mockedReduce.value = true
-    const { wrap, clip } = makeClip()
+    const stage = makeRef<HTMLElement>()
+    const { wrap, clip } = makeClip(stage.current!)
     const head = makeRef<HTMLElement>()
     const dlg = makeRef<HTMLElement>()
     dlg.current!.innerHTML = '<p>唯一</p>'
     const choices = makeRef<HTMLElement>()
     choices.current!.innerHTML = '<a class="exit-chip" href="#x">a</a>'
-    const stage = makeRef<HTMLElement>()
 
     const scene: DirectorScene = { id: 'q-reduced-fs', mode: 1, demo: 'demo-not-registered' }
     render(
@@ -368,7 +359,7 @@ describe('Director', () => {
         <span>x</span>
       </Director>,
     )
-    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(clip.open).toBe(false)
     expect(clip.style.position).toBe('')
     expect(clip.parentElement).toBe(wrap)
   })

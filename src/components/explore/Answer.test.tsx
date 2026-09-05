@@ -273,12 +273,13 @@ describe('Answer v3 演出', () => {
   })
 })
 
-/* 全屏契约（2026-08-31 版）：v7 的 data-fullscreen 属性驱动路径已退役——
+/* 全屏契约（v12 top-layer 版）：v7 的 data-fullscreen 属性驱动路径已退役——
  * Director 从不触发 onFullscreen(true)，整条链路（Answer fullscreen state →
  * section data-fullscreen 属性 → CSS .theater[data-fullscreen] > .stage）是死代码，
- * 已随本轮修复删除。mode 1 全屏由 Director 手工实现（body 根 .mode1-overlay +
- * clip 临时 position:fixed，播完缩窗还原）。以下把「任何场景形态下 section 都不带
- * data-fullscreen」钉死，防止死路径复活；顺带验证 mode 1 时 overlay 真的出现/消失。 */
+ * 已随本轮修复删除。mode 1 全屏由 Director 经 clipFullscreen showModal() 把
+ * clip（<dialog>）提升进 top layer（v10-v11 的 reparent 方案已退役）。以下把
+ * 「任何场景形态下 section 都不带 data-fullscreen」钉死，防止死路径复活；
+ * 顺带验证 mode 1 时 clip 真的被提升/收尾。 */
 describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径 2026-08-31 退役）', () => {
   const yamlMode1 = [
     'title: t',
@@ -322,11 +323,11 @@ describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径
   beforeEach(() => { mockedReduce.value = false })
   afterEach(() => {
     gsap.globalTimeline.clear()
-    // mode 1 的 overlay 是 append 到 body 的非 React 托管节点，逐个清
-    document.querySelectorAll('.mode1-overlay').forEach((el) => el.remove())
+    // mode 1 的占位元素是 append 到舞台容器的非 React 托管节点，逐个清
+    document.querySelectorAll('.mode1-placeholder').forEach((el) => el.remove())
   })
 
-  it('mode 1 首次激活：无 data-fullscreen；手工全屏 overlay 出现在 body 根', () => {
+  it('mode 1 首次激活：无 data-fullscreen；clip 原地提升进全屏（dialog.open）', () => {
     const cfg = makeConfig(yamlMode1)
     const runtime = runtimeProvider({ activeId: 'q-fs', firstActivation: true, onActivate: () => {} })
     render(
@@ -338,17 +339,16 @@ describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径
     )
     const theater = document.querySelector('.theater')!
     expect(theater.hasAttribute('data-fullscreen')).toBe(false)
-    // 手工全屏生效：overlay 挂在 body 根（非 section 内）
-    const overlay = document.querySelector('.mode1-overlay')
-    expect(overlay).not.toBeNull()
-    expect(overlay!.parentElement).toBe(document.body)
-    // reparent 契约（治入场黑屏）：clip 脱离 .stage-inner stacking context，移到 body 根
+    // top-layer 契约（v12）：clip 原地 showModal 提升——不搬出 React 树，
+    // 仍在 .theater 内，槽位由占位元素撑住
     const clip = document.querySelector('.scene-clip')!
-    expect(clip.parentElement).toBe(document.body)
-    expect(theater.querySelector('.scene-clip')).toBeNull()
+    expect(clip).toBeInstanceOf(HTMLDialogElement)
+    expect((clip as HTMLDialogElement).open).toBe(true)
+    expect(clip.parentElement).toBe(theater.querySelector('.stage-inner'))
+    expect(document.querySelector('.mode1-placeholder')).not.toBeNull()
   })
 
-  it('mode 1 演出完成后：仍无 data-fullscreen，overlay 已移除', async () => {
+  it('mode 1 演出完成后：仍无 data-fullscreen，clip 已缩回（close + 占位移除）', async () => {
     const cfg = makeConfig(yamlMode1)
     const runtime = runtimeProvider({ activeId: 'q-fs', firstActivation: true, onActivate: () => {} })
     /* jsdom 无 IntersectionObserver → 真实 SceneClip 的 useLayoutEffect 在 IO 检查处
@@ -370,10 +370,12 @@ describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径
       )
       const theater = document.querySelector('.theater')!
       expect(theater.hasAttribute('data-fullscreen')).toBe(false)
-      // overlay 出现过（mode 1 语义），缩窗完成后被移除
-      expect(document.querySelector('.mode1-overlay')).not.toBeNull()
+      // clip 提升过（mode 1 语义），缩窗完成后 close + 占位移除
+      const clip = document.querySelector('.scene-clip') as HTMLDialogElement
+      expect(clip.open).toBe(true)
       await vi.waitFor(() => {
-        expect(document.querySelector('.mode1-overlay')).toBeNull()
+        expect(clip.open).toBe(false)
+        expect(document.querySelector('.mode1-placeholder')).toBeNull()
       }, { timeout: 3000 })
       expect(theater.hasAttribute('data-fullscreen')).toBe(false)
     } finally {
@@ -381,7 +383,7 @@ describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径
     }
   })
 
-  it('纯文字幕（无 SceneClip）：无 data-fullscreen、无 overlay', () => {
+  it('纯文字幕（无 SceneClip）：无 data-fullscreen、无打开的 dialog', () => {
     const cfg = makeConfig(yamlMode1)
     const runtime = runtimeProvider({ activeId: 'q-fs-b', firstActivation: true, onActivate: () => {} })
     render(
@@ -393,10 +395,10 @@ describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径
     )
     const theater = document.querySelector('.theater')!
     expect(theater.hasAttribute('data-fullscreen')).toBe(false)
-    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(document.querySelector('dialog[open]')).toBeNull()
   })
 
-  it('回看（firstActivation=false）：不挂 Director，无 data-fullscreen、无 overlay', () => {
+  it('回看（firstActivation=false）：不挂 Director，无 data-fullscreen、无打开的 dialog', () => {
     const cfg = makeConfig(yamlMode1)
     const runtime = runtimeProvider({ activeId: 'q-fs', firstActivation: false, onActivate: () => {} })
     render(
@@ -408,10 +410,10 @@ describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径
     )
     const theater = document.querySelector('.theater')!
     expect(theater.hasAttribute('data-fullscreen')).toBe(false)
-    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(document.querySelector('dialog[open]')).toBeNull()
   })
 
-  it('无路由 runtime（SSG 直出/测试孤儿形态）：无 data-fullscreen、无 overlay', () => {
+  it('无路由 runtime（SSG 直出/测试孤儿形态）：无 data-fullscreen、无打开的 dialog', () => {
     const cfg = makeConfig(yamlMode1)
     render(
       <MemoryRouter>
@@ -422,7 +424,7 @@ describe('Answer 全屏契约：section 永不渲染 data-fullscreen（该路径
     )
     const theater = document.querySelector('.theater')!
     expect(theater.hasAttribute('data-fullscreen')).toBe(false)
-    expect(document.querySelector('.mode1-overlay')).toBeNull()
+    expect(document.querySelector('dialog[open]')).toBeNull()
   })
 })
 

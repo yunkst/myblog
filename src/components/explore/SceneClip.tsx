@@ -75,7 +75,10 @@ function markFsHintSeen() {
  * - demo 不存在（yaml/正文引用了未定义的键）：空容器降级，控制台 warn
  */
 export default function SceneClip({ demo }: { demo?: string }) {
-  const ref = useRef<HTMLDivElement>(null)
+  /* v12：clip 渲染为 <dialog>——全屏 = showModal() 进 top layer，节点不搬出
+   * React 树（级联/合成事件/运行中 GSAP timeline 引用原样）。内联态由
+   * framework.css 的 dialog.scene-clip 规则当普通块级渲染。 */
+  const ref = useRef<HTMLDialogElement>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const fsBtnRef = useRef<HTMLButtonElement>(null)
   const ctxDemo = useContext(SceneDemoContext)
@@ -191,8 +194,9 @@ export default function SceneClip({ demo }: { demo?: string }) {
       btn?.removeEventListener('click', handle.replay)
       fsBtn?.removeEventListener('click', onFullscreen)
       fsBtn?.classList.remove('is-hint')
-      /* v10：卸载时若本 clip 正处于手动/演出全屏态，先还原 reparent——
-       * 保证 React 能从原父节点移除 DOM（reparent 后 removeChild 会找不到节点） */
+      /* v12：卸载时若本 clip 正处于手动/演出全屏态，先还原会话（撤 top layer、
+       * 清 inline 几何、撤占位/控制条）——clip 不再被 reparent，React 移除节点
+       * 本身无障碍，但残留的占位与控制条必须随会话收尾清掉 */
       cancelClipFullscreen(el)
       /* v7 Task 3：cleanup 兜底——手动 resolve 挂起的 play promise
        * （GSAP 的 eventCallback onKill 不会在 tl.kill 触发，
@@ -206,10 +210,10 @@ export default function SceneClip({ demo }: { demo?: string }) {
 
   const Stage = scene?.Stage
   return (
-    <div ref={ref} className="scene-clip" data-scene-clip-demo={demoName} aria-label={`动画：${demoName}`}>
+    <dialog ref={ref} className="scene-clip" data-scene-clip-demo={demoName} aria-label={`动画：${demoName}`}>
       {Stage && <Stage />}
       <button ref={fsBtnRef} type="button" className="scene-expand" aria-label="全屏播放">⛶ 全屏</button>
       <button ref={btnRef} type="button" className="scene-replay" aria-label="重看">↻ 重看</button>
-    </div>
+    </dialog>
   )
 }

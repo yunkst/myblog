@@ -38,6 +38,19 @@
   border-radius: 0;
   position: relative;
 }
+/* v12：clip 由 SceneClip 渲染为 <dialog>（全屏 = showModal 进 top layer，零 DOM 搬移）。
+ * 内联态当普通块级用——撤掉 UA dialog 默认（display:none / position:absolute /
+ * margin:auto / fit-content / 白底 / 1em padding），内联渲染与旧 div 完全一致。
+ * position 用 relative 而非 static：clip 内的 ⛶/↻ 按钮 absolute 定位以它为祖先。 */
+dialog.scene-clip {
+  display: block;
+  position: relative;
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  color: inherit;
+}
 .scene-clip .scene-replay {
   position: absolute;
   right: 8px;
@@ -301,9 +314,9 @@ body.stage-locked { overflow: hidden; }
    * overflow-y: auto——短幕不出滚动条、超高幕内滚；
    * scrollbar-gutter: stable 预留槽位，滚动条出现/消失时内容不横向抖动。
    * 水平方向 hidden——表格等内容超宽按舞台宽截断，不出横向滚动条。
-   * v5 追加（用户裁定）：不设 max-width，内容撑满舞台可用宽度。
-   * 2026-08-31 起：mode 1 全屏改为 clip reparent 到 body 根，本元素不再是全屏
-   * 包含块祖先链成员（原「禁止 transform」契约随之退役，见下方「mode 1 全屏」注释块）。 */
+ * v5 追加（用户裁定）：不设 max-width，内容撑满舞台可用宽度。
+ * v12 起：mode 1 全屏 = clip showModal() 进 top layer（其间 v10-v11 曾 reparent 到
+ * body 根，已退役）——top layer 不受任何祖先 overflow/transform 约束。 */
   overflow-y: auto; overflow-x: hidden;
   scrollbar-gutter: stable;
   display: flex; flex-direction: column; align-items: center;
@@ -318,11 +331,10 @@ body.stage-locked { overflow: hidden; }
    * - 左列 .stage：动画/图片
    * - 右列 .act-head → .dialogue → .choices：叙事文本整体右移
    * - 文本宽 max 720px（含 padding）——避免全屏阅读拉得过宽
-   * 单列场景（含/不含 .stage 都成立）：align-items 居中后文本列固定宽。
-   * v7 布局显式化（三原则 1）：单列/双列由 Answer 声明的 modifier class 决定
-   * （clips.length > 0 ⇔ 渲染 .stage ⇔ theater--dual），不再用 :has() 探测 DOM。
-   * 2026-08-31 起：mode 1 全屏改为 clip reparent 到 body 根，本元素不再是全屏
-   * 包含块祖先链成员（原「禁止 transform」契约随之退役，见下方「mode 1 全屏」注释块）。 */
+ * 单列场景（含/不含 .stage 都成立）：align-items 居中后文本列固定宽。
+ * v7 布局显式化（三原则 1）：单列/双列由 Answer 声明的 modifier class 决定
+ * （clips.length > 0 ⇔ 渲染 .stage ⇔ theater--dual），不再用 :has() 探测 DOM。
+ * v12 起：mode 1 全屏 = clip showModal() 进 top layer，与祖先链无关。 */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
@@ -377,15 +389,14 @@ body.stage-locked { overflow: hidden; }
 :is(.stage-frame, .flat-post) .theater.theater--dual.theater--text-focus > .choices  { max-width: 760px; justify-self: center; }
 
 /* ExploreRouter 根容器（display: contents 让 children 直接参与父布局）。
- * 2026-08-31 起：mode 1 全屏改为 clip reparent 到 body 根，本元素不再是全屏
- * 包含块祖先链成员（原「禁止 transform」契约随之退役，见下方「mode 1 全屏」注释块）。 */
+ * v12 起：mode 1 全屏 = clip showModal() 进 top layer，祖先链布局与全屏互不影响。 */
 :is(.stage-frame, .flat-post) .explore-router { display: contents; }
 
 @keyframes v4-scene-in {
   /* 仅 opacity 入场，不用 transform：
    * 历史上（v6/v7 原地 fixed 全屏方案）.theater 带 transform 会劫持内部全屏
    * .stage 的 position:fixed 包含块 → 全屏退化半屏（实测 887px vs 视口 1920px）。
-   * 2026-08-31 起全屏 clip reparent 到 body 根，该约束已退役；本动画维持
+   * v10-v11 reparent、v12 top-layer 方案下该约束均已不存在；本动画维持
    * opacity-only（效果已达标，无需改回位移）。 */
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -449,16 +460,24 @@ body.stage-locked { overflow: hidden; }
 :is(.stage-frame, .flat-post) .stage-tag { position: absolute; top: 14px; left: 18px; font: 11px var(--mono); letter-spacing: 0.26em; color: var(--sfaint); z-index: 4; }
 :is(.stage-frame, .flat-post) .stage-ch { position: absolute; top: 14px; right: 18px; font: 10px var(--mono); letter-spacing: 0.3em; color: var(--sacc); z-index: 4; }
 :is(.stage-frame, .flat-post) .stage .scene-clip { border: 0; min-height: 0; margin: 0; width: 100%; display: flex; flex-direction: column; align-items: center; }
-/* mode 1 全屏镜像（2026-08-31）：clip reparent 到 body 根后，上一条规则（要求
- * .stage-frame .stage 祖先链）不再匹配，clip 会回落到 v2 基线 .scene-clip
- * （display:block / margin:20px 0 / dashed border / min-height:120px /
- * 宽度 shrink-to-fit）→ 还原回 grid 瞬间规则切换 = 内容跳变。
- * 本类逐条镜像 grid 内的布局声明（宽度由 Director 内联为实测 px），让全屏期
- * 与还原后的渲染像素级一致。与 .scene-clip 基线同特异性、位置在其后生效。 */
-.scene-clip--fs {
-  border: 0; min-height: 0; margin: 0;
-  display: flex; flex-direction: column; align-items: center;
+/* v12 top-layer 全屏态（dialog:modal）：clip 不再 reparent，级联不断链，无需镜像类。
+ * 只需撤掉 UA 的 modal 几何（margin auto 居中 / inset 四边钉死 / max-width/height
+ * 钳制 / overflow:auto）——位置由 inline 几何 + gsap transform 全权负责。 */
+dialog.scene-clip:modal {
+  margin: 0;
+  inset: 0 auto auto 0;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
 }
+/* 全屏期隐藏 clip 内的 ⛶/↻ 按钮（取代旧 .scene-clip--fs 镜像类）：它们会随 clip
+ * 放大盖住画面；灯箱的重播由 popover 控制条 .clip-lb-replay 提供 */
+dialog.scene-clip:modal .scene-expand,
+dialog.scene-clip:modal .scene-replay { display: none; }
+/* 背景压暗走 ::backdrop（top layer 内、clip 之下）：默认透明，.fs-dim 挂上后
+ * 渐暗，缩窗 onStart 摘下渐亮；不支持过渡的浏览器直接切换（可接受退化） */
+dialog.scene-clip::backdrop { background: transparent; transition: background 0.3s ease; }
+dialog.scene-clip.fs-dim::backdrop { background: var(--panel, #101010); }
 :is(.stage-frame, .flat-post) .stage .scene-replay { right: 14px; bottom: 14px; background: rgba(6,6,6,0.85); border-color: var(--line); color: var(--dim); z-index: 4; }
 /* 文本窗：--panel 底 + 1px --line 直角 */
 :is(.stage-frame, .flat-post) .dialogue {
@@ -549,22 +568,12 @@ body.stage-locked { overflow: hidden; }
 /* v3 final review B1：暗色探索页内归零 v2 answer-block 左竖线样式 */
 :is(.stage-frame, .flat-post) .answer-block { border-left: 0; padding-left: 0; margin: 54px 0; }
 
-/* mode 1 全屏：2026-08-31 起由 Director.tsx 手工实现——clip **reparent 到 body 根**
- * + body 根 overlay + fixed/scale 动画，播完按占位元素位置缩回并插回原槽位。
- * 原 v7 属性驱动 data-fullscreen 路径（Director 从不触发 onFullscreen(true)，
- * 实为死代码）已随本次修复一并删除。
- *
- * 为什么必须 reparent 而不是原地 fixed：
- * position:fixed 只跳出包含块，跳不出祖先 stacking context——.stage-inner 是
- * position:relative + z-index:2 的 stacking context，原地 fixed 的 clip 的
- * z-index 只在其内部有效，body 根 overlay 会把整个 stage 子树（含 clip）盖住
- * （2026-08-31 实锤：入场黑屏）。reparent 后 clip 与 overlay 同在根层比较。
- *
- * ── 包含块不变量（对 body 根的后代依然有效）───────────────────
- * position: fixed 的包含块 = 最近 transform/filter/perspective/will-change 祖先。
- * reparent 后 clip 的祖先链是 body 以上——body/html 禁止任何 transform 类属性，
- * 否则全屏会退化为「相对该祖先的伪全屏」。
- * ──────────────────────────────────────────────────────────── */
+/* mode 1 全屏（v12 top-layer 版）：clip 是 <dialog class="scene-clip">，Director 经
+ * clipFullscreen.showModal() 提升进 top layer——不搬 DOM，页面层 z-index 之争不存在
+ * （top layer 恒在页面层之上），缩窗按占位元素位置 FLIP 回原槽位。
+ * 历史方案：v7 data-fullscreen 属性驱动（死代码，已删）→ v10-v11 reparent 到 body 根
+ * + scene-clip--fs 镜像类（治「position:fixed 跳不出祖先 stacking context 被盖黑幕」，
+ * top layer 平台语义直接解决，已退役）。 */
 
 /* ===== v5 底栏导航条（取代 v4 HistoryFAB）：暗底 + 1px --line + 直角 + 翠绿 hover =====
  * v10：三段式分区——左：幕间导航 / 中：视图切换 / 右：退出舞台 */
@@ -902,12 +911,32 @@ body.stage-locked { overflow: hidden; }
 }
 
 
-/* ---- clip 灯箱（⛶ 全屏播放）覆盖层：append 到 body，stage-frame 变量需 fallback ---- */
+/* ---- clip 灯箱（⛶ 全屏播放）控制条（v12 top-layer 版）----
+ * 容器是第二个 <dialog>，在 clip dialog 之后 showModal → 同在 top layer 且画在
+ * clip 之上（页面层任何 z-index 都画不过 top layer，控制条不能挂 body 裸元素；
+ * 不能用 popover——实测内嵌引擎对后提升的 popover 不绘制框、不参与命中）。
+ * 容器铺满视口、pointer-events:none——空区域点击穿透到 clip dialog（点遮罩关闭
+ * 不受影响），按钮各自 pointer-events:auto。stage-frame 变量需 fallback。 */
+.clip-lb-ui {
+  position: fixed;
+  inset: 0;
+  /* 撤 UA dialog:modal 默认（margin auto 居中 / fit-content / max 钳制 / 白底 / 边框） */
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  overflow: visible;
+  pointer-events: none;
+}
 .clip-lb-close {
   position: fixed;
   top: 18px;
   right: 22px;
-  z-index: 5002;
   padding: 8px 16px;
   font: 13px var(--mono);
   color: var(--stext, #E6E6E6);
@@ -915,6 +944,7 @@ body.stage-locked { overflow: hidden; }
   border: 1px solid var(--sline, #262626);
   border-radius: 0;
   cursor: pointer;
+  pointer-events: auto;
 }
 .clip-lb-close:hover {
   color: var(--sacc, #00D26A);
@@ -925,19 +955,22 @@ body.stage-locked { overflow: hidden; }
   /* 挪到左上：底部居中会压住动画 caption（全屏图底部说明） */
   top: 18px;
   left: 22px;
-  z-index: 5002;
   font: 11px var(--mono);
   letter-spacing: 0.2em;
   color: var(--sfaint, #5C5C5C);
   pointer-events: none;
 }
-
-/* 全屏态（演出型/灯箱共用 scene-clip--fs）：隐藏 clip 内的 ⛶/↻ 按钮——
- * 它们会随 clip 一起被放大盖住画面；灯箱的重播由 body 层 .clip-lb-replay 提供 */
-.scene-clip--fs .scene-expand,
-.scene-clip--fs .scene-replay {
-  display: none;
+/* 灯箱「↻ 重播」按钮：排在「✕ 关闭」左侧 */
+.clip-lb-replay {
+  right: 108px;
 }
+/* 灯箱抓取光标：top layer 下无可挂 cursor 的遮罩元素——挂 body 类全域继承，
+ * 拖拽中切 grabbing（clipFullscreen teardown 时撤下） */
+body.clip-lb-live { cursor: grab; }
+body.clip-lb-live.clip-lb-grabbing { cursor: grabbing; }
+
+/* 全屏态（演出型/灯箱共用，dialog:modal）：隐藏 clip 内的 ⛶/↻ 按钮——
+ * 它们会随 clip 一起被放大盖住画面；灯箱的重播由 .clip-lb-replay 提供 */
 /* 灯箱「↻ 重播」按钮：排在「✕ 关闭」左侧 */
 .clip-lb-replay {
   right: 108px;

@@ -1,21 +1,35 @@
 import gsap from 'gsap'
 
 /**
- * clip 全屏机制（v10 抽离 / v11 拆两种形态）。
+ * clip 全屏机制（v12 top-layer 重构）。
  *
- * 两种形态共用同一套 expand/shrink 机制（2026-08-31 reparent + placeholder 方案：
- * 量 rect → 插占位 → clip reparent 到 body 根 → fixed 居中 set 第一帧即终态；
- * 缩回时重量占位 rect 落点 → 还原 style/槽位 → FLIP 残差补偿滑零）：
+ * 单一机制：clip 由 SceneClip 渲染为 <dialog class="scene-clip">，全屏 =
+ * showModal() 提升到浏览器 top layer。与已退役的 reparent 方案（v10：量 rect →
+ * 插占位 → 搬到 body 根 → 镜像 class 补级联）相比：
  *
+ * - 不搬 DOM——节点仍在 React 树里，.stage .scene-clip 级联、合成事件、
+ *   运行中的 GSAP timeline 引用全部原样；镜像 class scene-clip--fs 与
+ *   「React removeChild 找不到节点」整类问题随之消失。
+ * - top layer 天然盖过一切祖先 stacking context / z-index / overflow
+ *   （reparent 当年要治的「祖先盖黑幕」由平台语义直接解决）。
+ * - 背景压暗用 ::backdrop（.fs-dim 类触发 transition），不再是 body 根 overlay div。
+ *
+ * 仍然保留的两块旧资产：
+ * - placeholder 占位：top layer 出流后 grid 槽位照样塌，缩窗 FLIP 也要它当落点标尺。
+ * - 模块级单会话 active + cancelClipFullscreen：切幕/卸载的中途收尾入口不变。
+ *
+ * 两种形态：
  * - playClipFullscreen（演出型）：Director mode 1 用——全屏自动播 demo，播完
- *   立即缩回原位，演出链继续走文字。
+ *   立即缩回原位，演出链继续走文字。会话期内挂 ResizeObserver + resize 监听
+ *   重夹 scale——「fit 视口」是会话不变量而非一次性测量（修：mode 1 在挂载
+ *   瞬间展开，漫画图未加载时量到的高度≈0，scale 只按宽度算出超大值，图片
+ *   加载完成后内容长高溢出视口）。
  * - openClipLightbox（灯箱型，v11 用户裁定）：SceneClip ⛶ 按钮用——全屏从头
- *   播放后**停留不缩回**；滚轮缩放（光标锚定）+ 拖动平移；右上角「✕ 关闭」/
- *   ESC / 点遮罩背景触发缩回原位。
- *
- * 会话管理：模块级单会话。cancelClipFullscreen 供外部路径调用——
- * - Director 的 effect cleanup（切幕/卸载中途收尾）
- * - SceneClip 卸载（灯箱打开中组件被 React 移除前还原 DOM，保证 removeChild 能找到节点）
+ *   播放后停留不缩回；滚轮缩放（光标锚定）+ 拖动平移（缩放权在用户，不自动
+ *   refit）；右上角「✕ 关闭」/ ESC / 点遮罩背景触发缩回原位。灯箱控制条挂在
+ *   第二个 <dialog> 里随后 showModal——top layer 内后提升者画在上，且不被
+ *   clip 的缩放平移 transform 带走（clip 内容进 top layer 后，页面层的任何
+ *   z-index 都画不过它，控制条必须同在 top layer）。
  */
 export interface ClipFullscreenOpts {
   clip: HTMLElement
@@ -44,24 +58,20 @@ export function cancelClipFullscreen(clip?: HTMLElement) {
   if (active && (!clip || active.clip === clip)) active.cancel()
 }
 
-/* ───────────────────────── 共用 expand/shrink 机制 ───────────────────────── */
+/* ───────────────────────── 共用 promote/shrink 机制 ───────────────────────── */
 
-interface ExpandCtx {
-  clip: HTMLElement
-  overlay: HTMLDivElement
+interface PromoteCtx {
+  clip: HTMLDialogElement
   baseX: number
   baseY: number
   baseScale: number
-  /** 立即还原（摘镜像 class + 还原 style + 插回占位 + 撤遮罩），幂等 */
+  /** 立即还原（清 inline 几何 + close 撤 top layer + 撤占位），幂等 */
   restore: () => void
   /** 缩窗动画落回原槽位（含 FLIP 残差补偿），完成后内部调 restore */
   shrinkToHome: (registerTl?: (tl: gsap.core.Animation) => void) => Promise<void>
 }
 
-const OVERLAY_BASE_CSS =
-  'position:fixed;inset:0;background:var(--panel, #101010);z-index:5000;opacity:0;transition:opacity 0.3s ease;'
-
-function expandClip(clip: HTMLElement, overlayExtraCss: string): ExpandCtx {
+function promoteClip(clip: HTMLDialogElement, opts: { refit: boolean }): PromoteCtx {
   // 量 demo rect（grid 原态，未放大）
   const clipRect = clip.getBoundingClientRect()
   const vw = window.innerWidth
@@ -71,46 +81,85 @@ function expandClip(clip: HTMLElement, overlayExtraCss: string): ExpandCtx {
 
   const origStyle = clip.getAttribute('style') ?? ''
   const origParent = clip.parentElement!
-  // 占位元素：撑住 grid 槽位（clip 脱离后容器不塌），缩窗时作落点标尺
+  // 占位元素：dialog 进 top layer 后出流，grid 槽位会塌——撑住它，缩窗时作落点标尺
   const ph = document.createElement('div')
   ph.className = 'mode1-placeholder'
   ph.style.cssText = `width:${clipRect.width}px;height:${clipRect.height}px;visibility:hidden;pointer-events:none`
   origParent.insertBefore(ph, clip)
 
-  // 覆盖层 + clip 都挂到 body 根（reparent 是治「祖先 stacking context 盖黑幕」的关键）
-  const overlay = document.createElement('div')
-  overlay.className = 'mode1-overlay'
-  overlay.style.cssText = OVERLAY_BASE_CSS + overlayExtraCss
-  document.body.appendChild(overlay)
-  document.body.appendChild(clip)
-  /* 归属变化护栏：reparent 后 .stage-frame .stage .scene-clip 选择器不再匹配，
-   * clip 会回落到 v2 基线样式——挂镜像 class + 内联宽度，让全屏期渲染与还原后一致。 */
-  clip.classList.add('scene-clip--fs')
+  // top layer 提升：不搬 DOM。UA 的 dialog:modal 几何（margin auto / max-width /
+  // overflow）由 framework.css 的 dialog.scene-clip:modal 规则撤掉，位置交给
+  // inline 几何 + gsap transform。
+  clip.showModal()
+
+  /* 全屏几何：宽度冻结为实测值（fixed 出流后 CSS width:100% 会变成视口宽）；
+   * 高度留给内容——图片/字体迟到加载会让它长高，由下面的 fitRefit 重夹 scale，
+   * 不再假设「测量瞬间布局即终态」（reparent 版溢出 bug 的根源）。 */
   clip.style.width = `${clipRect.width}px`
   clip.style.position = 'fixed'
   clip.style.left = '0'
   clip.style.top = '0'
-  clip.style.zIndex = '5001'
-
-  // 第一帧即居中终态——reparent + fixed + 居中 set 在同一同步任务内完成，无中间帧
-  gsap.set(clip, { xPercent: -50, yPercent: -50, x: vw / 2, y: vh / 2, scale })
-  overlay.style.opacity = '1'
 
   let restored = false
+
+  // 第一帧即居中终态——提升 + 几何 + 居中 set 在同一同步任务内完成，无中间帧
+  gsap.set(clip, { xPercent: -50, yPercent: -50, x: vw / 2, y: vh / 2, scale })
+  // 背景压暗走 ::backdrop：下一帧挂 .fs-dim 触发 transition 渐暗
+  // （不支持 ::backdrop 过渡的浏览器直接变暗，可接受退化）
+  requestAnimationFrame(() => { if (!restored) clip.classList.add('fs-dim') })
+
+  // UA 语义：modal dialog 上按 ESC 会触发 cancel → 默认关闭。全屏的关闭权
+  // 不在裸 ESC——演出型由 Director 编排收尾，灯箱型由 requestClose 统一收口。
+  const onCancel = (ev: Event) => ev.preventDefault()
+  clip.addEventListener('cancel', onCancel)
+
+  /* fit 不变量（演出型）：内容盒尺寸变化（图片/字体迟到加载）或窗口 resize 时
+   * 重夹 scale 并保持居中。offsetWidth/Height 是布局盒，不受 transform 缩放
+   * 影响，可直接代入 fit 公式。灯箱型不挂——缩放权在用户。 */
+  let ro: ResizeObserver | null = null
+  const fit = () => {
+    if (restored) return
+    const w = clip.offsetWidth
+    const h = clip.offsetHeight
+    if (!w || !h) return
+    gsap.set(clip, {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+      scale: Math.min(window.innerWidth / w, window.innerHeight / h) * 0.95,
+    })
+  }
+  const stopFit = () => {
+    ro?.disconnect()
+    ro = null
+    window.removeEventListener('resize', fit)
+  }
+  if (opts.refit && typeof ResizeObserver !== 'undefined') {
+    ro = new ResizeObserver(fit)
+    ro.observe(clip)
+    window.addEventListener('resize', fit)
+  }
+
   const restore = () => {
     if (restored) return
     restored = true
-    clip.classList.remove('scene-clip--fs')
+    stopFit()
+    clip.removeEventListener('cancel', onCancel)
+    clip.classList.remove('fs-dim')
+    // 先清 inline 几何（含 gsap transform），再撤 top layer——close 后元素回到
+    // grid 原槽位（从未搬走，无需插回），占位随后移除
     clip.setAttribute('style', origStyle)
-    if (ph.isConnected) origParent.insertBefore(clip, ph)
-    ph.remove()
-    overlay.remove()
+    if (clip.open) clip.close()
+    if (ph.isConnected) ph.remove()
     if (active?.clip === clip) active = null
   }
 
   const shrinkToHome = (registerTl?: (tl: gsap.core.Animation) => void): Promise<void> => {
+    // cancel 已收尾（play promise 晚 resolve 等竞态）：不再对已还原的 clip 起动画
+    if (restored) return Promise.resolve()
     // 缩窗落点：重量占位 rect（全屏期间页面滚动也能落准 grid 槽位）
     const phRect = ph.getBoundingClientRect()
+    // 缩窗动画期间 fit 不得抢写 scale/x/y
+    stopFit()
     return new Promise((resolve) => {
       /* 注意：不要 shrink.eventCallback('onComplete', ...) 追加回调——eventCallback 是
        * 替换语义，会顶掉 vars onComplete（2026-08 实锤 bug：clip 永久残留 position:fixed）。 */
@@ -122,10 +171,11 @@ function expandClip(clip: HTMLElement, overlayExtraCss: string): ExpandCtx {
         scale: 1,
         duration: 0.6,
         ease: 'power3.inOut',
-        onStart: () => { overlay.style.opacity = '0' },
+        onStart: () => { clip.classList.remove('fs-dim') },
         onComplete: () => {
-          /* FLIP 收尾补偿：先 restore 再量真实静态 rect（顺序关键），残差用
-           * 同帧反向 transform 对齐 + 0.18s 滑零——「跳变」变「滑入」。 */
+          /* FLIP 收尾补偿：先 restore（清 transform + 撤 top layer 回槽位）再量
+           * 真实静态 rect（顺序关键），残差用同帧反向 transform 对齐 + 0.18s 滑零
+           * ——「跳变」变「滑入」。 */
           restore()
           const real = clip.getBoundingClientRect()
           const dx = phRect.left - real.left
@@ -145,7 +195,7 @@ function expandClip(clip: HTMLElement, overlayExtraCss: string): ExpandCtx {
     })
   }
 
-  return { clip, overlay, baseX: vw / 2, baseY: vh / 2, baseScale: scale, restore, shrinkToHome }
+  return { clip, baseX: vw / 2, baseY: vh / 2, baseScale: scale, restore, shrinkToHome }
 }
 
 /* ───────────────────────── 形态 1：演出型全屏（Director mode 1） ───────────────────────── */
@@ -159,7 +209,7 @@ export async function playClipFullscreen(opts: ClipFullscreenOpts): Promise<void
     active.cancel()
   }
 
-  const ctx = expandClip(clip, 'pointer-events:none;')
+  const ctx = promoteClip(clip as HTMLDialogElement, { refit: true })
   active = { clip, cancel: ctx.restore }
 
   // demo 在全屏态播放，播完立即缩回
@@ -182,27 +232,39 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
     active.cancel()
   }
 
-  const ctx = expandClip(clip, 'pointer-events:auto;cursor:grab;')
+  /* 抓取光标：top layer 之下没有可挂 cursor 的遮罩元素（::backdrop 是伪元素，
+   * 点击/指针由 dialog 承接）——光标语义挂 body 类，dialog 全域继承。 */
+  document.body.classList.add('clip-lb-live')
 
-  /* 右上角控制条：↻ 重播 + ✕ 关闭（body 子级，z-index 高于 clip 的 5001，
-   * 不随 clip 缩放——clip 内的 ⛶/↻ 按钮在全屏态经 CSS 隐藏，避免被放大后
-   * 盖住画面、拖拽松手的 click 误触重播） */
+  const ctx = promoteClip(clip as HTMLDialogElement, { refit: false })
+
+  /* 控制条：↻ 重播 + ✕ 关闭 + 底部提示。容器是第二个 <dialog>，在 clip dialog
+   * 之后 showModal → 同在 top layer 且画在 clip 之上（页面层任何 z-index 都画
+   * 不过 top layer，控制条不能挂 body 裸元素；不能用 popover——实测内嵌引擎
+   * 对「dialog 之后提升的 popover」既不绘制框也不参与命中）。容器铺满视口、
+   * pointer-events:none——空区域点击穿透到 clip dialog（点遮罩关闭不受影响），
+   * 按钮各自 pointer-events:auto。position:fixed 不随 clip 的缩放/平移走。 */
+  const ui = document.createElement('dialog')
+  ui.className = 'clip-lb-ui'
   const replayBtn = document.createElement('button')
   replayBtn.type = 'button'
   replayBtn.className = 'clip-lb-close clip-lb-replay'
   replayBtn.textContent = '↻ 重播'
   replayBtn.setAttribute('aria-label', '重新播放')
-  document.body.appendChild(replayBtn)
   const closeBtn = document.createElement('button')
   closeBtn.type = 'button'
   closeBtn.className = 'clip-lb-close'
   closeBtn.textContent = '✕ 关闭'
   closeBtn.setAttribute('aria-label', '关闭全屏')
-  document.body.appendChild(closeBtn)
   const hint = document.createElement('div')
   hint.className = 'clip-lb-hint'
   hint.textContent = '滚轮缩放 · 拖动平移 · ESC 关闭'
-  document.body.appendChild(hint)
+  ui.append(replayBtn, closeBtn, hint)
+  document.body.appendChild(ui)
+  // ESC 落在最顶层的 ui dialog 上：撤其默认关闭行为，由 requestClose 统一收口
+  const onUiCancel = (ev: Event) => ev.preventDefault()
+  ui.addEventListener('cancel', onUiCancel)
+  ui.showModal()
 
   /* 缩放/平移状态：gsap transformOrigin 默认元素中心，xPercent/yPercent -50 下
    * 元素中心落在 (px, py)——缩放平移都只改 x/y/scale 三个值。 */
@@ -243,7 +305,7 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
     moved = 0
     lastX = ev.clientX
     lastY = ev.clientY
-    ctx.overlay.style.cursor = 'grabbing'
+    document.body.classList.add('clip-lb-grabbing')
   }
   const onPointerMove = (ev: PointerEvent) => {
     if (!dragging) return
@@ -259,14 +321,15 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
   const onPointerUp = (ev: PointerEvent) => {
     if (!dragging) return
     dragging = false
-    ctx.overlay.style.cursor = 'grab'
+    document.body.classList.remove('clip-lb-grabbing')
     if (moved >= 5) {
       // 是拖拽不是点击：吞掉随之而来的 click
       suppressClick = true
       return
     }
-    // 位移 < 5px 视为点击：点在遮罩背景上（非 clip 内容）→ 关闭灯箱
-    if (ev.target === ctx.overlay) requestClose()
+    // 位移 < 5px 视为点击：点在遮罩背景/clip 空白区（非内容元素）→ 关闭灯箱。
+    // top layer 下 ::backdrop 的点击以 dialog 元素为 target，判定与旧 overlay 等价。
+    if (ev.target === clip) requestClose()
   }
   const onKey = (ev: KeyboardEvent) => { if (ev.key === 'Escape') requestClose() }
 
@@ -275,6 +338,7 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
   let closing = false
 
   const teardown = () => {
+    document.body.classList.remove('clip-lb-live', 'clip-lb-grabbing')
     window.removeEventListener('wheel', onWheel)
     document.removeEventListener('pointerdown', onPointerDown)
     window.removeEventListener('pointermove', onPointerMove)
@@ -282,10 +346,10 @@ export async function openClipLightbox(opts: ClipLightboxOpts): Promise<void> {
     window.removeEventListener('click', onClickCapture, true)
     document.removeEventListener('keydown', onKey)
     replayBtn.removeEventListener('click', onReplay)
-    replayBtn.remove()
     closeBtn.removeEventListener('click', requestClose)
-    closeBtn.remove()
-    hint.remove()
+    ui.removeEventListener('cancel', onUiCancel)
+    ui.close()
+    ui.remove()
   }
   const requestClose = () => {
     if (closing) return

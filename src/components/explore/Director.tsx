@@ -201,10 +201,10 @@ export function Director({
 
       if (scene.mode === 1) {
       // mode 1：demo 全屏播放 → 缩回 grid 原位 → 文字 → choices
-      // v10：全屏机制抽离到 clipFullscreen.ts（reparent + placeholder 方案的
-      // 修复史注释一并迁走）；本分支只负责「何时播」。
+      // v12：clip 经 stageRef 在本幕舞台内定位（clipFullscreen showModal 进
+      // top layer；reparent 版的全局 document.querySelector 已不需要）
       const stage = stageRef?.current ?? null
-      const clip = document.querySelector<HTMLElement>('.scene-clip')
+      const clip = stage?.querySelector<HTMLDialogElement>('.scene-clip') ?? null
       if (stage && clip) {
         await playClipFullscreen({
           clip,
@@ -296,10 +296,10 @@ export function Director({
         textFocusEl = null
       }
       // 注意：cleanup 时 tl.kill() 不会触发 tween 的 onComplete / clearProps
-      // （v7 T3 实测）；全屏中途清理必须手工收尾——overlay/placeholder 是
-      // append 到 DOM 的非 React 托管节点，clip 被 reparent 到 body 根 +
-      // fixed 内联样式也要还原并插回原槽位。v10：收尾逻辑收敛到
-      // clipFullscreen 的会话 cancel（幂等，内部判 isConnected）。
+      // （v7 T3 实测）；全屏中途清理必须手工收尾——clip 的 inline 几何要还原、
+      // dialog 要撤 top layer、placeholder/灯箱控制条是 append 到 DOM 的非 React
+      // 托管节点。v12：收尾逻辑收敛到 clipFullscreen 的会话 cancel（幂等，
+      // 内部判 isConnected；clip 不再被 reparent，React 卸载节点本身无障碍）。
       cancelClipFullscreen()
     }
     // refs 由 Answer 持有、身份稳定；onReady 走 ref——只随 scene 键重建演出
