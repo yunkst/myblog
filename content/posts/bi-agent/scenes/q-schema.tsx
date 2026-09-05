@@ -8,7 +8,7 @@ export default function QSchema() {
       <p>
         LLM 直接写 UI 描述时，出错集中在「物理形态」细节上：
         element key 的命名、<code>children</code> 的位置、日期区间双参数的拆分、SQL 占位符的命名约定。
-        mybi 的解法是<strong>只让 LLM 写语义树</strong>。SemanticDashboard 的 zod schema 只有四节：
+        bi-agent 的解法是<strong>只让 LLM 写语义树</strong>。SemanticDashboard 的 zod schema 只有四节：
       </p>
       <pre>
         <code>{`{ meta, filters[], queries[], layout[] }`}</code>

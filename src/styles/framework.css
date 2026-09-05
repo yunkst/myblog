@@ -253,6 +253,11 @@
 .exit-chip { display: inline-block; padding: 4px 12px; border: 1px solid var(--accent); border-radius: 0; font: 12px var(--mono); color: var(--accent); text-decoration: none; background: none; cursor: pointer; }
 .exit-chip:hover { background: var(--accent-soft); }
 .exit-chips-questions .exit-chip { border-style: dashed; }
+/* v14：跨文章出口——尾部 ↗ 另一篇 角标（与本地出口区分）；首次点击进入两段式警示态 */
+.exit-chip--cross .exit-chip-cross { margin-left: 8px; color: var(--faint); font: 11px var(--mono); letter-spacing: 0.06em; }
+.exit-chip--cross:hover .exit-chip-cross { color: var(--accent); }
+.exit-chip--confirm { border-color: #C0392B; color: #C0392B; background: rgba(192,57,43,0.06); }
+.exit-chip--confirm:hover { background: rgba(192,57,43,0.12); }
 .explore-hint { font: 13px var(--mono); color: var(--faint); }
 .explore-entry-btn { display: inline-block; margin-top: 8px; font: 600 13px var(--sans); color: var(--accent); }
 
@@ -523,6 +528,14 @@ body.stage-locked { overflow: hidden; }
 :is(.stage-frame, .flat-post) .choices .exit-chip:hover::before { background: var(--sacc); }
 :is(.stage-frame, .flat-post) .choices .exit-chips-questions .exit-chip { border-style: dashed; border-color: var(--sline); color: var(--sdim); }
 :is(.stage-frame, .flat-post) .choices .exit-chips-questions .exit-chip:hover { color: var(--stext); border-color: var(--smark); }
+/* v14：跨文章出口（暗色舞台/平铺上下文）——角标右推 + 确认态警示色 */
+:is(.stage-frame, .flat-post) .choices .exit-chip--cross { display: flex; align-items: baseline; }
+:is(.stage-frame, .flat-post) .choices .exit-chip--cross .exit-chip-cross { margin-left: auto; padding-left: 16px; color: var(--sfaint); font: 12px var(--mono); }
+:is(.stage-frame, .flat-post) .choices .exit-chip--cross:hover .exit-chip-cross { color: var(--sacc); }
+:is(.stage-frame, .flat-post) .choices .exit-chip--confirm,
+:is(.stage-frame, .flat-post) .choices .exit-chip--confirm:hover { border-color: var(--smark); color: var(--smark); background: rgba(255,107,107,0.06); }
+:is(.stage-frame, .flat-post) .choices .exit-chip--confirm .exit-chip-cross,
+:is(.stage-frame, .flat-post) .choices .exit-chip--confirm:hover .exit-chip-cross { color: var(--smark); }
 /* 焦点出口（键盘 ↑↓ 选中）—— 鼠标 hover 不抢焦点 */
 :is(.stage-frame, .flat-post) .exit-chip--focused {
   border-color: var(--sacc); background: var(--sacc-soft);

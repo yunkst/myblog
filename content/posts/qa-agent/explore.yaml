@@ -1,0 +1,30 @@
+title: 知识库问答：知识装进 git，问答做成工具
+entry: q-intro
+
+scenes:
+  - id: q-intro
+    label: 为什么知识库要独立成一个服务
+    demo: qa-overview
+    mode: 1
+    features:
+      - { text: 知识为什么用 git 管, to: q-git-kb }
+      - { text: 谁能看什么：权限写在仓库里, to: q-access }
+      - { text: 怎么接进 AI 员工平台, to: q-as-tool }
+
+  - id: q-git-kb
+    label: 知识为什么用 git 管
+    demo: git-kb
+    features:
+      - { text: 谁能看什么：权限写在仓库里, to: q-access }
+
+  - id: q-access
+    label: 谁能看什么：权限写在仓库里
+    demo: access-rules
+    features:
+      - { text: 怎么接进 AI 员工平台, to: q-as-tool }
+
+  - id: q-as-tool
+    label: 怎么接进 AI 员工平台
+    demo: as-tool
+    questions:
+      - { text: 它和平台的三层设计是什么关系？, to: { post: ai-digital-employee, scene: q-badge-metaphor } }

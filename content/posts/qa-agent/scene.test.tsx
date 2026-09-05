@@ -1,15 +1,11 @@
-// scene.test.tsx — ai-digital-employee demos smoke 测试（spec §11.2）
+// scene.test.tsx — demos smoke（模板自带，已改 describe 名与清单）
 import { describe, it, expect } from 'vitest'
 import { demos } from './scene'
 
-describe('ai-digital-employee demos', () => {
-  it('11 个 demo 齐全且 name 与键一致', () => {
+describe('qa-agent demos', () => {
+  it('demo 齐全且 name 与键一致', () => {
     const keys = Object.keys(demos).sort()
-    expect(keys).toEqual([
-      'audit-trail', 'badge-metaphor', 'dev-flow', 'four-prerequisites',
-      'message-flood', 'openclaw-pitfalls', 'protocol-repo',
-      'tiered-confirm', 'tiered-execution', 'tool-search', 'unified-identity',
-    ])
+    expect(keys).toEqual(['access-rules', 'as-tool', 'git-kb', 'qa-overview'])
     for (const [k, v] of Object.entries(demos)) expect(v.name).toBe(k)
   })
 

@@ -39,7 +39,6 @@ export interface SiteConfig {
     /** 主页「关于我」区块（可选） */
     about?: {
       experience: string
-      education: string
       ai: string
       stacks: { label: string; items: string }[]
       /** 业务规模数字，给 AI 项目提供现实上下文 */

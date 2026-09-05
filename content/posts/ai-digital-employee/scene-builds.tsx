@@ -1,7 +1,7 @@
-// scene-builds.tsx — 11 个概念型 demo 的 GSAP timeline build 函数
+// scene-builds.tsx — 9 个概念型 demo 的 GSAP timeline build 函数
 //
 // 体验型 2 个 (message-flood / tiered-confirm) 留在 scene.tsx；
-// 概念型 11 个拆到这里保持 scene.tsx 单文件不超过 300 行（brief 要求）。
+// 概念型 9 个拆到这里保持 scene.tsx 单文件不超过 300 行（brief 要求）。
 // badge-metaphor / unified-identity / tiered-execution / dev-flow 四个 build
 // 末尾追加内嵌架构图淡入段（appendArchFade）——图随概念走，不再单独成幕。
 import { gsap } from 'gsap'
@@ -179,33 +179,6 @@ export function buildTieredExecution() {
   tl.to('#te-backup', { opacity: 1, scale: 1, duration: 0.35 })
   // 分级决策流程图淡入收尾
   appendArchFade(tl, '[data-arch="tiered-flow"]')
-  return tl
-}
-
-/** 概念型 7：threat-model — 平台增量层从上方叠落 + 字幕淡入 */
-export function buildThreatModel() {
-  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
-  tl.set('#threat-platform', { opacity: 0, y: -40 })
-  tl.set('#threat-caption', { opacity: 0 })
-  tl.to('#threat-platform', { opacity: 1, y: 0, duration: 0.7 })
-  tl.to({}, { duration: 0.3 })
-  tl.to('#threat-caption', { opacity: 1, duration: 0.6 })
-  return tl
-}
-
-/** 概念型 8：limits — 5 条 stagger 出现，编号方块带 ⚠ 闪现 */
-export function buildLimits() {
-  const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
-  const items = setConcept('limits')
-  const nos = nosOf('limits')
-  tl.set(items, { opacity: 0, y: 12 })
-  tl.set(nos, { backgroundColor: 'rgba(192,57,43,0.10)', color: '#C0392B', textContent: '!' })
-  tl.to(items, { opacity: 1, y: 0, duration: 0.4, stagger: 0.5 })
-  tl.to(nos, {
-    scale: 1.15, duration: 0.18, yoyo: true, repeat: 1,
-    stagger: 0.5, transformOrigin: 'center',
-  }, '<')
-  tl.set(nos, { scale: 1 })
   return tl
 }
 

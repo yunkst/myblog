@@ -130,7 +130,7 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
 
 /* 关于我（Home → About，数据在 site.yaml about） */
 .about-lead { margin: 0 0 24px; font-size: 15px; line-height: 1.9; color: var(--text); max-width: 62em; }
-.about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom: 24px; }
+.about-block-wide { margin-bottom: 24px; }
 .about-label { font: 12px var(--mono); color: var(--faint); letter-spacing: 0.18em; margin: 0 0 8px; }
 .about-text { margin: 0; font-size: 14px; line-height: 1.85; color: var(--dim); }
 .stack-list { border-top: 1px solid var(--line); margin-bottom: 26px; }
@@ -141,9 +141,6 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
 .stack-label { font: 13px var(--fang); letter-spacing: 0.24em; color: var(--dim); width: 4.5em; flex-shrink: 0; }
 .stack-items { font: 14px var(--mono); color: var(--text); letter-spacing: 0.03em; }
 .about-stats { margin-bottom: 4px; }
-@media (max-width: 720px) {
-  .about-grid { grid-template-columns: 1fr; }
-}
 
 /* AI 提效实践（Home → Practices，数据在 site.yaml practices） */
 .prac-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -234,13 +231,16 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
 .spec-label { font: 11px var(--mono); color: var(--faint); letter-spacing: 0.08em; margin-bottom: 12px; }
 .spec-body { font-size: 16px; line-height: 1.75; }
 
-/* 联系区 */
+/* 联系区：紧致双列——左 meta 行、右 QR 面板，中线对齐不留大片空白
+ * 三个子元素必须显式定位：否则 eyebrow 占掉左列第一行，
+ * contact-lines 被顺延到右上角、qr-wrap 落在左下，整行散架 */
 .contact {
   max-width: 1160px; margin: 0 auto; padding: 10px 28px 70px;
-  display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px 48px; align-items: center;
   scroll-margin-top: 80px;
 }
-.contact-lines { display: grid; gap: 14px; }
+.contact .eyebrow { grid-column: 1 / -1; margin-bottom: 0; }
+.contact-lines { grid-column: 1; display: grid; gap: 14px; }
 .c-line { display: flex; align-items: baseline; gap: 16px; }
 .c-label { font: 13px var(--fang); letter-spacing: 0.3em; color: var(--dim); width: 5em; }
 .c-line a {
@@ -248,14 +248,52 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
   text-decoration: none; border-bottom: 1px solid var(--line);
 }
 .c-line a:hover { color: var(--accent); border-color: var(--accent); }
+/* QR 面板：panel 底 + 直角发丝框；扫描线待机动画（贴 BLAME! 语言：1px 翠绿，零光效）
+ * 紧致双列（2026-09-05 用户裁定）：100px 小面板，label 挪到右列竖排（中英双行），
+ * 消除左列 1fr 下的横向空白 */
+.qr-wrap {
+  grid-column: 2;
+  display: flex; align-items: center; gap: 14px;
+}
 .qr {
-  width: 128px; height: 128px;
-  border: 1.5px dashed var(--faint); border-radius: 0;
+  position: relative;
+  width: 100px; height: 100px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line);
   display: grid; place-items: center;
   font: 14px var(--fang); letter-spacing: 0.2em; color: var(--faint);
   text-align: center; line-height: 1.9;
+  overflow: hidden;
+  transition: border-color 0.2s;
 }
 .qr img { width: 100%; height: 100%; object-fit: contain; }
+.qr:hover { border-color: var(--accent); }
+/* 扫描线：1px accent 横线自上而下匀速扫过，扫完歇一拍（待机扫码器） */
+.qr-scan {
+  position: absolute; left: 6px; right: 6px; top: 0;
+  height: 1px; background: var(--accent);
+  opacity: 0;
+  animation: qr-scan 4.8s ease-in-out infinite;
+}
+@keyframes qr-scan {
+  0%   { top: 6px; opacity: 0; }
+  6%   { opacity: 0.55; }
+  46%  { opacity: 0.55; }
+  52%  { top: calc(100% - 6px); opacity: 0; }
+  100% { top: calc(100% - 6px); opacity: 0; }
+}
+.qr-label {
+  /* 竖排一列：图标内联在文字上方。不能加 flex——flex 轴随 writing-mode 旋转，
+   * 图标会被甩到文字右侧（块轴在 vertical-rl 下是横向的） */
+  margin: 0;
+  font: 12px var(--mono); letter-spacing: 0.18em; color: var(--dim);
+  transition: color 0.2s;
+  writing-mode: vertical-rl; text-orientation: mixed;
+}
+.qr-label svg { margin-bottom: 6px; }
+.qr-label svg { flex-shrink: 0; }
+.qr-wrap:hover .qr-label { color: var(--accent); }
 
 /* Contact 表单输入框：透明 + 1px line 底边，focus 翠绿 */
 .contact-form { display: grid; gap: 14px; margin-top: 18px; max-width: 520px; }
@@ -274,13 +312,17 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0; }
 /* 响应式 */
 @media (max-width: 920px) {
   .specimens { grid-template-columns: 1fr; }
-  .contact { grid-template-columns: 1fr; }
+  .contact { grid-template-columns: 1fr; gap: 24px; }
+  /* 单列下取消双列定位，避免 qr-wrap 的 column: 2 撑出隐式轨道 */
+  .contact-lines, .qr-wrap { grid-column: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .ba-caret { display: none; }
+  /* 扫描线动画被上面的全局规则关掉后 opacity 恒为初始值，直接隐藏 */
+  .qr-scan { display: none; }
 }
 
 /* ============ 文章页 / 领域页（与首页版式统一）============ */

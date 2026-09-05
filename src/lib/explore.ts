@@ -133,6 +133,12 @@ export function resolveExploreHref(to: ExploreTarget, _config: ExploreConfig): s
   return `${blogPostPath(to.post)}#${sceneId}`
 }
 
+/** v14：跨文章出口两段式确认通过后的整页跳转。抽成模块函数——
+ * jsdom 的 location.assign 不可 spy，测试经 vi.mock 替换本函数。 */
+export function goExternal(href: string) {
+  window.location.assign(href)
+}
+
 /** v3：场景幕序号中文数字（1→一 … 12→十二；>12 按 digit 组合，当前 11 场景够用） */
 const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九']
 export function toChineseOrdinal(n: number): string {

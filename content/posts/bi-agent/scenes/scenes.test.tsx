@@ -67,7 +67,7 @@ describe('scenes/*.tsx 与 explore.yaml 对齐 + 渲染', () => {
 
   for (const [id, Comp] of Object.entries(MODULES)) {
     it(`渲染冒烟:${id}(SceneClip 经 SceneDemoContext 拿到 yaml demo)`, () => {
-      setCurrentSlug('mybi')
+      setCurrentSlug('bi-agent')
       const yamlScene = config.value.scenes.find((s) => s.id === id)
       const { container } = render(
         <MemoryRouter>

@@ -188,45 +188,6 @@
   box-shadow: none;
 }
 
-/* threat-model 专属：双框叠加 */
-.threat-stage { padding: 8px 6px; }
-.threat-wrap {
-  position: relative;
-  margin: 12px auto 0;
-  max-width: 520px;
-  height: 160px;
-}
-.threat-legacy {
-  position: absolute;
-  inset: 18px 6px 6px 6px;
-  background: var(--panel);
-  border: 2px solid var(--faint);
-  border-radius: 0;
-  display: grid;
-  place-items: center;
-  font: 700 15px var(--sans);
-  color: var(--dim);
-}
-.threat-platform {
-  position: absolute;
-  inset: 0 30px 30px 30px;
-  background: var(--accent-soft);
-  border: 2px dashed var(--accent);
-  border-radius: 0;
-  display: grid;
-  place-items: center;
-  font: 700 15px var(--sans);
-  color: var(--accent);
-}
-.threat-caption {
-  text-align: center;
-  margin: 14px 0 0;
-  font: 12px var(--mono);
-  color: var(--dim);
-  letter-spacing: 0.04em;
-  opacity: 0;
-}
-
 /* dev-flow 专属：6 节点 + 箭头线 */
 .devflow-stage { padding: 8px 6px; }
 .devflow-rail {

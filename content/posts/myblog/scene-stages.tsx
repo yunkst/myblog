@@ -1,4 +1,5 @@
 // scene-stages.tsx — myblog 各 demo 的静态 Stage（首帧全亮，build 负责收回初始态）
+import './post.css'
 import ArchDiagram from '@/components/blog-anim/ArchDiagram'
 import { figBlogOverview, figSceneEngine, figArchEngine, figContentData } from './diagrams'
 
@@ -31,29 +32,40 @@ export function ContentStage() {
   )
 }
 
-/* 观点幕 q-vision：四步推理链，复用全局 .concept-demo 样式（无专属 CSS） */
+/* 观点幕 q-vision（mode 1）：CLI agent 输入需求 → agent 工作流 → 网页生长出新场景。
+ * 演示内容 = 这一幕自身的诞生过程（读者正在读的就是它），零概念门槛。
+ * 专属样式在同目录 post.css（.vs-*）。 */
 export function VisionStage() {
   return (
     <div className="concept-demo" data-concept="vision-chain">
-      <h4 className="concept-title">从「做不起」到「日用品」</h4>
-      <ul className="concept-list">
-        <li className="concept-item" data-idx="0">
-          <span className="concept-no">1</span>
-          <span className="concept-text">博客是自我表达的载体，长文把重点埋掉</span>
-        </li>
-        <li className="concept-item" data-idx="1">
-          <span className="concept-no">2</span>
-          <span className="concept-text">动画 / 演示 / 跳转：不是不想做，是做不起</span>
-        </li>
-        <li className="concept-item" data-idx="2">
-          <span className="concept-no">3</span>
-          <span className="concept-text">AI 把演出的成本打到接近零</span>
-        </li>
-        <li className="concept-item" data-idx="3">
-          <span className="concept-no">4</span>
-          <span className="concept-text">博客形态跟着变：成品网站 → 可演化的底座</span>
-        </li>
-      </ul>
+      <h4 className="concept-title">一句需求 → 一幕博客</h4>
+      <div id="vs-cli" className="vs-cli">
+        <div className="vs-cli-bar">
+          <span className="vs-dot" /><span className="vs-dot" /><span className="vs-dot" />
+          <em>agent — myblog</em>
+        </div>
+        <div className="vs-cli-body">
+          <div className="vs-line">
+            <span className="vs-prompt-sign">›</span>
+            <span id="vs-prompt" />
+          </div>
+          <div className="vs-step">读文章的场景配置 <b>✓</b></div>
+          <div className="vs-step">写这一幕的正文 <b>✓</b></div>
+          <div className="vs-step">配这一幕的演示动画 <b>✓</b></div>
+          <div className="vs-step">跑校验和测试 <b>✓</b></div>
+        </div>
+      </div>
+      <div id="vs-page" className="vs-page">
+        <div className="vs-page-bar">
+          <span id="vs-url">/blog/myblog/#q-vision</span>
+        </div>
+        <div className="vs-page-body">
+          <div id="vs-scene-title" className="vs-scene-title">为什么博客不该只是长文</div>
+          <div id="vs-scene-text" className="vs-scene-text" />
+          <div id="vs-scene-demo" className="vs-scene-demo">演示动画</div>
+        </div>
+      </div>
+      <p id="vs-caption" className="vs-caption">作者说想法，AI 写实现，测试兜底</p>
     </div>
   )
 }

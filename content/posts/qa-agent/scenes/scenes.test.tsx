@@ -1,10 +1,5 @@
+// scenes.test.tsx — scenes/*.tsx ↔ explore.yaml 对齐 + 渲染冒烟（模板自带，已改 slug）
 import type { ReactElement } from 'react'
-// scenes.test.tsx — scenes/*.tsx ↔ explore.yaml 对齐 + 渲染冒烟（Task 6）
-//
-// RED→GREEN 策略：文件集合一致性测试动态 readdirSync（真实目录真相）；
-// 渲染冒烟静态 import 11 个模块（require 在 vitest ESM 下不可用，brief 已授权改法）。
-// v6 review：demo 名单源收敛后，q-*.tsx 不再写死 <SceneClip demo="...">，
-// 本测试增强断言「SceneClip 从 yaml 派生 demo」（源里不应出现硬编码 demo prop）。
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
@@ -14,17 +9,10 @@ import { SceneDemoContext } from '@/components/explore/AnswerContext'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, basename } from 'node:path'
 
-import QProblem from './q-problem'
-import QWhyNotOpenclaw from './q-why-not-openclaw'
-import QFourPrerequisites from './q-four-prerequisites'
-import QBadgeMetaphor from './q-badge-metaphor'
-import QProtocolRepo from './q-protocol-repo'
-import QUnifiedIdentity from './q-unified-identity'
-import QTieredExecution from './q-tiered-execution'
-import QTieredConfirm from './q-tiered-confirm'
-import QFuture from './q-future'
-import QToolSearch from './q-tool-search'
-import QAuditTrail from './q-audit-trail'
+import QIntro from './q-intro'
+import QGitKb from './q-git-kb'
+import QAccess from './q-access'
+import QAsTool from './q-as-tool'
 
 const DIR = join(__dirname)
 const yamlRaw = readFileSync(join(DIR, '../explore.yaml'), 'utf-8')
@@ -35,17 +23,10 @@ const sceneIds = config.value.scenes.map((s) => s.id)
 const files = readdirSync(DIR).filter((f) => f.endsWith('.tsx') && f !== 'scenes.test.tsx')
 
 const MODULES: Record<string, () => ReactElement> = {
-  'q-problem': QProblem,
-  'q-why-not-openclaw': QWhyNotOpenclaw,
-  'q-four-prerequisites': QFourPrerequisites,
-  'q-badge-metaphor': QBadgeMetaphor,
-  'q-protocol-repo': QProtocolRepo,
-  'q-unified-identity': QUnifiedIdentity,
-  'q-tiered-execution': QTieredExecution,
-  'q-tiered-confirm': QTieredConfirm,
-  'q-future': QFuture,
-  'q-tool-search': QToolSearch,
-  'q-audit-trail': QAuditTrail,
+  'q-intro': QIntro,
+  'q-git-kb': QGitKb,
+  'q-access': QAccess,
+  'q-as-tool': QAsTool,
 }
 
 describe('scenes/*.tsx 与 explore.yaml 对齐 + 渲染', () => {
@@ -54,19 +35,17 @@ describe('scenes/*.tsx 与 explore.yaml 对齐 + 渲染', () => {
     expect(fileIds).toEqual([...sceneIds].sort())
   })
 
-  it('q-*.tsx 不再硬编码 demo prop——demo 名由 yaml scenes[].demo 单一真相', () => {
+  it('q-*.tsx 不硬编码 demo prop——demo 名由 yaml scenes[].demo 单一真相', () => {
     for (const f of files) {
       const src = readFileSync(join(DIR, f), 'utf-8')
-      // SceneClip 不允许带 demo="..."（单源收敛：demo 只在 explore.yaml 一处）
       expect(src).not.toMatch(/SceneClip\s+demo=/)
     }
   })
 
   it.each(Object.keys(MODULES))('%s 渲染出非空内容（SceneClip 经 SceneDemoContext 拿到 yaml demo）', (id) => {
-    setCurrentSlug('ai-digital-employee')
+    setCurrentSlug('qa-agent')
     const Mod = MODULES[id]
     const yamlScene = config.value.scenes.find((s) => s.id === id)
-    // 模拟 Answer 注入：SceneClip 消费 SceneDemoContext 里的 demo 名
     const { container, unmount } = render(
       <MemoryRouter>
         <SceneDemoContext.Provider value={yamlScene?.demo ?? null}>
@@ -75,7 +54,6 @@ describe('scenes/*.tsx 与 explore.yaml 对齐 + 渲染', () => {
       </MemoryRouter>,
     )
     expect(container.innerHTML.length).toBeGreaterThan(0)
-    // SceneClip 渲染出对应 demo 的容器（data-scene-clip-demo 与 yaml demo 对齐）
     if (yamlScene?.demo) {
       expect(container.querySelector(`[data-scene-clip-demo="${yamlScene.demo}"]`)).not.toBeNull()
     }

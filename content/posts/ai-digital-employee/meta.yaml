@@ -3,5 +3,6 @@ slug: ai-digital-employee
 domain: AI 与工程
 date: 2026-08-29
 anim_profile: architecture
+pinned: true
 status: published
-excerpt: 公司技术就我一个人。我做的不是"ALL IN AI"，而是搭了一个 AI 数字员工平台——让 AI 走和人一模一样的权限、审批与审计通道，用协议仓库、统一身份、分级执行三层设计安全接入生产系统。
+excerpt: 公司技术就我一个人，日常工作全靠一个自建的 AI 数字员工平台分担——让 AI 走和人一模一样的权限、审批与审计通道，用协议仓库、统一身份、分级执行三层设计安全接入生产系统。

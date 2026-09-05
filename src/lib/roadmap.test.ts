@@ -104,22 +104,23 @@ scenes:
     expect(l.total).toBe(2)
   })
 
-  it('真实 explore.yaml（ai-digital-employee）：13 幕全可达 + 树边 12 条 + 回边标记命中', () => {
+  it('真实 explore.yaml（ai-digital-employee）：11 幕全可达 + 1 个跨文章 portal + 树边 11 条 + 回边标记命中', () => {
     const r = parseExploreYaml(realYamlRaw)
     if (!r.ok) throw new Error(r.error)
     const l = computeRoadmapLayout(r.value)
-    expect(l.total).toBe(13)
-    /* 无跨文章出口 → 无 portal；全部场景从 entry 可达 → 树边 = 节点数 - 1 */
-    expect(l.nodes.every((n) => n.kind === 'scene')).toBe(true)
-    expect(l.edges).toHaveLength(12)
+    /* 11 幕场景 + 1 个 portal 叶子（q-protocol-repo → qa-agent 的跨文章出口，2026-09-05 加入） */
+    expect(l.total).toBe(12)
+    const portal = l.nodes.find((n) => n.kind === 'portal')!
+    expect(portal.id).toBe('portal:qa-agent:q-intro')
+    expect(l.nodes.filter((n) => n.kind === 'scene')).toHaveLength(11)
+    /* 全部场景从 entry 可达 → 树边 = 场景数 - 1 + portal 边 1 = 11 */
+    expect(l.edges).toHaveLength(11)
     const node = (id: string) => l.nodes.find((n) => n.id === id)!
     expect(node('q-problem').layer).toBe(0)
     expect(node('q-tiered-confirm').layer).toBe(1)
-    /* 叙事脊单线前推（2026-09-03 重构）：q-threat-model / q-limits 由 q-tiered-execution
-     * 先发现，威胁模型→局限性 降级为 ↩ 回边；四前提→方案总览 同为回边；叶子幕无回边 */
-    expect(node('q-threat-model').backLabels).toContain('这套方案解决不了什么')
+    /* 叙事脊单线前推：四前提→方案总览 为回边；q-future 由 q-audit-trail
+     * 先发现（2026-09-05 删 q-threat-model / q-limits 后改链）；叶子幕无回边 */
     expect(node('q-four-prerequisites').backLabels).toContain('方案总览：把工牌借给 AI')
-    expect(node('q-limits').backLabels).toEqual([])
     expect(node('q-future').backLabels).toEqual([])
   })
 })

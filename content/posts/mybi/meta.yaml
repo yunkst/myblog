@@ -1,8 +1,0 @@
-title: mybi：声明式 + AI 编辑的 BI 平台——设计与关键实现
-slug: mybi
-domain: 开源作品
-date: 2026-09-02
-pinned: false
-anim_profile: architecture
-status: published
-excerpt: 一个企业内部 BI 平台的设计与实现：看板与语义声明收敛为 postgres 中的可校验声明，AI 编辑助手经 ReAct 循环生成看板，Linter 作为质量底线。本文按「运行时、语义树契约、错误回流、SQL 安全代理、语义层、数据流」六个子系统展开关键实现。

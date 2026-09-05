@@ -54,7 +54,7 @@ describe('PostList 领域筛选 + 置顶', () => {
   it('置顶：pinned 文章排在最前并带「置顶」徽章', () => {
     const { container } = render(<MemoryRouter><PostList /></MemoryRouter>)
     const first = container.querySelector('.post-card')!
-    expect(first.textContent).toContain('novel_builder')
+    expect(first.textContent).toContain('一个人撑起全公司技术')
     expect(first.querySelector('.post-pin')?.textContent).toBe('置顶')
     // 未置顶文章不带徽章
     const last = Array.from(container.querySelectorAll('.post-card')).pop()!

@@ -38,14 +38,13 @@ scenes:
       - { text: 第一层：让接口自报家门（协议仓库）, to: q-protocol-repo }
       - { text: 第二层：AI 走人一样的权限通道（统一身份）, to: q-unified-identity }
       - { text: 第三层：AI 发疯也有兜底（分级执行）, to: q-tiered-execution }
-    questions:
-      - { text: 平台约束的是 AI，还是人？, to: q-threat-model }
 
   - id: q-protocol-repo
     label: 第一层：让接口自报家门
     demo: protocol-repo
     questions:
       - { text: 接口越来越多，上下文装不下怎么办？, to: q-tool-search }
+      - { text: 实例：知识库问答是怎么接入的？, to: { post: qa-agent, scene: q-intro } }
       - { text: 下一层：统一身份, to: q-unified-identity }
 
   - id: q-tool-search
@@ -65,25 +64,10 @@ scenes:
     demo: tiered-execution
     questions:
       - { text: 出了错怎么查、怎么撤？, to: q-audit-trail }
-      - { text: 平台约束的是 AI，还是人？, to: q-threat-model }
-      - { text: 这套方案解决不了什么？, to: q-limits }
 
   - id: q-audit-trail
     label: 操作留痕：每次调用可查，写错可撤
     demo: audit-trail
-    questions:
-      - { text: 平台约束的是 AI，还是人？, to: q-threat-model }
-      - { text: 这套方案解决不了什么？, to: q-limits }
-
-  - id: q-threat-model
-    label: 威胁模型：平台约束的是 AI，不是人
-    demo: threat-model
-    questions:
-      - { text: 这套方案解决不了什么？, to: q-limits }
-
-  - id: q-limits
-    label: 这套方案解决不了什么
-    demo: limits
     questions:
       - { text: 未来还能怎么扩展？, to: q-future }
 

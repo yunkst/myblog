@@ -1,10 +1,10 @@
-title: mybi · 声明式 + AI 编辑的 BI 平台
+title: bi-agent · 声明式 + 一句话生产看板的 BI 平台
 entry: q-intro
 
 scenes:
   # ─── 入口:定位 + 原则 + 技术栈 ───
   - id: q-intro
-    label: mybi：定位、原则与技术栈
+    label: bi-agent：定位、原则与技术栈
     demo: bi-overview
     mode: 1
     features:

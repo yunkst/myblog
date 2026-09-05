@@ -1,4 +1,4 @@
-// scene.tsx — mybi 探索视图动画舞台
+// scene.tsx — bi-agent 探索视图动画舞台
 //
 // 8 个 demo:
 //   bi-overview                      体验型（mode 1，本文件内联 build + Stage）

@@ -1,0 +1,8 @@
+title: 知识库问答：知识装进 git，问答做成工具
+slug: qa-agent
+domain: AI 与工程
+date: 2026-09-05
+pinned: false
+anim_profile: architecture
+status: published
+excerpt: AI 数字员工平台的关联项目：一个独立的知识库问答服务。知识库就是普通的 git 仓库，权限文件写在仓库里；它把自己标注成只读契约工具接入平台，员工用自然语言提问，agent 读仓库作答。

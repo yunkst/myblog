@@ -1,8 +1,8 @@
-// scene-stages.tsx — mybi 8 个 demo 的静态 DOM Stage
+// scene-stages.tsx — bi-agent 8 个 demo 的静态 DOM Stage
 //
 // OverviewStage 为体验型(用户一句话 → AI 产出看板的演示舞台,GSAP 直接操纵);
 // 其余 7 个为架构图型(ArchDiagram 容器淡入)。
-// 架构图数据来自 src/components/blog-anim/diagrams/mybi.ts。
+// 架构图数据来自同目录 ./diagrams。
 import ArchDiagram from '@/components/blog-anim/ArchDiagram'
 import {
   figSentenceToBoard,

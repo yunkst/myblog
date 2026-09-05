@@ -8,6 +8,7 @@
 //     agent-tools-principle, context-principle,
 //     tool-map, subagent-principle                架构图/数据流图型（ArchDiagram 容器淡入）
 import { gsap } from 'gsap'
+import { typeInto } from '@/components/blog-anim/typeInto'
 import type { Scene } from '@/components/explore/SceneController'
 import { buildArchFade } from '@/components/blog-anim/buildArchFade'
 import {
@@ -81,15 +82,8 @@ export const demos: Record<string, Scene> = {
       tl.set('#nb-diff', { opacity: 0, y: 10 })
       tl.set('.nb-version', { opacity: 0 })
 
-      // 1) 打字机输入
-      const inputText = '这章结局太憋屈了，改成开放式，反派别死'
-      for (let i = 1; i <= inputText.length; i++) {
-        tl.call(() => {
-          const el = document.getElementById('rw-input')
-          if (el) el.textContent = inputText.slice(0, i)
-        })
-        tl.to({}, { duration: 0.05 })
-      }
+      // 1) 打字机输入（共享 typeInto helper，见 src/components/blog-anim/typeInto.ts）
+      typeInto(tl, 'rw-input', '这章结局太憋屈了，改成开放式，反派别死')
 
       // 2) AI thinking
       tl.to('#rw-thinking', { opacity: 1, duration: 0.2 })

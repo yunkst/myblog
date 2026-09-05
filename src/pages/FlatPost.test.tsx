@@ -10,7 +10,7 @@ vi.mock('vite-react-ssg', () => ({ Head: () => null }))
 /**
  * v8 平铺阅读页（/blog/<slug>/flat/）回归测试。
  *
- * 用真实文章 ai-digital-employee（15 幕，含 mode 1/2/3 + features/questions 出口），
+ * 用真实文章 ai-digital-employee（11 幕，含 mode 1/2/3 + features/questions 出口），
  * 验证双形态共存的平铺侧契约：
  * - 全部幕按 yaml 顺序平铺为 section（id = scene.id，锚点可跳）；
  * - 无舞台 chrome（无底栏/路线图面板/stage-locked）；
@@ -39,14 +39,14 @@ describe('<FlatPost> 平铺阅读页（v8）', () => {
     document.body.className = ''
   })
 
-  it('13 幕全部按 yaml 顺序平铺为 section（id=scene.id）', () => {
+  it('11 幕全部按 yaml 顺序平铺为 section（id=scene.id）', () => {
     const { container } = renderFlat()
     const sections = [...container.querySelectorAll('.flat-post section.theater')]
-    expect(sections).toHaveLength(13)
+    expect(sections).toHaveLength(11)
     /* yaml 顺序：入口 q-problem 第一、q-future 最后 */
     expect(sections[0].id).toBe('q-problem')
     expect(sections[1].id).toBe('q-tiered-confirm')
-    expect(sections[12].id).toBe('q-future')
+    expect(sections[10].id).toBe('q-future')
     /* 每节都有标题（label 兜底 h2） */
     expect(sections[0].querySelector('h2')?.textContent).toContain('公司的技术问题')
   })

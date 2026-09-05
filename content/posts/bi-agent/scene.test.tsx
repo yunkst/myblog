@@ -1,8 +1,8 @@
-// scene.test.tsx — mybi demos smoke 测试(spec §11.2,与 ai-ops 同一约定)
+// scene.test.tsx — bi-agent demos smoke 测试(spec §11.2,与 ai-ops 同一约定)
 import { describe, it, expect } from 'vitest'
 import { demos } from './scene'
 
-describe('mybi demos', () => {
+describe('bi-agent demos', () => {
   it('8 个 demo 齐全且 name 与键一致', () => {
     const keys = Object.keys(demos).sort()
     expect(keys).toEqual([

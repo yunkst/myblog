@@ -1,8 +1,8 @@
 // scene.tsx — ai-digital-employee 探索视图动画舞台（v2 demos 字典）
 //
-// 13 个 demo：
+// 11 个 demo：
 //   - message-flood, tiered-confirm           体验型（build 内联在本文件）
-//   - 其余 11 个                               概念型（build 在 scene-builds.tsx）
+//   - 其余 9 个                                概念型（build 在 scene-builds.tsx）
 //     其中 badge-metaphor / unified-identity / tiered-execution / dev-flow
 //     的 Stage 内嵌架构图，build 末尾由 appendArchFade 淡入收尾
 import { gsap } from 'gsap'
@@ -16,12 +16,11 @@ import {
   ProtocolRepoStage,
   UnifiedIdentityStage,
   TieredExecutionStage,
-  ThreatModelStage,
-  LimitsStage,
   DevFlowStage,
   ToolSearchStage,
   AuditTrailStage,
 } from './scene-stages'
+import { typeInto } from '@/components/blog-anim/typeInto'
 import {
   buildOpenclawPitfalls,
   buildFourPrerequisites,
@@ -29,8 +28,6 @@ import {
   buildProtocolRepo,
   buildUnifiedIdentity,
   buildTieredExecution,
-  buildThreatModel,
-  buildLimits,
   buildDevFlow,
   buildToolSearch,
   buildAuditTrail,
@@ -90,14 +87,8 @@ export const demos: Record<string, Scene> = {
       tl.set('#tc-cursor', { x: 300, y: 200, opacity: 0 })
 
       // 1) 输入栏打字（与 Stage 的 #tc-user 气泡文案一致：清除订单绑定关联）
-      const inputText = '清除订单 A123456 的绑定关联'
-      for (let i = 1; i <= inputText.length; i++) {
-        tl.call(() => {
-          const el = document.getElementById('tc-input')
-          if (el) el.textContent = inputText.slice(0, i)
-        })
-        tl.to({}, { duration: 0.06 })
-      }
+      //    共享 typeInto helper（stepSec=0.06），见 src/components/blog-anim/typeInto.ts
+      typeInto(tl, 'tc-input', '清除订单 A123456 的绑定关联', 0.06)
 
       // 2) 发送：输入栏清空，用户气泡出现
       tl.call(() => {
@@ -161,8 +152,6 @@ export const demos: Record<string, Scene> = {
   'protocol-repo':      { name: 'protocol-repo',      Stage: ProtocolRepoStage,      build: buildProtocolRepo },
   'unified-identity':   { name: 'unified-identity',   Stage: UnifiedIdentityStage,   build: buildUnifiedIdentity },
   'tiered-execution':   { name: 'tiered-execution',   Stage: TieredExecutionStage,   build: buildTieredExecution },
-  'threat-model':       { name: 'threat-model',       Stage: ThreatModelStage,       build: buildThreatModel },
-  'limits':             { name: 'limits',             Stage: LimitsStage,            build: buildLimits },
   'dev-flow':           { name: 'dev-flow',           Stage: DevFlowStage,           build: buildDevFlow },
   'tool-search':        { name: 'tool-search',        Stage: ToolSearchStage,        build: buildToolSearch },
   'audit-trail':        { name: 'audit-trail',        Stage: AuditTrailStage,        build: buildAuditTrail },

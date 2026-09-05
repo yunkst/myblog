@@ -5,6 +5,7 @@ scenes:
   - id: q-vision
     label: 为什么博客不该只是长文
     demo: vision-chain
+    mode: 1
     questions:
       - { text: 那这个底座长什么样？, to: q-intro }
 

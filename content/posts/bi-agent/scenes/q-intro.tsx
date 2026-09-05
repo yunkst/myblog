@@ -6,7 +6,7 @@ export default function QIntro() {
     <>
       <SceneClip />
       <p>
-        mybi 是一个声明式 + AI 编辑的企业内部 BI 平台，从 c2h4-project 中抽出 BI 子系统独立落地。
+        bi-agent 是一个声明式 + 一句话生产看板的 BI 平台，从 c2h4-project 中抽出 BI 子系统独立落地。
         它要解决的核心问题是：<strong>让 AI 生成/修改看板这件事可控</strong>——
         AI 拥有编辑自由，但没有绕过质检和权限的通道。
       </p>

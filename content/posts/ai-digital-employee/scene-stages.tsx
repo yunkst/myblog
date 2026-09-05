@@ -1,11 +1,11 @@
 import './post.css'
 // scene-stages.tsx
 //
-// 13 个 demo 的静态 DOM Stage。GSAP 在这些 DOM 上跑时间线。
+// 11 个 demo 的静态 DOM Stage。GSAP 在这些 DOM 上跑时间线。
 // 体验型：FloodStage（群消息洪水）、ConfirmStage（一次确认流程）。
-// 概念型 11 个：openclaw-pitfalls / four-prerequisites / badge-metaphor /
-//   protocol-repo / unified-identity / tiered-execution / threat-model /
-//   limits / dev-flow / tool-search / audit-trail。
+// 概念型 9 个：openclaw-pitfalls / four-prerequisites / badge-metaphor /
+//   protocol-repo / unified-identity / tiered-execution / dev-flow /
+//   tool-search / audit-trail。
 // 其中 badge-metaphor / unified-identity / tiered-execution / dev-flow 四个
 //   Stage 内嵌对应架构图（.stage-arch，初始由 build 隐藏，概念动画播完淡入）。
 import { ChatPane, Bubble, MockCursor } from '@/components/explore/mock-ui'
@@ -147,17 +147,6 @@ export function FourPrerequisitesStage() {
     items={['权限划分准确', 'AI 发疯有兜底', '行为可预测', '开发可持续']} />
 }
 
-export function LimitsStage() {
-  return <ConceptList id="limits" title="这套方案解决不了什么"
-    items={[
-      '撤回有边界',
-      '会议室兜底不可逆操作',
-      '分级过滥让确认退化成机械动作',
-      '防不住针对人的诱导',
-      '测试服数据陈旧',
-    ]} />
-}
-
 export function TieredExecutionStage() {
   return (
     <div className="concept-demo" data-concept="tiered-execution">
@@ -263,21 +252,6 @@ export function UnifiedIdentityStage() {
       <div data-arch="request-flow" className="stage-arch">
         <ArchDiagram {...figRequestFlow} caption="身份透传是写死的基础设施逻辑——AI 在整个过程中没有任何选择身份的能力" />
       </div>
-    </div>
-  )
-}
-
-/* ───────── 独立舞台：threat-model ───────── */
-
-export function ThreatModelStage() {
-  return (
-    <div className="concept-demo threat-stage" data-concept="threat-model">
-      <h4 className="concept-title">平台是纯增量层</h4>
-      <div className="threat-wrap">
-        <div className="threat-legacy">传统后台<br/><span style={{ fontSize: 12, color: 'var(--ink-faint)' }}>权限 · 审计 · 入口</span></div>
-        <div id="threat-platform" className="threat-platform">平台增量层</div>
-      </div>
-      <p id="threat-caption" className="threat-caption">不收缩任何权限 · 不替代任何后台</p>
     </div>
   )
 }
